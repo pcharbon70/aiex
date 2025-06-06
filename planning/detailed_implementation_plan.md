@@ -1,8 +1,10 @@
-# Aiex Implementation Plan
+# Aiex Distributed OTP Implementation Plan
 
-## Phase 1: Core Infrastructure (Weeks 1-4)
+This implementation plan outlines the development of Aiex as a distributed OTP application with support for multiple interfaces (CLI, Phoenix LiveView, VS Code LSP). The architecture leverages Erlang/OTP's distributed computing capabilities, using pure OTP primitives for scalability and fault tolerance.
 
-This phase establishes the foundational architecture with robust CLI tooling, basic context management, file operation sandbox, and single-model LLM integration. The focus is on building a solid, secure foundation with proper supervision trees and process isolation that will support all future development.
+## Phase 1: Distributed Core Infrastructure (Weeks 1-4)
+
+This phase establishes the distributed OTP foundation with layered architecture (Functional Core, Boundary, Interface), distributed context management using Mnesia, secure file operations, and multi-provider LLM integration with distributed coordination. The focus is on building a scalable, fault-tolerant foundation using OTP primitives that will support horizontal scaling and multiple interfaces.
 
 ### Section 1.1: CLI Framework and Command Structure
 - [x] **Completed** ✅
@@ -37,28 +39,29 @@ Setting up the base CLI infrastructure using Owl for rich terminal UI and Optimu
 - Generated working escript executable (`./aiex`)
 - Commands implemented: `version`, `help`, basic structure for `create` and `analyze`
 
-### Section 1.2: Context Management Engine Foundation
+### Section 1.2: Distributed Context Management Foundation
 - [ ] **Completed**
 
-Building the core context engine using ETS tables with read/write concurrency, backed by DETS for persistence. This section creates the GenServer wrapper and implements basic context storage and retrieval.
+Building the distributed context engine using Mnesia for distributed persistence with ACID guarantees, Horde for distributed process management, and pg module for event distribution. This section creates the foundation for context synchronization across nodes.
 
 **Tasks:**
-- [ ] Create ContextEngine GenServer with ETS table initialization
-- [ ] Implement tiered memory architecture (hot/warm/cold)
-- [ ] Add DETS backing for session persistence
-- [ ] Create context storage and retrieval APIs
-- [ ] Implement basic file modification tracking
-- [ ] Add context freshness management
-- [ ] Create context size tracking mechanisms
-- [ ] Implement basic compression triggers
+- [ ] Setup Mnesia schema for distributed context storage
+- [ ] Implement ContextManager with Horde.DynamicSupervisor
+- [ ] Create distributed context synchronization using pg
+- [ ] Add context tables: ai_context, code_analysis_cache, llm_interaction
+- [ ] Implement context replication strategies (full vs fragmented)
+- [ ] Create node-aware context routing
+- [ ] Add distributed freshness management
+- [ ] Implement compression with distribution awareness
 
 **Tests Required:**
-- [ ] GenServer behavior tests
-- [ ] ETS/DETS persistence tests
-- [ ] Concurrent access tests
-- [ ] Context storage/retrieval tests
-- [ ] File modification tracking tests
-- [ ] Memory tier migration tests
+- [ ] Mnesia schema creation and migration tests
+- [ ] Distributed GenServer behavior tests
+- [ ] Cross-node context synchronization tests
+- [ ] Mnesia transaction and consistency tests
+- [ ] Network partition handling tests
+- [ ] Horde registry integration tests
+- [ ] pg event distribution tests
 
 ### Section 1.3: Sandboxed File Operations
 - [ ] **Completed**
@@ -83,10 +86,11 @@ Implementing secure file operations with strict path validation and allowlist-ba
 - [ ] Sandbox boundary enforcement tests
 - [ ] Configuration system tests
 
-### Section 1.4: Basic LLM Integration
-- [x] **Completed**
+### Section 1.4: Distributed LLM Integration
+- [x] **Completed** (Base implementation)
+- [ ] **Distributed enhancements needed**
 
-Setting up comprehensive LLM integration with multiple cloud and local providers using Finch for HTTP client functionality. This section establishes the foundation for AI-powered code generation and analysis with support for OpenAI's GPT models, Anthropic's Claude models, Ollama local models, and LM Studio for HuggingFace models. The four-provider approach ensures maximum flexibility, redundancy, and choice between performance, cost, privacy, and access to the latest open-source models.
+Enhancing the existing four-provider LLM integration with distributed coordination using pg process groups, node-aware load balancing, and cross-node circuit breakers. This section transforms the LLM layer into a distributed system capable of handling requests across multiple nodes with intelligent failover.
 
 **Tasks:**
 - [x] Add Finch dependency (`~> 0.18.0`) with connection pooling
@@ -100,129 +104,87 @@ Setting up comprehensive LLM integration with multiple cloud and local providers
 - [x] Create prompt templating system
 - [x] Add response parsing and validation
 - [x] Implement basic retry logic
-- [ ] Add model discovery and health checking for local models
-- [ ] Implement streaming support for Ollama and LM Studio
-- [ ] Add local model performance optimization
+- [ ] Add distributed ModelCoordinator with pg process groups
+- [ ] Implement node-aware provider selection
+- [ ] Create cross-node circuit breaker coordination
+- [ ] Add distributed rate limiting across nodes
+- [ ] Implement provider affinity for local models
+- [ ] Add distributed health monitoring
+- [ ] Create failover with node awareness
 
-**Anthropic Adapter Specific Features:**
-- [ ] Implement Anthropic API client with proper error handling
-- [ ] Add support for Claude-3 models (Haiku, Sonnet, Opus)
-- [ ] Handle Anthropic's message format and system prompts
-- [ ] Implement Anthropic-specific streaming response format
-- [ ] Add proper tool/function calling support for Claude
-- [ ] Implement Anthropic's content filtering and safety features
-- [ ] Handle Anthropic-specific rate limiting (different from OpenAI)
-- [ ] Add support for Claude's large context windows (100k+ tokens)
-- [ ] Implement Anthropic's cost tracking (different pricing model)
-- [ ] Add vision capabilities for Claude-3 models
-
-**LM Studio Adapter Specific Features:**
-- [ ] Implement LM Studio API client (OpenAI-compatible format)
-- [ ] Add support for HuggingFace model discovery via LM Studio
-- [ ] Handle LM Studio's model loading/unloading capabilities
-- [ ] Implement GPU memory management for large HuggingFace models
-- [ ] Add support for various HuggingFace model types (Code, Chat, Instruct)
-- [ ] Handle LM Studio-specific streaming response format
-- [ ] Add automatic LM Studio service detection and health checking
-- [ ] Implement model downloading from HuggingFace Hub via LM Studio
-- [ ] Add support for quantized models (GGML, GGUF, AWQ, GPTQ)
-- [ ] Handle LM Studio's context window and parameter configuration
-- [ ] Add performance monitoring for HuggingFace model inference
-- [ ] Implement proper timeout handling for model loading and inference
-
-**Ollama Adapter Specific Features:**
-- [ ] Implement Ollama API client with proper error handling
-- [ ] Add support for Ollama's `/api/tags` endpoint for model discovery
-- [ ] Implement Ollama's `/api/show` endpoint for model information
-- [ ] Handle Ollama-specific streaming response format
-- [ ] Add automatic Ollama service detection and health checking
-- [ ] Implement model pulling/downloading capability
-- [ ] Add GPU/CPU utilization monitoring for local models
-- [ ] Create Ollama-specific configuration (model parameters, context window)
-- [ ] Add support for custom model formats (GGUF, GGML)
-- [ ] Implement proper timeout handling for longer local inference
+**Distributed Enhancement Tasks:**
+- [ ] Create AIAssistant.ModelCoordinator using pg
+- [ ] Implement distributed rate limiting with ETS counters
+- [ ] Add node-aware circuit breakers using pg coordination
+- [ ] Create provider health checks across cluster
+- [ ] Implement intelligent request routing based on node capabilities
+- [ ] Add distributed cost tracking and optimization
+- [ ] Create cluster-wide provider metrics
 
 **Tests Required:**
 - [x] HTTP client configuration tests
-- [ ] OpenAI API integration tests with mocks
-- [ ] Anthropic API integration tests with mocks
-- [ ] Ollama API integration tests with mocks
-- [ ] LM Studio API integration tests with mocks
-- [ ] Multi-provider adapter switching tests (OpenAI ↔ Anthropic ↔ Ollama ↔ LM Studio)
-- [x] Rate limiting tests (cloud vs local scenarios)
+- [ ] Distributed coordinator tests
+- [ ] Cross-node rate limiting tests
+- [ ] Distributed circuit breaker tests
+- [ ] Node failover scenario tests
+- [ ] Provider affinity tests
+- [ ] Cluster-wide health monitoring tests
 - [x] API key management tests
 - [x] Prompt templating tests
 - [x] Response parsing tests
 - [x] Retry logic tests
-- [ ] Local model discovery tests (Ollama & LM Studio)
-- [ ] Streaming response tests (all four providers)
-
-**Anthropic-Specific Tests:**
-- [ ] Claude model support tests (Haiku, Sonnet, Opus)
-- [ ] Anthropic message format handling tests
-- [ ] Claude streaming response parsing tests
-- [ ] Tool/function calling integration tests
-- [ ] Large context window handling tests (100k+ tokens)
-- [ ] Anthropic cost calculation and tracking tests
-- [ ] Claude vision capabilities tests
-- [ ] Anthropic rate limiting tests (different limits than OpenAI)
-- [ ] Content filtering and safety feature tests
-
-**LM Studio-Specific Tests:**
-- [ ] LM Studio service detection and health check tests
-- [ ] HuggingFace model discovery via LM Studio tests
-- [ ] Model loading/unloading capability tests
-- [ ] GPU memory management tests for large models
-- [ ] Various HuggingFace model type support tests (Code, Chat, Instruct)
-- [ ] LM Studio streaming response parsing tests
-- [ ] Model downloading from HuggingFace Hub tests
-- [ ] Quantized model support tests (GGML, GGUF, AWQ, GPTQ)
-- [ ] Context window and parameter configuration tests
-- [ ] Performance monitoring for HuggingFace models tests
-- [ ] Timeout handling for model loading and inference tests
-
-**Ollama-Specific Tests:**
-- [ ] Ollama service detection and health check tests
-- [ ] Model discovery via `/api/tags` endpoint tests
-- [ ] Model information retrieval tests
-- [ ] Ollama streaming response parsing tests
-- [ ] Model pulling/downloading tests
-- [ ] Timeout handling for slow local inference tests
-- [ ] GPU/CPU resource monitoring tests
-- [ ] Custom model format support tests
-- [ ] Ollama error handling and recovery tests
 
 **Implementation Notes:**
 - **OpenAI adapter** supports GPT-3.5/4 with proper rate limiting and cost tracking
 - **Anthropic adapter** supports Claude-3 models (Haiku, Sonnet, Opus) with large context windows
 - **Ollama adapter** supports local models (Llama2, CodeLlama, Mistral, etc.) without API keys
 - **LM Studio adapter** supports HuggingFace models with OpenAI-compatible API and advanced model management
-- Unified interface allows seamless switching between all four provider types
-- Local models (Ollama & LM Studio) provide privacy benefits and eliminate API costs
-- HuggingFace ecosystem access through LM Studio enables cutting-edge open-source models
-- Rate limiting adapted for each provider's specific constraints and limits
-- Multi-provider failover support for high availability across cloud and local options
-- Cost optimization through intelligent provider selection based on task requirements
-- Quantization support (GGML, GGUF, AWQ, GPTQ) for efficient local model deployment
+- Distributed enhancements will add cluster-wide coordination and failover
+- Local models will have node affinity to minimize network traffic
+- Circuit breakers will coordinate across nodes to prevent cascade failures
 
-### Section 1.5: Mix Task Integration
+### Section 1.5: OTP Application Architecture
 - [ ] **Completed**
 
-Creating essential Mix tasks that integrate AI capabilities into existing Elixir workflows. This section provides developers with familiar tools for AI-assisted development.
+Establishing the core OTP application structure with supervision trees, distributed process management, and interface abstraction layers. This section creates the foundation for a scalable, fault-tolerant distributed system.
 
 **Tasks:**
-- [ ] Implement mix ai.gen.module task
+- [ ] Implement Application supervisor with layered architecture
+- [ ] Setup pg module for distributed pub/sub (replacing Phoenix.PubSub)
+- [ ] Configure Horde.Registry and Horde.DynamicSupervisor
+- [ ] Add libcluster with configurable discovery strategies
+- [ ] Create interface abstraction layer (InterfaceBehaviour)
+- [ ] Implement process registry patterns with Syn
+- [ ] Setup distributed configuration management
+- [ ] Add node health monitoring and management
+
+**Tests Required:**
+- [ ] Supervision tree structure tests
+- [ ] pg module pub/sub functionality tests
+- [ ] Horde failover and distribution tests
+- [ ] Cluster formation and discovery tests
+- [ ] Interface abstraction compliance tests
+- [ ] Process registry synchronization tests
+- [ ] Node failure recovery tests
+
+### Section 1.6: Mix Task Integration
+- [ ] **Completed**
+
+Creating essential Mix tasks that integrate AI capabilities into existing Elixir workflows, with distributed awareness for cluster operations.
+
+**Tasks:**
+- [ ] Implement mix ai.gen.module task with cluster support
 - [ ] Create mix ai.explain task
 - [ ] Add mix ai.refactor task
-- [ ] Implement task configuration loading
+- [ ] Implement distributed task coordination
 - [ ] Add umbrella project detection
 - [ ] Create task output formatting
 - [ ] Implement dry-run mode for all tasks
-- [ ] Add task completion reporting
+- [ ] Add cluster-wide task reporting
 
 **Tests Required:**
 - [ ] Mix task registration tests
-- [ ] Task execution tests with fixtures
+- [ ] Distributed task execution tests
 - [ ] Configuration loading tests
 - [ ] Umbrella project detection tests
 - [ ] Output formatting tests
@@ -230,559 +192,568 @@ Creating essential Mix tasks that integrate AI capabilities into existing Elixir
 
 **Phase 1 Integration Tests:**
 - [ ] End-to-end CLI command execution
-- [ ] Context persistence across sessions
+- [ ] Distributed context persistence across nodes
 - [ ] File operations within sandbox boundaries
-- [ ] LLM query and response flow
+- [ ] Distributed LLM coordination and failover
 - [ ] Mix task integration with real project structures
-- [ ] Error handling and recovery scenarios
-- [ ] Configuration loading and precedence
+- [ ] Network partition recovery scenarios
+- [ ] Multi-node cluster formation tests
+- [ ] Interface abstraction layer validation
 
-## Phase 2: Advanced Language Processing (Weeks 5-8)
+## Phase 2: Distributed Language Processing (Weeks 5-8)
 
-This phase introduces sophisticated language processing capabilities including semantic chunking, context compression, multi-LLM support with failover, and interactive features. The focus is on intelligent code understanding and reliable AI interactions.
+This phase introduces sophisticated distributed language processing with semantic chunking across nodes, distributed context compression, multi-LLM coordination with pg process groups, and multi-interface support (CLI, LiveView, LSP). The focus is on scalable code understanding and interface flexibility.
 
-### Section 2.1: Semantic Chunking Implementation
+### Section 2.1: Distributed Semantic Chunking
 - [ ] **Completed**
 
-Implementing semantic code chunking using Tree-sitter via Rustler NIFs with Sourceror as a fallback. This section enables intelligent code parsing and context-aware chunk creation.
+Implementing distributed semantic code chunking using Tree-sitter via Rustler NIFs with work distribution across nodes using pg process groups. This section enables parallel parsing and intelligent chunk creation at scale.
 
 **Tasks:**
 - [ ] Add Rustler dependency and setup NIF project
 - [ ] Implement Tree-sitter Elixir grammar integration
-- [ ] Create SemanticChunker module with dual approach
-- [ ] Add Sourceror fallback for pure-Elixir parsing
-- [ ] Implement chunk size adaptation algorithms
-- [ ] Create embedding similarity grouping
-- [ ] Add semantic boundary detection
-- [ ] Implement chunk caching mechanisms
+- [ ] Create distributed SemanticChunker with pg coordination
+- [ ] Add work distribution across nodes for large files
+- [ ] Implement Mnesia-based chunk caching
+- [ ] Create distributed embedding similarity grouping
+- [ ] Add node-aware semantic boundary detection
+- [ ] Implement chunk synchronization mechanisms
 
 **Tests Required:**
 - [ ] NIF loading and safety tests
-- [ ] Tree-sitter parsing tests
-- [ ] Sourceror fallback tests
-- [ ] Chunk boundary detection tests
-- [ ] Chunk size adaptation tests
-- [ ] Caching mechanism tests
-- [ ] Performance benchmarks
+- [ ] Distributed parsing coordination tests
+- [ ] Work distribution efficiency tests
+- [ ] Mnesia caching consistency tests
+- [ ] Cross-node chunk synchronization tests
+- [ ] Performance benchmarks across cluster
+- [ ] Node failure during parsing tests
 
-### Section 2.2: Context Compression Strategies
+### Section 2.2: Distributed Context Compression
 - [ ] **Completed**
 
-Building advanced context compression using sliding window algorithms and token-aware compression. This section optimizes context usage for larger codebases.
+Building distributed context compression with work distribution using pg process groups and Mnesia for storing compressed contexts. This section optimizes context usage across the cluster.
 
 **Tasks:**
-- [ ] Implement sliding window compression algorithms
+- [ ] Implement distributed compression workers with pg
 - [ ] Add token counting with model-specific tokenizers
-- [ ] Create priority queue for compression decisions
-- [ ] Implement :zlib compression for storage efficiency
-- [ ] Add compression effectiveness metrics
-- [ ] Create background compression tasks
-- [ ] Implement compression strategy selection
-- [ ] Add compression state management
+- [ ] Create distributed priority queue using Mnesia
+- [ ] Implement :zlib compression with node awareness
+- [ ] Add cluster-wide compression metrics
+- [ ] Create distributed background compression
+- [ ] Implement strategy selection per node
+- [ ] Add distributed compression state management
 
 **Tests Required:**
-- [ ] Compression algorithm tests
-- [ ] Token counting accuracy tests
-- [ ] Priority queue behavior tests
-- [ ] Compression ratio tests
-- [ ] Background task tests
-- [ ] Strategy selection tests
-- [ ] State management tests
+- [ ] Distributed compression coordination tests
+- [ ] Cross-node token counting tests
+- [ ] Distributed priority queue tests
+- [ ] Compression ratio across nodes tests
+- [ ] Background task distribution tests
+- [ ] Strategy synchronization tests
+- [ ] State consistency tests
 
-### Section 2.3: Multi-LLM Adapter System
+### Section 2.3: Distributed Multi-LLM Coordination
 - [ ] **Completed**
 
-Creating a robust multi-provider LLM system with circuit breakers and intelligent failover. This section ensures reliable AI interactions across different providers.
+Creating a distributed ModelCoordinator using pg process groups with node-aware provider selection and cross-node circuit breakers. This section ensures reliable AI interactions across the cluster.
 
 **Tasks:**
-- [ ] Implement common LLM adapter behavior
-- [ ] Create Anthropic adapter implementation
-- [ ] Add Google/Gemini adapter
-- [ ] Implement Ollama adapter for local models
-- [ ] Add BreakerBox circuit breaker integration
-- [ ] Create intelligent failover mechanisms
-- [ ] Implement provider health monitoring
-- [ ] Add response normalization across providers
+- [ ] Implement distributed ModelCoordinator with pg
+- [ ] Create node-aware provider selection logic
+- [ ] Add cross-node circuit breaker coordination
+- [ ] Implement distributed rate limiting
+- [ ] Create provider affinity for local models
+- [ ] Add distributed health monitoring
+- [ ] Implement response aggregation strategies
+- [ ] Create distributed failover mechanisms
 
 **Tests Required:**
-- [ ] Adapter behavior compliance tests
-- [ ] Provider-specific integration tests
-- [ ] Circuit breaker functionality tests
-- [ ] Failover scenario tests
-- [ ] Health monitoring tests
-- [ ] Response normalization tests
-- [ ] Concurrent provider usage tests
+- [ ] Distributed coordinator tests
+- [ ] Node-aware selection tests
+- [ ] Cross-node circuit breaker tests
+- [ ] Distributed rate limiting tests
+- [ ] Provider affinity tests
+- [ ] Health monitoring accuracy tests
+- [ ] Failover across nodes tests
 
-### Section 2.4: Interactive Features
+### Section 2.4: Multi-Interface Architecture
 - [ ] **Completed**
 
-Building interactive terminal UI features using Ratatouille and event-driven architectures with GenStage. This section enhances user experience with real-time feedback.
+Implementing the interface abstraction layer with support for CLI, Phoenix LiveView, and VS Code LSP. This section enables multiple ways to interact with the distributed AI assistant.
 
 **Tasks:**
-- [ ] Add Ratatouille dependency for terminal UI
-- [ ] Create interactive diff viewer component
-- [ ] Implement real-time progress displays
-- [ ] Add GenStage for event streaming
-- [ ] Create interactive confirmation dialogs
-- [ ] Implement context usage visualization
-- [ ] Add interactive file browser
-- [ ] Create command suggestion system
+- [ ] Create InterfaceBehaviour with common contract
+- [ ] Implement InterfaceGateway for unified access
+- [ ] Add Phoenix LiveView chat UI components
+- [ ] Create VS Code LSP server foundation
+- [ ] Implement pg-based real-time updates
+- [ ] Add interface-specific adapters
+- [ ] Create cross-interface state synchronization
+- [ ] Implement interface discovery and registration
 
 **Tests Required:**
-- [ ] Terminal UI rendering tests
-- [ ] Event streaming tests
-- [ ] User interaction flow tests
-- [ ] Progress display accuracy tests
-- [ ] Confirmation dialog tests
-- [ ] Visualization component tests
+- [ ] Interface behavior compliance tests
+- [ ] Gateway routing tests
+- [ ] LiveView component tests
+- [ ] LSP protocol tests
+- [ ] Real-time update tests
+- [ ] State synchronization tests
+- [ ] Multi-interface interaction tests
 
-### Section 2.5: IEx Integration Helpers
+### Section 2.5: Distributed IEx Integration
 - [ ] **Completed**
 
-Developing IEx helpers that enable interactive AI-assisted development directly in the Elixir shell. This section provides seamless integration with developer workflows.
+Developing distributed IEx helpers that work across cluster nodes, enabling AI-assisted development with access to the full distributed context.
 
 **Tasks:**
-- [ ] Create IEx.Helpers module
-- [ ] Implement ai_complete/1 function
-- [ ] Add ai_explain/1 for code explanation
-- [ ] Create ai_test/1 for test generation
-- [ ] Implement context-aware completions
-- [ ] Add .iex.exs configuration support
-- [ ] Create helper documentation
-- [ ] Implement result formatting for IEx
+- [ ] Create distributed IEx.Helpers module
+- [ ] Implement cluster-aware ai_complete/1
+- [ ] Add distributed ai_explain/1
+- [ ] Create ai_test/1 with node selection
+- [ ] Implement distributed context access
+- [ ] Add node-specific configuration support
+- [ ] Create cluster status helpers
+- [ ] Implement distributed result aggregation
 
 **Tests Required:**
-- [ ] Helper function tests
-- [ ] IEx integration tests
-- [ ] Context awareness tests
-- [ ] Configuration loading tests
-- [ ] Result formatting tests
-- [ ] Error handling in IEx tests
+- [ ] Distributed helper tests
+- [ ] Cross-node IEx integration tests
+- [ ] Distributed context tests
+- [ ] Configuration synchronization tests
+- [ ] Result aggregation tests
+- [ ] Node failure handling tests
 
 **Phase 2 Integration Tests:**
-- [ ] Semantic chunking with real codebases
-- [ ] Context compression effectiveness
-- [ ] Multi-provider failover scenarios
-- [ ] Interactive UI responsiveness
-- [ ] IEx helper workflow tests
-- [ ] End-to-end code analysis flows
-- [ ] Performance under load
+- [ ] Distributed semantic chunking at scale
+- [ ] Context compression across nodes
+- [ ] Multi-provider failover with node failures
+- [ ] Multi-interface synchronization
+- [ ] Distributed IEx helper workflows
+- [ ] End-to-end analysis across cluster
+- [ ] Performance under distributed load
+- [ ] Interface switching scenarios
 
-## Phase 3: State Management and Testing (Weeks 9-12)
+## Phase 3: Distributed State Management (Weeks 9-12)
 
-This phase implements production-grade state management using event sourcing, comprehensive test generation capabilities, and enhanced security features. The focus is on reliability, auditability, and developer productivity.
+This phase implements distributed state management using event sourcing with pg-based event bus, Mnesia for persistence, comprehensive test generation across nodes, and cluster-wide security. The focus is on distributed reliability, auditability, and consistency.
 
-### Section 3.1: Event Sourcing Implementation
+### Section 3.1: Distributed Event Sourcing with pg
 - [ ] **Completed**
 
-Building a CQRS/Event Sourcing system using Commanded with PostgreSQL-backed EventStore. This section provides full auditability and time-travel debugging capabilities.
+Building a distributed event sourcing system using pg module for event distribution and Mnesia for event storage. This section provides cluster-wide auditability without external dependencies.
 
 **Tasks:**
-- [ ] Add Commanded dependency (`~> 1.4`)
-- [ ] Setup EventStore with PostgreSQL adapter
-- [ ] Create Session aggregate with commands/events
-- [ ] Implement event handlers and projections
-- [ ] Add command validation and authorization
-- [ ] Create read model projections
-- [ ] Implement event replay mechanisms
-- [ ] Add snapshot functionality
+- [ ] Implement pg-based event bus (OTPEventBus)
+- [ ] Setup Mnesia tables for event storage
+- [ ] Create distributed event aggregates
+- [ ] Implement event handlers with pg subscriptions
+- [ ] Add distributed command validation
+- [ ] Create Mnesia-based projections
+- [ ] Implement distributed event replay
+- [ ] Add cross-node snapshot synchronization
 
 **Tests Required:**
-- [ ] Aggregate behavior tests
-- [ ] Event storage and retrieval tests
-- [ ] Projection accuracy tests
-- [ ] Command validation tests
-- [ ] Event replay tests
-- [ ] Snapshot functionality tests
-- [ ] Concurrent command handling tests
+- [ ] pg event distribution tests
+- [ ] Mnesia event persistence tests
+- [ ] Distributed projection tests
+- [ ] Cross-node command handling tests
+- [ ] Event replay consistency tests
+- [ ] Snapshot synchronization tests
+- [ ] Network partition event tests
 
-### Section 3.2: Session Persistence and Recovery
+### Section 3.2: Distributed Session Management
 - [ ] **Completed**
 
-Implementing robust session management with automatic recovery from crashes and interruptions. This section ensures work continuity across system failures.
+Implementing distributed session management with Horde.DynamicSupervisor, automatic session migration between nodes, and network partition handling.
 
 **Tasks:**
-- [ ] Create SessionManager with DynamicSupervisor
-- [ ] Implement session state serialization
-- [ ] Add crash detection mechanisms
-- [ ] Create recovery option UI
-- [ ] Implement partial operation rollback
-- [ ] Add session migration capabilities
-- [ ] Create session export/import
-- [ ] Implement session archival
+- [ ] Create distributed SessionManager with Horde
+- [ ] Implement session migration between nodes
+- [ ] Add distributed crash detection
+- [ ] Create cluster-aware recovery UI
+- [ ] Implement distributed rollback
+- [ ] Add cross-node session handoff
+- [ ] Create distributed session archival
+- [ ] Implement partition recovery queues
 
 **Tests Required:**
-- [ ] Session lifecycle tests
-- [ ] Crash recovery tests
-- [ ] State serialization tests
-- [ ] Rollback mechanism tests
-- [ ] Migration functionality tests
-- [ ] Export/import tests
-- [ ] Supervisor restart tests
+- [ ] Distributed session lifecycle tests
+- [ ] Node failure recovery tests
+- [ ] Session migration tests
+- [ ] Partition handling tests
+- [ ] Distributed rollback tests
+- [ ] Handoff mechanism tests
+- [ ] Split-brain resolution tests
 
-### Section 3.3: AI-Powered Test Generation
+### Section 3.3: Distributed Test Generation
 - [ ] **Completed**
 
-Creating comprehensive test generation capabilities integrated with ExUnit and property-based testing. This section automates test creation while maintaining quality.
+Creating distributed test generation with work distribution across nodes using pg process groups for parallel test creation.
 
 **Tasks:**
-- [ ] Implement test pattern analysis
-- [ ] Create ExUnit test generator
-- [ ] Add StreamData integration for property tests
-- [ ] Implement test quality scoring
-- [ ] Create test suggestion system
-- [ ] Add test coverage analysis
-- [ ] Implement test update mechanisms
-- [ ] Create doctest generation
+- [ ] Implement distributed test pattern analysis
+- [ ] Create parallel ExUnit test generation
+- [ ] Add distributed property test creation
+- [ ] Implement cluster-wide quality scoring
+- [ ] Create distributed test suggestions
+- [ ] Add node-aware coverage analysis
+- [ ] Implement coordinated test updates
+- [ ] Create distributed doctest generation
 
 **Tests Required:**
-- [ ] Test generation accuracy tests
-- [ ] ExUnit integration tests
-- [ ] Property test generation tests
-- [ ] Quality scoring tests
-- [ ] Coverage analysis tests
-- [ ] Generated test execution tests
-- [ ] Doctest generation tests
+- [ ] Distributed generation tests
+- [ ] Parallel creation efficiency tests
+- [ ] Cross-node quality tests
+- [ ] Coverage aggregation tests
+- [ ] Coordination mechanism tests
+- [ ] Generated test distribution tests
+- [ ] Node failure during generation tests
 
-### Section 3.4: Security and Audit System
+### Section 3.4: Distributed Security Architecture
 - [ ] **Completed**
 
-Implementing comprehensive security features with structured audit logging and encryption. This section ensures data protection and compliance capabilities.
+Implementing cluster-wide security with distributed audit logging, node-to-node encryption, and multi-interface authentication.
 
 **Tasks:**
-- [ ] Create AuditLogger with encryption
-- [ ] Implement AES-256-GCM for sensitive data
-- [ ] Add input validation with OWASP guidelines
-- [ ] Create security policy enforcement
-- [ ] Implement role-based access control
-- [ ] Add security event monitoring
-- [ ] Create compliance reporting
-- [ ] Implement key rotation system
+- [ ] Create distributed AuditLogger with Mnesia
+- [ ] Implement TLS for distributed Erlang
+- [ ] Add cluster-wide authentication
+- [ ] Create node authorization system
+- [ ] Implement distributed RBAC
+- [ ] Add security event aggregation
+- [ ] Create cluster compliance reporting
+- [ ] Implement distributed key management
 
 **Tests Required:**
-- [ ] Encryption/decryption tests
-- [ ] Audit log integrity tests
-- [ ] Input validation tests
-- [ ] Access control tests
-- [ ] Security policy tests
-- [ ] Key rotation tests
-- [ ] Compliance report tests
+- [ ] Distributed audit consistency tests
+- [ ] Node-to-node encryption tests
+- [ ] Authentication propagation tests
+- [ ] Authorization synchronization tests
+- [ ] Distributed RBAC tests
+- [ ] Security event correlation tests
+- [ ] Key distribution tests
 
-### Section 3.5: Checkpoint and Version Management
+### Section 3.5: Distributed Checkpoint System
 - [ ] **Completed**
 
-Building an efficient checkpoint system with versioned state management and minimal storage overhead. This section enables time-travel and state exploration.
+Building a distributed checkpoint system with Mnesia storage and cross-node synchronization for cluster-wide state management.
 
 **Tasks:**
-- [ ] Implement checkpoint creation system
-- [ ] Add Myers diff algorithm for storage
-- [ ] Create checkpoint naming and tagging
-- [ ] Implement retention policies
-- [ ] Add checkpoint comparison tools
-- [ ] Create checkpoint restore mechanisms
-- [ ] Implement checkpoint export
-- [ ] Add checkpoint cleanup automation
+- [ ] Implement distributed checkpoint creation
+- [ ] Add Mnesia-based diff storage
+- [ ] Create cluster-wide naming/tagging
+- [ ] Implement distributed retention
+- [ ] Add cross-node comparison tools
+- [ ] Create distributed restore mechanisms
+- [ ] Implement checkpoint replication
+- [ ] Add cluster-aware cleanup
 
 **Tests Required:**
-- [ ] Checkpoint creation tests
-- [ ] Diff algorithm efficiency tests
-- [ ] Retention policy tests
-- [ ] Restore functionality tests
-- [ ] Export/import tests
-- [ ] Cleanup automation tests
-- [ ] Storage optimization tests
+- [ ] Distributed checkpoint tests
+- [ ] Cross-node diff tests
+- [ ] Retention synchronization tests
+- [ ] Distributed restore tests
+- [ ] Replication consistency tests
+- [ ] Cleanup coordination tests
+- [ ] Storage distribution tests
 
 **Phase 3 Integration Tests:**
-- [ ] Event sourcing with real workflows
-- [ ] Session recovery from various failure modes
-- [ ] Test generation for complex modules
-- [ ] Security policy enforcement
-- [ ] Checkpoint system under load
-- [ ] Audit trail completeness
-- [ ] Performance with large event stores
+- [ ] Distributed event sourcing workflows
+- [ ] Session recovery with node failures
+- [ ] Distributed test generation at scale
+- [ ] Cluster-wide security enforcement
+- [ ] Checkpoint system across nodes
+- [ ] Distributed audit completeness
+- [ ] Performance with network partitions
+- [ ] Multi-node consistency verification
 
-## Phase 4: Production Optimization (Weeks 13-16)
+## Phase 4: Production Distributed Deployment (Weeks 13-16)
 
-This final phase focuses on operational excellence with performance optimization, distributed deployment capabilities, comprehensive monitoring, and developer tooling. The emphasis is on production readiness and maintainability.
+This phase focuses on production deployment with Kubernetes integration, cluster-wide performance optimization, distributed monitoring with telemetry aggregation, and multi-node operational excellence. The emphasis is on horizontal scalability and fault tolerance.
 
-### Section 4.1: Performance Profiling and Optimization
+### Section 4.1: Distributed Performance Optimization
 - [ ] **Completed**
 
-Implementing systematic performance analysis and optimization using production-safe tools. This section ensures the system meets performance requirements at scale.
+Implementing cluster-wide performance analysis and optimization with distributed profiling and monitoring. Includes proven patterns from Discord and WhatsApp deployments.
 
 **Tasks:**
-- [ ] Integrate :recon for production diagnostics
-- [ ] Add Benchee for systematic benchmarking
-- [ ] Implement ETS optimization strategies
-- [ ] Create memory usage profiling
-- [ ] Add garbage collection tuning
-- [ ] Implement binary optimization patterns
-- [ ] Create performance regression detection
-- [ ] Add performance dashboard
+- [ ] Integrate :recon across all nodes
+- [ ] Add distributed Benchee coordination
+- [ ] Implement Mnesia optimization strategies
+- [ ] Create cluster-wide memory profiling
+- [ ] Add node-specific GC tuning
+- [ ] Implement FastGlobal pattern for hot data
+- [ ] Create distributed regression detection
+- [ ] Add cluster performance dashboard
 
 **Tests Required:**
-- [ ] Benchmark suite execution tests
-- [ ] Memory leak detection tests
-- [ ] Performance regression tests
-- [ ] Optimization effectiveness tests
-- [ ] Profiling tool integration tests
-- [ ] Dashboard accuracy tests
+- [ ] Distributed benchmark tests
+- [ ] Cross-node memory analysis tests
+- [ ] Cluster regression detection tests
+- [ ] FastGlobal pattern tests
+- [ ] Distributed profiling tests
+- [ ] Dashboard aggregation tests
 
-### Section 4.2: Distributed Deployment Support
+### Section 4.2: Kubernetes Production Deployment
 - [ ] **Completed**
 
-Building distributed system capabilities with clustering and load distribution. This section enables horizontal scaling and high availability.
+Implementing Kubernetes-native deployment with libcluster, automatic scaling, and production supervision trees for cloud-native operation.
 
 **Tasks:**
-- [ ] Add libcluster with DNS strategy
-- [ ] Implement consistent hashing for distribution
-- [ ] Create node discovery mechanisms
-- [ ] Add distributed session management
-- [ ] Implement global registry patterns
-- [ ] Create distributed rate limiting
-- [ ] Add cluster health monitoring
-- [ ] Implement rolling deployment support
+- [ ] Configure libcluster Kubernetes.DNS strategy
+- [ ] Implement production supervision tree
+- [ ] Create Kubernetes manifests and Helm charts
+- [ ] Add horizontal pod autoscaling
+- [ ] Implement graceful node shutdown
+- [ ] Create distributed health checks
+- [ ] Add rolling update strategies
+- [ ] Implement pod disruption budgets
 
 **Tests Required:**
-- [ ] Cluster formation tests
-- [ ] Node failure handling tests
-- [ ] Distributed state consistency tests
-- [ ] Load distribution tests
-- [ ] Registry synchronization tests
-- [ ] Network partition tests
-- [ ] Deployment strategy tests
-
-### Section 4.3: Monitoring and Observability
-- [ ] **Completed**
-
-Creating comprehensive monitoring with structured logging and distributed tracing. This section provides visibility into system behavior in production.
-
-**Tasks:**
-- [ ] Implement Telemetry event emission
-- [ ] Add Prometheus metrics export
-- [ ] Create structured logging system
-- [ ] Implement correlation ID tracking
-- [ ] Add distributed tracing support
-- [ ] Create custom metrics dashboards
-- [ ] Implement alert rule definitions
-- [ ] Add log aggregation support
-
-**Tests Required:**
-- [ ] Telemetry event tests
-- [ ] Metrics accuracy tests
-- [ ] Log format validation tests
-- [ ] Correlation tracking tests
-- [ ] Tracing integration tests
-- [ ] Alert triggering tests
-- [ ] Dashboard configuration tests
-
-### Section 4.1: Release Engineering
-- [ ] **Completed**
-
-Setting up Mix releases with runtime configuration and single-binary deployments. This section simplifies deployment and configuration management.
-
-**Tasks:**
-- [ ] Configure Mix release settings
-- [ ] Implement runtime configuration
-- [ ] Create release scripts
-- [ ] Add health check endpoints
-- [ ] Implement graceful shutdown
-- [ ] Create container images
-- [ ] Add release versioning
-- [ ] Implement rollback procedures
-
-**Tests Required:**
-- [ ] Release build tests
-- [ ] Runtime configuration tests
-- [ ] Health check tests
+- [ ] Kubernetes cluster formation tests
+- [ ] Pod scaling behavior tests
+- [ ] Rolling update validation tests
+- [ ] Health check accuracy tests
 - [ ] Graceful shutdown tests
-- [ ] Container functionality tests
-- [ ] Rollback procedure tests
-- [ ] Version management tests
+- [ ] Network policy tests
+- [ ] Persistent volume tests
 
-### Section 4.5: Developer Tools and Documentation
+### Section 4.3: Distributed Monitoring and Observability
 - [ ] **Completed**
 
-Creating comprehensive developer tooling and documentation for maintainability. This section ensures the project remains accessible and maintainable.
+Creating cluster-wide monitoring with telemetry aggregation, distributed tracing, and unified observability across all nodes and interfaces.
 
 **Tasks:**
-- [ ] Generate ExDoc documentation
-- [ ] Create developer guides
-- [ ] Implement remote debugging setup
-- [ ] Add development helpers
-- [ ] Create troubleshooting runbooks
-- [ ] Implement CI/CD pipelines
-- [ ] Add contribution guidelines
-- [ ] Create API reference documentation
+- [ ] Implement distributed Telemetry aggregation
+- [ ] Add cluster-wide Prometheus export
+- [ ] Create distributed structured logging
+- [ ] Implement cross-node correlation tracking
+- [ ] Add OpenTelemetry distributed tracing
+- [ ] Create cluster metrics dashboards
+- [ ] Implement distributed alert correlation
+- [ ] Add centralized log aggregation
 
 **Tests Required:**
-- [ ] Documentation generation tests
-- [ ] Example code validation tests
-- [ ] CI/CD pipeline tests
-- [ ] Development helper tests
-- [ ] Documentation link tests
-- [ ] Code coverage requirements
-- [ ] Integration test suite
+- [ ] Distributed telemetry tests
+- [ ] Metrics aggregation accuracy tests
+- [ ] Cross-node correlation tests
+- [ ] Distributed tracing tests
+- [ ] Alert correlation tests
+- [ ] Dashboard federation tests
+- [ ] Log aggregation tests
+
+### Section 4.4: Distributed Release Engineering
+- [ ] **Completed**
+
+Setting up distributed Mix releases with cluster-aware configuration and container orchestration support.
+
+**Tasks:**
+- [ ] Configure distributed release settings
+- [ ] Implement cluster runtime configuration
+- [ ] Create multi-node release scripts
+- [ ] Add distributed health endpoints
+- [ ] Implement cluster-wide shutdown
+- [ ] Create multi-arch container images
+- [ ] Add distributed versioning
+- [ ] Implement cluster rollback procedures
+
+**Tests Required:**
+- [ ] Distributed release tests
+- [ ] Cluster configuration tests
+- [ ] Multi-node health tests
+- [ ] Coordinated shutdown tests
+- [ ] Container orchestration tests
+- [ ] Cluster rollback tests
+- [ ] Version synchronization tests
+
+### Section 4.5: Distributed Developer Tools
+- [ ] **Completed**
+
+Creating distributed debugging tools, cluster management utilities, and comprehensive documentation for distributed development.
+
+**Tasks:**
+- [ ] Generate distributed system documentation
+- [ ] Create cluster operation guides
+- [ ] Implement distributed debugging tools
+- [ ] Add cluster development helpers
+- [ ] Create distributed troubleshooting
+- [ ] Implement multi-node CI/CD
+- [ ] Add distributed contribution guide
+- [ ] Create cluster API documentation
+
+**Tests Required:**
+- [ ] Documentation completeness tests
+- [ ] Distributed example tests
+- [ ] Multi-node CI/CD tests
+- [ ] Cluster helper tests
+- [ ] Debugging tool tests
+- [ ] Distributed coverage tests
+- [ ] Cluster integration tests
 
 **Phase 4 Integration Tests:**
-- [ ] Full system performance benchmarks
-- [ ] Distributed deployment scenarios
-- [ ] Monitoring data accuracy
-- [ ] Release deployment workflows
-- [ ] Documentation completeness
-- [ ] End-to-end production scenarios
-- [ ] Disaster recovery procedures
+- [ ] Cluster-wide performance benchmarks
+- [ ] Kubernetes deployment scenarios
+- [ ] Distributed monitoring accuracy
+- [ ] Multi-node release workflows
+- [ ] Documentation verification
+- [ ] Production failure scenarios
+- [ ] Cluster disaster recovery
+- [ ] Network partition handling
 
-## Phase 5: AI Response Intelligence & Comparison (Weeks 17-20)
+## Phase 5: Distributed AI Intelligence (Weeks 17-20)
 
-This phase introduces advanced AI capabilities for comparing, evaluating, and optimizing LLM responses across multiple providers. The focus is on building intelligent response selection, quality assessment, and continuous learning systems that enhance the overall AI assistant experience through context-aware evaluation and user preference adaptation.
+This phase implements distributed AI response comparison, quality assessment, and selection across the cluster. The focus is on leveraging distributed computing for parallel LLM requests, consensus-based selection, and cluster-wide learning from user preferences.
 
-### Section 5.1: Multi-Provider Response Comparison Engine
+### Section 5.1: Distributed Response Comparison
 - [ ] **Completed**
 
-Building a sophisticated system for executing parallel requests across multiple LLM providers and intelligently comparing their responses. This section establishes the foundation for simultaneous multi-provider querying and response aggregation.
+Building a distributed system using pg process groups for coordinating parallel LLM requests across nodes with intelligent comparison and aggregation.
 
 **Tasks:**
-- [ ] Implement parallel request orchestration using GenStage
-- [ ] Create response aggregation and normalization framework
-- [ ] Add cross-provider response correlation system
-- [ ] Implement concurrent execution management with timeouts
-- [ ] Create response deduplication and merging logic
-- [ ] Add provider-specific response adaptation
-- [ ] Implement request distribution strategies
-- [ ] Create response synchronization mechanisms
+- [ ] Implement distributed request orchestration with pg
+- [ ] Create cross-node response aggregation
+- [ ] Add distributed correlation system
+- [ ] Implement node-aware timeout management
+- [ ] Create distributed deduplication
+- [ ] Add cluster-wide adaptation logic
+- [ ] Implement distributed load balancing
+- [ ] Create consensus synchronization
 
 **Tests Required:**
-- [ ] Parallel execution performance tests
-- [ ] Response aggregation accuracy tests
-- [ ] Timeout and error handling tests
-- [ ] Provider failure resilience tests
-- [ ] Concurrent request load tests
-- [ ] Response correlation validation tests
-- [ ] Memory usage optimization tests
+- [ ] Distributed execution tests
+- [ ] Cross-node aggregation tests
+- [ ] Distributed timeout tests
+- [ ] Node failure resilience tests
+- [ ] Cluster load distribution tests
+- [ ] Correlation consistency tests
+- [ ] Distributed memory tests
 
-### Section 5.2: Response Quality Assessment System
+### Section 5.2: Distributed Quality Assessment
 - [ ] **Completed**
 
-Developing comprehensive quality assessment mechanisms for evaluating LLM responses across multiple dimensions including semantic accuracy, code quality, factual correctness, and contextual relevance.
+Implementing distributed quality assessment with work distribution across nodes for parallel evaluation of responses.
 
 **Tasks:**
-- [ ] Implement semantic similarity analysis using sentence embeddings
-- [ ] Create code quality metrics (syntax, complexity, best practices)
-- [ ] Add factual accuracy validation pipelines
-- [ ] Implement context relevance scoring algorithms
-- [ ] Create domain-specific evaluation criteria
-- [ ] Add response coherence and consistency checks
-- [ ] Implement bias detection and mitigation
-- [ ] Create custom quality metric definitions
+- [ ] Distribute embedding computation across nodes
+- [ ] Create parallel code quality analysis
+- [ ] Add distributed validation pipelines
+- [ ] Implement cluster-wide scoring
+- [ ] Create distributed evaluation criteria
+- [ ] Add parallel coherence checks
+- [ ] Implement distributed bias detection
+- [ ] Create consensus quality metrics
 
 **Tests Required:**
-- [ ] Semantic similarity accuracy tests
-- [ ] Code quality metric validation tests
-- [ ] Factual accuracy pipeline tests
-- [ ] Context relevance scoring tests
-- [ ] Domain-specific criteria tests
-- [ ] Bias detection effectiveness tests
-- [ ] Quality metric consistency tests
+- [ ] Distributed similarity tests
+- [ ] Parallel quality analysis tests
+- [ ] Distributed validation tests
+- [ ] Cluster scoring accuracy tests
+- [ ] Distributed criteria tests
+- [ ] Parallel detection tests
+- [ ] Consensus metric tests
 
-### Section 5.3: Intelligent Response Selection
+### Section 5.3: Distributed Response Selection
 - [ ] **Completed**
 
-Building ML-based systems for automatically selecting the best response from multiple providers based on quality metrics, user preferences, and contextual factors. This section includes learning mechanisms and user feedback integration.
+Implementing distributed ML-based selection using consensus algorithms across nodes with pg coordination.
 
 **Tasks:**
-- [ ] Implement ML-based response ranking system
-- [ ] Create user preference learning with feedback loops
-- [ ] Add consensus-based selection algorithms
-- [ ] Implement manual override and explanation mechanisms
-- [ ] Create confidence scoring for automated selections
-- [ ] Add adaptive learning from user corrections
-- [ ] Implement response selection strategy optimization
-- [ ] Create explanation generation for selection decisions
+- [ ] Distribute ML ranking across nodes
+- [ ] Create distributed preference learning
+- [ ] Add pg-based consensus selection
+- [ ] Implement distributed overrides
+- [ ] Create cluster confidence scoring
+- [ ] Add distributed adaptive learning
+- [ ] Implement strategy synchronization
+- [ ] Create distributed explanations
 
 **Tests Required:**
-- [ ] ML ranking model accuracy tests
-- [ ] User preference learning validation tests
-- [ ] Consensus algorithm effectiveness tests
-- [ ] Manual override functionality tests
-- [ ] Confidence scoring calibration tests
-- [ ] Adaptive learning performance tests
-- [ ] Selection explanation quality tests
+- [ ] Distributed ML model tests
+- [ ] Cross-node learning tests
+- [ ] pg consensus tests
+- [ ] Distributed override tests
+- [ ] Cluster confidence tests
+- [ ] Distributed adaptation tests
+- [ ] Explanation consistency tests
 
-### Section 5.4: Response Analytics and Insights
+### Section 5.4: Distributed Analytics Platform
 - [ ] **Completed**
 
-Creating comprehensive analytics and monitoring systems for tracking provider performance, response quality trends, and cost-effectiveness across different use cases and contexts.
+Building a distributed analytics platform with Mnesia storage and cluster-wide aggregation for comprehensive insights.
 
 **Tasks:**
-- [ ] Develop provider performance analytics and benchmarking
-- [ ] Create response quality dashboards with visualizations
-- [ ] Implement A/B testing framework for provider selection
-- [ ] Add cost-effectiveness analysis across providers
-- [ ] Create historical performance tracking
-- [ ] Implement real-time quality monitoring
-- [ ] Add anomaly detection for response quality
-- [ ] Create comparative provider analysis reports
+- [ ] Create distributed performance analytics
+- [ ] Build cluster-wide quality dashboards
+- [ ] Implement distributed A/B testing
+- [ ] Add cross-node cost analysis
+- [ ] Create distributed historical tracking
+- [ ] Implement cluster monitoring
+- [ ] Add distributed anomaly detection
+- [ ] Create cluster analysis reports
 
 **Tests Required:**
-- [ ] Analytics accuracy and completeness tests
-- [ ] Dashboard functionality and performance tests
-- [ ] A/B testing framework validation tests
-- [ ] Cost analysis calculation tests
-- [ ] Historical tracking data integrity tests
-- [ ] Real-time monitoring accuracy tests
-- [ ] Anomaly detection effectiveness tests
+- [ ] Distributed analytics tests
+- [ ] Cluster dashboard tests
+- [ ] Distributed A/B tests
+- [ ] Cross-node cost tests
+- [ ] Distributed tracking tests
+- [ ] Cluster monitoring tests
+- [ ] Distributed anomaly tests
 
-### Section 5.5: Advanced Context Integration
+### Section 5.5: Distributed Context Intelligence
 - [ ] **Completed**
 
-Enhancing context awareness for response evaluation by integrating project-specific knowledge, user workflow patterns, and temporal context to improve selection accuracy and relevance.
+Implementing distributed context awareness with Mnesia-based knowledge storage and cluster-wide pattern analysis.
 
 **Tasks:**
-- [ ] Enhance context awareness for response evaluation
-- [ ] Implement project-specific quality benchmarks
-- [ ] Add temporal context consideration
-- [ ] Create code repository context integration
-- [ ] Implement user workflow pattern analysis
-- [ ] Add domain knowledge integration
-- [ ] Create contextual prompt optimization
-- [ ] Implement adaptive context weighting
+- [ ] Distribute context evaluation across nodes
+- [ ] Create cluster-wide benchmarks
+- [ ] Add distributed temporal tracking
+- [ ] Implement distributed repository analysis
+- [ ] Create cluster workflow patterns
+- [ ] Add distributed domain knowledge
+- [ ] Implement cluster prompt optimization
+- [ ] Create adaptive weighting consensus
 
 **Tests Required:**
-- [ ] Context awareness accuracy tests
-- [ ] Project-specific benchmark validation tests
-- [ ] Temporal context integration tests
-- [ ] Repository context analysis tests
-- [ ] Workflow pattern recognition tests
-- [ ] Domain knowledge integration tests
-- [ ] Context optimization effectiveness tests
+- [ ] Distributed awareness tests
+- [ ] Cluster benchmark tests
+- [ ] Distributed temporal tests
+- [ ] Cross-node analysis tests
+- [ ] Cluster pattern tests
+- [ ] Distributed knowledge tests
+- [ ] Consensus optimization tests
 
 **Phase 5 Integration Tests:**
-- [ ] End-to-end multi-provider comparison workflows
-- [ ] Quality assessment accuracy across different domains
-- [ ] Response selection effectiveness in real scenarios
-- [ ] Analytics and insights data accuracy
-- [ ] Context integration comprehensive testing
-- [ ] Performance under concurrent multi-provider load
-- [ ] User satisfaction and preference learning validation
+- [ ] Distributed comparison workflows
+- [ ] Cluster-wide quality assessment
+- [ ] Distributed selection effectiveness
+- [ ] Cross-node analytics accuracy
+- [ ] Distributed context integration
+- [ ] Cluster performance under load
+- [ ] Distributed learning validation
+- [ ] Network partition resilience
 
 **Implementation Notes:**
-- **Multi-Provider Architecture**: Leverages existing four-provider system for concurrent requests
-- **ML Integration**: Uses embeddings and machine learning for quality assessment and selection
-- **Contextual Intelligence**: Integrates deeply with context management for relevant evaluations
-- **User-Centric Design**: Prioritizes user feedback and preference learning for continuous improvement
-- **Performance Optimization**: Designed for efficient parallel processing and real-time analysis
-- **Extensible Framework**: Built to accommodate new providers and evaluation criteria
-- **Privacy-Aware**: Ensures sensitive context data remains secure during evaluation processes
+- **Distributed Architecture**: Pure OTP implementation using pg module instead of Phoenix.PubSub
+- **Mnesia Persistence**: Replaces ETS/DETS for distributed state management
+- **Production Patterns**: Incorporates insights from Discord (26M events/sec) and WhatsApp
+- **Interface Flexibility**: Supports CLI, Phoenix LiveView, and VS Code LSP
+- **Kubernetes Native**: Designed for cloud-native deployment with libcluster
+- **Fault Tolerance**: Handles network partitions with degraded mode operation
+- **Horizontal Scaling**: Process groups and distributed coordination enable linear scaling
 
-## Final Validation Suite
+## Final Distributed Validation Suite
 
-Before considering the project production-ready, all integration tests across all phases must pass, including:
+Before considering the distributed system production-ready, all integration tests must pass:
 
-- [ ] Complete user workflow tests from CLI to code generation
-- [ ] Multi-node distributed system tests
-- [ ] Performance benchmarks meeting SLA requirements
-- [ ] Security audit passing with no critical issues
-- [ ] Documentation review and approval
-- [ ] Operational runbook validation
-- [ ] Disaster recovery drill success
+- [ ] Complete workflows across all interfaces (CLI, LiveView, LSP)
+- [ ] Multi-node cluster formation and operation
+- [ ] Distributed performance meeting SLA requirements
+- [ ] Network partition recovery validation
+- [ ] Cross-node security audit
+- [ ] Kubernetes deployment verification
+- [ ] Cluster disaster recovery procedures
+- [ ] Interface switching and synchronization
+- [ ] Distributed consensus verification
+- [ ] Production monitoring accuracy
