@@ -16,7 +16,14 @@ defmodule Aiex.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Aiex, []}
+      mod: {Aiex, []},
+      env: [
+        hammer_backend: Hammer.Backend.ETS,
+        hammer_backend_config: [
+          expiry_ms: 60_000,
+          cleanup_interval_ms: 60_000
+        ]
+      ]
     ]
   end
 
@@ -24,7 +31,10 @@ defmodule Aiex.MixProject do
   defp deps do
     [
       {:owl, "~> 0.12.0"},
-      {:optimus, "~> 0.3.0"}
+      {:optimus, "~> 0.3.0"},
+      {:finch, "~> 0.18.0"},
+      {:hammer, "~> 6.1"},
+      {:jason, "~> 1.4"}
     ]
   end
 

@@ -10,6 +10,9 @@ defmodule Aiex do
   @impl true
   def start(_type, _args) do
     children = [
+      # HTTP Client for LLM requests
+      {Finch, name: AiexFinch},
+      
       # Context Management
       Aiex.Context.Engine,
       
@@ -17,7 +20,13 @@ defmodule Aiex do
       Aiex.Sandbox.Config,
       
       # Audit Logger
-      Aiex.Sandbox.AuditLogger
+      Aiex.Sandbox.AuditLogger,
+      
+      # LLM Rate Limiter
+      Aiex.LLM.RateLimiter,
+      
+      # LLM Client
+      Aiex.LLM.Client
     ]
     
     opts = [strategy: :one_for_one, name: Aiex.Supervisor]
