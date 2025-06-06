@@ -7,7 +7,8 @@ defmodule Aiex.Context.EngineTest do
     unique_id = System.unique_integer([:positive])
     opts = [
       data_dir: System.tmp_dir!(),
-      dets_filename: "test_context_#{unique_id}.dets"
+      dets_filename: "test_context_#{unique_id}.dets",
+      name: :"test_engine_#{unique_id}"
     ]
     
     {:ok, pid} = Engine.start_link(opts)
@@ -25,9 +26,9 @@ defmodule Aiex.Context.EngineTest do
   end
   
   describe "basic operations" do
-    test "put and get" do
-      assert :ok = Engine.put("key1", "value1")
-      assert {:ok, "value1"} = Engine.get("key1")
+    test "put and get", %{engine: engine} do
+      assert :ok = GenServer.call(engine, {:put, "key1", "value1", %{}})
+      assert {:ok, "value1"} = GenServer.call(engine, {:get, "key1"})
     end
     
     test "put with metadata" do
