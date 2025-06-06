@@ -42,12 +42,13 @@ Key architectural principles:
 
 ## Development Phases
 
-The project follows a 16-week roadmap (see `research/coding_agent_roadmap.md`):
+The project follows a 20-week roadmap (see `planning/detailed_implementation_plan.md`):
 
 - **Phase 1**: Core infrastructure, CLI framework, basic context engine
 - **Phase 2**: Advanced context management, multi-LLM support, IEx integration
 - **Phase 3**: State management, ExUnit integration, security features
 - **Phase 4**: Performance optimization, distributed deployment, monitoring
+- **Phase 5**: AI Response Intelligence & Comparison
 
 ## Key Implementation Details
 
@@ -65,3 +66,31 @@ The project follows a 16-week roadmap (see `research/coding_agent_roadmap.md`):
 - Any mention of AI assistance in commit descriptions
 
 Keep commit messages focused on the technical changes and their purpose, without referencing the tools or assistants used to create them.
+
+## README.md Implementation Progress Formatting
+
+When updating the "Implementation Progress" section in README.md, use this specific format:
+
+### Phase Structure:
+Each phase should include:
+1. **Phase title** with weeks and completion status (e.g., "✅ 80% Complete" or "⏳")
+2. **Phase description paragraph** copied from the corresponding phase in `planning/detailed_implementation_plan.md`
+3. **Section bullet list** with numbered sections:
+   - Use `✅` for completed sections
+   - Use `[ ]` (unchecked markdown checkbox) for uncompleted sections
+   - Format: `- ✅ **Section X.Y:** Section Name` or `- [ ] **Section X.Y:** Section Name`
+
+### Example Format:
+```markdown
+### Phase 1: Core Infrastructure (Weeks 1-4) ✅ 80% Complete
+
+This phase establishes the foundational architecture with robust CLI tooling...
+
+- ✅ **Section 1.1:** CLI Framework and Command Structure
+- [ ] **Section 1.2:** Context Management Engine Foundation
+- [ ] **Section 1.3:** Sandboxed File Operations
+- ✅ **Section 1.4:** Basic LLM Integration
+- [ ] **Section 1.5:** Mix Task Integration
+```
+
+This format provides a clear overview that matches the detailed implementation plan while being readable in the README.
