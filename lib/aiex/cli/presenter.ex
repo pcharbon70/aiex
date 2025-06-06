@@ -10,23 +10,24 @@ defmodule Aiex.CLI.Presenter do
     case result do
       {:message, text} ->
         Owl.IO.puts([Owl.Data.tag(text, :green)])
-      
+
       {:info, title, details} ->
         Owl.IO.puts([
           Owl.Data.tag("✓ #{title}", [:green, :bright]),
           "\n",
           format_details(details)
         ])
-      
+
       {:created, items} when is_list(items) ->
         Owl.IO.puts([Owl.Data.tag("✓ Created:", [:green, :bright])])
+
         Enum.each(items, fn item ->
           Owl.IO.puts(["  ", Owl.Data.tag("• #{item}", :cyan)])
         end)
-      
+
       {:analysis, results} ->
         present_analysis_results(results)
-      
+
       _ ->
         Owl.IO.puts([Owl.Data.tag("✓ Command completed successfully", :green)])
     end
@@ -38,9 +39,9 @@ defmodule Aiex.CLI.Presenter do
   def present_error(stage, reason) do
     error_prefix = Owl.Data.tag("✗ Error", [:red, :bright])
     stage_info = Owl.Data.tag("(#{stage})", :yellow)
-    
+
     Owl.IO.puts([error_prefix, " ", stage_info, ": ", reason])
-    
+
     case stage do
       :parse_error ->
         Owl.IO.puts([
@@ -48,24 +49,24 @@ defmodule Aiex.CLI.Presenter do
           Owl.Data.tag("Tip:", [:blue, :bright]),
           " Use 'aiex help' to see available commands and options."
         ])
-      
+
       :validation_error ->
         Owl.IO.puts([
-          "\n", 
+          "\n",
           Owl.Data.tag("Tip:", [:blue, :bright]),
           " Check your command arguments and try again."
         ])
-      
+
       :routing_error ->
         Owl.IO.puts([
           "\n",
           Owl.Data.tag("Available commands:", [:blue, :bright]),
           "\n  • create - Create new projects or modules",
-          "\n  • analyze - Analyze code and dependencies", 
+          "\n  • analyze - Analyze code and dependencies",
           "\n  • help - Show help information",
           "\n  • version - Show version information"
         ])
-      
+
       :execution_error ->
         Owl.IO.puts([
           "\n",
@@ -85,12 +86,13 @@ defmodule Aiex.CLI.Presenter do
       total: 100,
       timer: true
     )
-    
+
     try do
-      result = fun.(fn progress -> 
-        Owl.ProgressBar.inc(id: :main, step: progress)
-      end)
-      
+      result =
+        fun.(fn progress ->
+          Owl.ProgressBar.inc(id: :main, step: progress)
+        end)
+
       Owl.LiveScreen.await_render()
       result
     rescue
@@ -115,7 +117,7 @@ defmodule Aiex.CLI.Presenter do
   """
   def warn(message) do
     Owl.IO.puts([
-      Owl.Data.tag("⚠ ", :yellow), 
+      Owl.Data.tag("⚠ ", :yellow),
       Owl.Data.tag(message, :yellow)
     ])
   end
@@ -142,12 +144,12 @@ defmodule Aiex.CLI.Presenter do
 
   defp present_analysis_results(results) do
     Owl.IO.puts([Owl.Data.tag("📊 Analysis Results:", [:blue, :bright])])
-    
+
     Enum.each(results, fn
       {:file, path, issues} ->
         Owl.IO.puts(["\n", Owl.Data.tag("📄 #{path}", :cyan)])
         present_file_issues(issues)
-      
+
       {:summary, summary} ->
         Owl.IO.puts(["\n", Owl.Data.tag("📋 Summary:", [:green, :bright])])
         format_details(summary) |> Owl.IO.puts()
@@ -162,14 +164,14 @@ defmodule Aiex.CLI.Presenter do
           Owl.Data.tag("⚠", :yellow),
           " Line #{line}: #{message}"
         ])
-      
+
       {:error, line, message} ->
         Owl.IO.puts([
           "  ",
-          Owl.Data.tag("✗", :red), 
+          Owl.Data.tag("✗", :red),
           " Line #{line}: #{message}"
         ])
-      
+
       {:suggestion, line, message} ->
         Owl.IO.puts([
           "  ",

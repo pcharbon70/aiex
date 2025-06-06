@@ -10,13 +10,15 @@ defmodule Aiex.CLI.Commands.Version do
     version = Application.spec(:aiex, :vsn) |> to_string()
     elixir_version = System.version()
     otp_version = System.otp_release()
-    
-    {:ok, {:info, "Aiex Version Information", %{
-      "Aiex" => version,
-      "Elixir" => elixir_version,
-      "OTP" => otp_version,
-      "Build" => build_info()
-    }}}
+
+    {:ok,
+     {:info, "Aiex Version Information",
+      %{
+        "Aiex" => version,
+        "Elixir" => elixir_version,
+        "OTP" => otp_version,
+        "Build" => build_info()
+      }}}
   end
 
   defp build_info do

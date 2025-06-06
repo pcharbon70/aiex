@@ -2,7 +2,7 @@ defmodule Aiex.CLI.Pipeline do
   @moduledoc """
   Core CLI pipeline that processes commands using Optimus for parsing
   and Owl for rich terminal output.
-  
+
   Pipeline stages: parse -> validate -> route -> execute -> present
   """
 
@@ -43,7 +43,7 @@ defmodule Aiex.CLI.Pipeline do
     validate_parsed_result(result)
     {:ok, result}
   end
-  
+
   def validate({:error, stage, reason}), do: {:error, stage, reason}
 
   @doc """
@@ -55,7 +55,7 @@ defmodule Aiex.CLI.Pipeline do
       {:error, reason} -> {:error, :routing_error, reason}
     end
   end
-  
+
   def route({:error, stage, reason}), do: {:error, stage, reason}
 
   @doc """
@@ -67,7 +67,7 @@ defmodule Aiex.CLI.Pipeline do
       {:error, reason} -> {:error, :execution_error, reason}
     end
   end
-  
+
   def execute({:error, stage, reason}), do: {:error, stage, reason}
 
   @doc """
@@ -77,7 +77,7 @@ defmodule Aiex.CLI.Pipeline do
     Presenter.present_success(result)
     :ok
   end
-  
+
   def present({:error, stage, reason}) do
     Presenter.present_error(stage, reason)
     {:error, stage, reason}

@@ -1,17 +1,17 @@
 defmodule Aiex.Sandbox do
   @moduledoc """
   Provides secure file operations within designated sandbox boundaries.
-  
+
   All file operations are validated, logged, and constrained to prevent
   unauthorized access to the file system.
   """
-  
+
   alias Aiex.Sandbox.{PathValidator, Config, AuditLogger}
-  
+
   @type file_result :: {:ok, any()} | {:error, atom() | String.t()}
-  
+
   # File reading operations
-  
+
   @doc """
   Reads a file within the sandbox boundaries.
   """
@@ -24,7 +24,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Reads a file and returns lines as a list.
   """
@@ -43,9 +43,9 @@ defmodule Aiex.Sandbox do
         error
     end
   end
-  
+
   # File writing operations
-  
+
   @doc """
   Writes content to a file within the sandbox boundaries.
   """
@@ -59,7 +59,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Appends content to a file within the sandbox boundaries.
   """
@@ -73,9 +73,9 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   # Directory operations
-  
+
   @doc """
   Lists files in a directory within the sandbox boundaries.
   """
@@ -88,7 +88,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Creates a directory within the sandbox boundaries.
   """
@@ -101,9 +101,9 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   # File management operations
-  
+
   @doc """
   Deletes a file within the sandbox boundaries.
   """
@@ -116,7 +116,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Copies a file within the sandbox boundaries.
   """
@@ -131,7 +131,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Moves/renames a file within the sandbox boundaries.
   """
@@ -146,9 +146,9 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   # File information
-  
+
   @doc """
   Gets file information within the sandbox boundaries.
   """
@@ -161,7 +161,7 @@ defmodule Aiex.Sandbox do
       result
     end
   end
-  
+
   @doc """
   Checks if a file exists within the sandbox boundaries.
   """
@@ -172,9 +172,9 @@ defmodule Aiex.Sandbox do
       _ -> false
     end
   end
-  
+
   # Configuration management
-  
+
   @doc """
   Adds a path to the sandbox allowlist.
   """
@@ -182,7 +182,7 @@ defmodule Aiex.Sandbox do
   def add_to_allowlist(path) do
     Config.add_allowed_path(path)
   end
-  
+
   @doc """
   Removes a path from the sandbox allowlist.
   """
@@ -190,7 +190,7 @@ defmodule Aiex.Sandbox do
   def remove_from_allowlist(path) do
     Config.remove_allowed_path(path)
   end
-  
+
   @doc """
   Gets the current sandbox configuration.
   """
@@ -198,41 +198,41 @@ defmodule Aiex.Sandbox do
   def get_config(opts \\ []) do
     Config.get(opts)
   end
-  
+
   # Private functions
-  
+
   defp get_config!(opts) do
     case get_config(opts) do
       {:ok, config} -> config
       _ -> Config.default()
     end
   end
-  
+
   defp validate_and_log(path, operation, config) do
     validation_opts = [
       sandbox_roots: config.sandbox_roots ++ config.allowed_paths,
       follow_symlinks: config.follow_symlinks
     ]
-    
+
     case PathValidator.validate_path(path, validation_opts) do
       {:ok, validated_path} ->
         AuditLogger.log_access_attempt(validated_path, operation, :allowed, config)
         {:ok, validated_path}
-        
+
       {:error, reason} = error ->
         AuditLogger.log_access_attempt(path, operation, {:denied, reason}, config)
         error
     end
   end
-  
+
   defp ensure_parent_directory(path) do
     parent = Path.dirname(path)
     File.mkdir_p(parent)
   end
-  
+
   defp do_read(path, opts) do
     encoding = Keyword.get(opts, :encoding, :utf8)
-    
+
     case File.read(path) do
       {:ok, content} when encoding == :utf8 ->
         # Ensure valid UTF-8
@@ -241,27 +241,28 @@ defmodule Aiex.Sandbox do
           {:incomplete, _, _} -> {:error, :invalid_encoding}
           binary -> {:ok, binary}
         end
-        
+
       other ->
         other
     end
   end
-  
+
   defp do_write(path, content, _opts) do
     File.write(path, content)
   end
-  
+
   defp do_append(path, content, _opts) do
     File.write(path, content, [:append])
   end
-  
+
   defp log_result(path, operation, result, config) do
-    status = case result do
-      :ok -> :success
-      {:ok, _} -> :success
-      {:error, reason} -> {:failed, reason}
-    end
-    
+    status =
+      case result do
+        :ok -> :success
+        {:ok, _} -> :success
+        {:error, reason} -> {:failed, reason}
+      end
+
     AuditLogger.log_operation_result(path, operation, status, config)
   end
 end

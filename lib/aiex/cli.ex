@@ -1,7 +1,7 @@
 defmodule Aiex.CLI do
   @moduledoc """
   Main CLI entry point for Aiex.
-  
+
   This module provides the primary interface for the Aiex coding assistant,
   handling command parsing, routing, and execution through a structured pipeline.
   """

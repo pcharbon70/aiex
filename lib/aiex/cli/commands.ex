@@ -1,7 +1,7 @@
 defmodule Aiex.CLI.Commands do
   @moduledoc """
   Optimus command definitions for Aiex CLI.
-  
+
   Implements verb-noun command structure:
   - aiex create project --name foo --template basic
   - aiex analyze code --path ./src --depth 3
@@ -41,8 +41,10 @@ defmodule Aiex.CLI.Commands do
       {[:analyze], %Optimus.ParseResult{}} -> {:ok, Analyze}
       {[:help], %Optimus.ParseResult{}} -> {:ok, Help}
       {[:version], %Optimus.ParseResult{}} -> {:ok, Version}
-      {[], %Optimus.ParseResult{}} -> {:ok, Help}  # Default to help when no args
-      %Optimus.ParseResult{} -> {:ok, Help}  # Default to help for empty parse result
+      # Default to help when no args
+      {[], %Optimus.ParseResult{}} -> {:ok, Help}
+      # Default to help for empty parse result
+      %Optimus.ParseResult{} -> {:ok, Help}
       _ -> {:error, "Unknown command. Use 'aiex --help' for available commands."}
     end
   end
@@ -55,7 +57,7 @@ defmodule Aiex.CLI.Commands do
       about: "Create new projects, modules, or code structures",
       subcommands: [
         project: [
-          name: "project", 
+          name: "project",
           about: "Create a new Elixir project with AI assistance",
           options: [
             name: [
@@ -68,7 +70,7 @@ defmodule Aiex.CLI.Commands do
             ],
             template: [
               value_name: "TEMPLATE",
-              short: "-t", 
+              short: "-t",
               long: "--template",
               help: "Project template (basic, web, umbrella, etc.)",
               parser: :string,
@@ -77,7 +79,7 @@ defmodule Aiex.CLI.Commands do
             path: [
               value_name: "PATH",
               short: "-p",
-              long: "--path", 
+              long: "--path",
               help: "Directory to create the project in",
               parser: :string,
               default: "."
@@ -86,7 +88,7 @@ defmodule Aiex.CLI.Commands do
         ],
         module: [
           name: "module",
-          about: "Create a new Elixir module with AI-generated structure", 
+          about: "Create a new Elixir module with AI-generated structure",
           options: [
             name: [
               value_name: "MODULE_NAME",
@@ -156,7 +158,7 @@ defmodule Aiex.CLI.Commands do
               multiple: false
             ],
             security: [
-              short: "-s", 
+              short: "-s",
               long: "--security",
               help: "Check for security vulnerabilities",
               multiple: false
@@ -184,7 +186,7 @@ defmodule Aiex.CLI.Commands do
 
   defp version_command_spec do
     [
-      name: "version", 
+      name: "version",
       about: "Show version information"
     ]
   end

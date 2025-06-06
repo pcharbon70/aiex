@@ -19,26 +19,30 @@ defmodule Aiex.CLI.Commands.Create do
     name = Map.get(options, :name)
     template = Map.get(options, :template, "basic")
     path = Map.get(options, :path, ".")
-    
+
     # TODO: Implement actual project creation logic
     # For now, return a placeholder response
-    {:ok, {:created, [
-      "Created project '#{name}' using '#{template}' template",
-      "Location: #{Path.join(path, name)}",
-      "Next steps: cd #{name} && mix deps.get"
-    ]}}
+    {:ok,
+     {:created,
+      [
+        "Created project '#{name}' using '#{template}' template",
+        "Location: #{Path.join(path, name)}",
+        "Next steps: cd #{name} && mix deps.get"
+      ]}}
   end
 
   defp create_module(%Optimus.ParseResult{options: options}) do
     name = Map.get(options, :name)
     type = Map.get(options, :type, "basic")
-    
+
     # TODO: Implement actual module creation logic
     # For now, return a placeholder response
-    {:ok, {:created, [
-      "Created module '#{name}' of type '#{type}'",
-      "Generated standard #{type} patterns and documentation",
-      "Ready for implementation"
-    ]}}
+    {:ok,
+     {:created,
+      [
+        "Created module '#{name}' of type '#{type}'",
+        "Generated standard #{type} patterns and documentation",
+        "Ready for implementation"
+      ]}}
   end
 end

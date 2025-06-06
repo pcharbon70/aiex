@@ -56,3 +56,12 @@ The project follows a 16-week roadmap (see `research/coding_agent_roadmap.md`):
 - Plans to use Rustler for Tree-sitter integration (semantic parsing)
 - Event sourcing pattern for state management
 - Hierarchical configuration system with TOML format
+
+## Git Commit Guidelines
+
+**IMPORTANT**: Do not include any references to coding LLMs or AI assistants in commit messages or merge messages. This includes but is not limited to:
+- "Generated with Claude Code" or similar attribution
+- "Co-Authored-By: Claude" or AI assistant credits
+- Any mention of AI assistance in commit descriptions
+
+Keep commit messages focused on the technical changes and their purpose, without referencing the tools or assistants used to create them.

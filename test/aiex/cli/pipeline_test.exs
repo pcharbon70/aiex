@@ -1,6 +1,6 @@
 defmodule Aiex.CLI.PipelineTest do
   use ExUnit.Case, async: true
-  
+
   alias Aiex.CLI.Pipeline
 
   describe "parse/1" do
@@ -49,6 +49,7 @@ defmodule Aiex.CLI.PipelineTest do
   describe "process/1" do
     test "processes version command end-to-end" do
       import ExUnit.CaptureIO
+
       capture_io(fn ->
         assert :ok = Pipeline.process(["version"])
       end)
@@ -56,6 +57,7 @@ defmodule Aiex.CLI.PipelineTest do
 
     test "processes empty args as help" do
       import ExUnit.CaptureIO
+
       capture_io(fn ->
         assert :ok = Pipeline.process([])
       end)
