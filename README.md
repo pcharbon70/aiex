@@ -131,6 +131,38 @@ Aiex follows a clean architectural design with five main subsystems:
 
 See [detailed implementation plan](planning/detailed_implementation_plan.md) for complete roadmap.
 
+## Implementation Overview
+
+Aiex is being built in four major phases over 16 weeks:
+
+### Phase 1: Core Infrastructure (Weeks 1-4)
+- **CLI Framework** ✅ - Rich terminal UI with Owl + Optimus for verb-noun commands
+- **Context Management Engine** - ETS/DETS-backed storage with tiered memory architecture
+- **File Operation Sandbox** - Secure file operations with path validation and allowlisting
+- **Basic LLM Integration** - Single-provider support with rate limiting and retries
+- **Mix Task Integration** - Essential tasks like `mix ai.gen.module` and `mix ai.explain`
+
+### Phase 2: Advanced Language Processing (Weeks 5-8)
+- **Semantic Chunking** - Tree-sitter integration via Rustler NIFs with Sourceror fallback
+- **Context Compression** - Token-aware compression with sliding window algorithms
+- **Multi-LLM Adapters** - Support for OpenAI, Anthropic, Google, and local models with failover
+- **Interactive Features** - Real-time UI with Ratatouille and GenStage event streaming
+- **IEx Integration** - AI-powered helpers like `ai_complete/1` and `ai_explain/1`
+
+### Phase 3: State Management & Testing (Weeks 9-12)
+- **Event Sourcing** - CQRS/Event Sourcing with Commanded for full auditability
+- **Session Persistence** - Crash recovery and session management with DynamicSupervisor
+- **AI Test Generation** - ExUnit and property-based test generation with StreamData
+- **Security & Audit** - AES-256-GCM encryption, RBAC, and structured audit logging
+- **Checkpoint System** - Versioned state management with Myers diff algorithm
+
+### Phase 4: Production Optimization (Weeks 13-16)
+- **Performance Profiling** - Production diagnostics with :recon and Benchee
+- **Distributed Deployment** - Clustering with libcluster and consistent hashing
+- **Monitoring & Observability** - Telemetry, Prometheus metrics, and distributed tracing
+- **Release Engineering** - Mix releases with runtime config and container support
+- **Developer Tools** - ExDoc documentation, debugging tools, and CI/CD pipelines
+
 ## Development
 
 ### Requirements
