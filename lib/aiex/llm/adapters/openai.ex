@@ -226,6 +226,35 @@ defmodule Aiex.LLM.Adapters.OpenAI do
 
   defp parse_retry_after(_), do: nil
 
+  @doc """
+  Performs a health check on the OpenAI API.
+  """
+  def health_check(opts \\ []) do
+    api_key = Keyword.get(opts, :api_key) || Application.get_env(:aiex, :openai_api_key)
+    
+    if api_key do
+      # Try to make a simple request to check API health
+      headers = build_headers(api_key)
+      
+      case Finch.build(:get, @base_url <> "/models", headers)
+           |> Finch.request(AiexFinch, receive_timeout: 5_000) do
+        {:ok, %Finch.Response{status: 200}} ->
+          :ok
+        
+        {:ok, %Finch.Response{status: status}} ->
+          {:error, "OpenAI API returned status #{status}"}
+        
+        {:error, %Mint.TransportError{reason: :econnrefused}} ->
+          {:error, "Connection refused - OpenAI API unreachable"}
+        
+        {:error, reason} ->
+          {:error, "Health check failed: #{inspect(reason)}"}
+      end
+    else
+      {:error, "No API key configured"}
+    end
+  end
+
   defp parse_finish_reason("stop"), do: :stop
   defp parse_finish_reason("length"), do: :length
   defp parse_finish_reason("content_filter"), do: :content_filter

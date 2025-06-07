@@ -39,6 +39,9 @@ defmodule Aiex do
       # LLM Rate Limiter
       Aiex.LLM.RateLimiter,
 
+      # Distributed LLM Model Coordinator
+      {Aiex.LLM.ModelCoordinator, []},
+
       # LLM Client (optional - only start if configured)
       llm_client_spec(),
       
