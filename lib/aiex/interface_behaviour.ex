@@ -7,17 +7,18 @@ defmodule Aiex.InterfaceBehaviour do
   distributed OTP architecture.
   """
 
-  @type interface_type :: :cli | :liveview | :lsp | :api
+  @type interface_type :: :cli | :liveview | :lsp | :api | :tui | :web
   @type session_id :: String.t()
   @type user_id :: String.t() | nil
   @type request_id :: String.t()
 
   @type request :: %{
           id: request_id(),
-          type: :completion | :analysis | :generation | :explanation,
+          type: :completion | :analysis | :generation | :explanation | :refactor | :test_generation,
           content: String.t(),
           context: map(),
-          options: keyword()
+          options: keyword(),
+          priority: :low | :normal | :high | :urgent
         }
 
   @type response :: %{
@@ -76,8 +77,39 @@ defmodule Aiex.InterfaceBehaviour do
   @callback get_status(term()) :: %{
               capabilities: [atom()],
               active_requests: [request_id()],
-              session_info: map()
+              session_info: map(),
+              health: :healthy | :degraded | :unhealthy
             }
 
-  @optional_callbacks [handle_stream: 3, handle_event: 3]
+  @doc """
+  Handle interface configuration updates.
+  Called when distributed configuration changes.
+  """
+  @callback handle_config_update(map(), term()) :: {:ok, term()} | {:error, term()}
+
+  @doc """
+  Handle inter-interface communication.
+  Enables interfaces to coordinate with each other.
+  """
+  @callback handle_interface_message(atom(), term(), term()) :: {:ok, term()} | {:error, term()}
+
+  @doc """
+  Validate request before processing.
+  Allows interface-specific validation logic.
+  """
+  @callback validate_request(request()) :: :ok | {:error, term()}
+
+  @doc """
+  Format response for interface-specific presentation.
+  """
+  @callback format_response(response(), term()) :: term()
+
+  @optional_callbacks [
+    handle_stream: 3,
+    handle_event: 3,
+    handle_config_update: 2,
+    handle_interface_message: 3,
+    validate_request: 1,
+    format_response: 2
+  ]
 end

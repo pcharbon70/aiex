@@ -176,6 +176,46 @@ defmodule Aiex.InterfaceGateway do
     GenServer.call(__MODULE__, :get_cluster_status)
   end
 
+  @doc """
+  Get status of all registered interfaces.
+  """
+  @spec get_interfaces_status() :: %{interface_id() => map()}
+  def get_interfaces_status do
+    GenServer.call(__MODULE__, :get_interfaces_status)
+  end
+
+  @doc """
+  Send a message between interfaces for coordination.
+  """
+  @spec send_interface_message(interface_id(), interface_id(), term()) :: :ok | {:error, term()}
+  def send_interface_message(from_interface, to_interface, message) do
+    GenServer.call(__MODULE__, {:interface_message, from_interface, to_interface, message})
+  end
+
+  @doc """
+  Broadcast an event to all interfaces of a specific type.
+  """
+  @spec broadcast_to_interfaces(atom(), term()) :: :ok
+  def broadcast_to_interfaces(interface_type, event) do
+    GenServer.cast(__MODULE__, {:broadcast_to_interfaces, interface_type, event})
+  end
+
+  @doc """
+  Update configuration for all interfaces.
+  """
+  @spec update_interface_config(map()) :: :ok
+  def update_interface_config(config_updates) do
+    GenServer.cast(__MODULE__, {:update_interface_config, config_updates})
+  end
+
+  @doc """
+  Get real-time metrics for interface performance.
+  """
+  @spec get_interface_metrics(interface_id()) :: {:ok, map()} | {:error, :not_found}
+  def get_interface_metrics(interface_id) do
+    GenServer.call(__MODULE__, {:get_interface_metrics, interface_id})
+  end
+
   ## Server Callbacks
 
   @impl true
@@ -325,6 +365,110 @@ defmodule Aiex.InterfaceGateway do
     {:reply, cluster_status, state}
   end
 
+  def handle_call(:get_interfaces_status, _from, state) do
+    interfaces_status = 
+      state.interfaces
+      |> Enum.into(%{}, fn {interface_id, interface_info} ->
+        status = %{
+          id: interface_id,
+          type: interface_info.config.type,
+          status: interface_info.status,
+          registered_at: interface_info.registered_at,
+          session_id: interface_info.config.session_id,
+          capabilities: interface_info.config.capabilities,
+          node: interface_info.config[:node] || node(),
+          active_requests: count_active_requests_for_interface(interface_id, state)
+        }
+        {interface_id, status}
+      end)
+
+    {:reply, interfaces_status, state}
+  end
+
+  def handle_call({:interface_message, from_interface, to_interface, message}, _from, state) do
+    case Map.get(state.interfaces, to_interface) do
+      nil ->
+        {:reply, {:error, :interface_not_found}, state}
+
+      target_interface ->
+        # Send message to target interface if it supports handle_interface_message
+        try do
+          case target_interface.module.handle_interface_message(from_interface, message, target_interface) do
+            {:ok, _} -> {:reply, :ok, state}
+            {:error, reason} -> {:reply, {:error, reason}, state}
+          end
+        rescue
+          UndefinedFunctionError ->
+            # Interface doesn't support inter-interface messaging
+            {:reply, {:error, :not_supported}, state}
+        end
+    end
+  end
+
+  def handle_call({:get_interface_metrics, interface_id}, _from, state) do
+    case Map.get(state.interfaces, interface_id) do
+      nil ->
+        {:reply, {:error, :not_found}, state}
+
+      interface_info ->
+        metrics = %{
+          interface_id: interface_id,
+          type: interface_info.config.type,
+          uptime: DateTime.diff(DateTime.utc_now(), interface_info.registered_at, :second),
+          active_requests: count_active_requests_for_interface(interface_id, state),
+          total_requests: count_total_requests_for_interface(interface_id, state),
+          last_activity: get_last_activity_for_interface(interface_id, state)
+        }
+        {:reply, {:ok, metrics}, state}
+    end
+  end
+
+  @impl true
+  def handle_cast({:broadcast_to_interfaces, interface_type, event}, state) do
+    # Broadcast event to all interfaces of specified type
+    state.interfaces
+    |> Enum.filter(fn {_id, interface_info} -> 
+      interface_info.config.type == interface_type 
+    end)
+    |> Enum.each(fn {_id, interface_info} ->
+      try do
+        interface_info.module.handle_event(event.type, event.data, interface_info)
+      rescue
+        UndefinedFunctionError ->
+          # Interface doesn't support events
+          :ok
+        e ->
+          Logger.warning("Failed to send event to interface #{interface_info.id}: #{inspect(e)}")
+      end
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:update_interface_config, config_updates}, state) do
+    # Update configuration for all interfaces
+    updated_interfaces = 
+      state.interfaces
+      |> Enum.into(%{}, fn {interface_id, interface_info} ->
+        updated_config = Map.merge(interface_info.config, config_updates)
+        updated_interface_info = %{interface_info | config: updated_config}
+        
+        # Notify interface of config update if it supports it
+        try do
+          interface_info.module.handle_config_update(config_updates, interface_info)
+        rescue
+          UndefinedFunctionError ->
+            # Interface doesn't support config updates
+            :ok
+        end
+        
+        {interface_id, updated_interface_info}
+      end)
+
+    new_state = %{state | interfaces: updated_interfaces}
+    {:noreply, new_state}
+  end
+
   @impl true
   def handle_info({:event, event_type, event_data}, state) do
     # Forward events to subscribed interfaces
@@ -387,6 +531,12 @@ defmodule Aiex.InterfaceGateway do
         route_to_llm_coordinator(request, request_info)
 
       :explanation ->
+        route_to_llm_coordinator(request, request_info)
+
+      :refactor ->
+        route_to_llm_coordinator(request, request_info)
+
+      :test_generation ->
         route_to_llm_coordinator(request, request_info)
 
       _ ->
@@ -518,5 +668,30 @@ defmodule Aiex.InterfaceGateway do
       nil -> %{status: :not_available}
       _pid -> %{status: :available, node: node()}
     end
+  end
+
+  # Helper functions for interface metrics and management
+
+  defp count_active_requests_for_interface(interface_id, state) do
+    state.request_registry
+    |> Enum.count(fn {_request_id, request_info} ->
+      request_info.interface_id == interface_id and request_info.status == :processing
+    end)
+  end
+
+  defp count_total_requests_for_interface(interface_id, state) do
+    state.request_registry
+    |> Enum.count(fn {_request_id, request_info} ->
+      request_info.interface_id == interface_id
+    end)
+  end
+
+  defp get_last_activity_for_interface(interface_id, state) do
+    state.request_registry
+    |> Enum.filter(fn {_request_id, request_info} ->
+      request_info.interface_id == interface_id
+    end)
+    |> Enum.map(fn {_request_id, request_info} -> request_info.updated_at end)
+    |> Enum.max(DateTime, fn -> nil end)
   end
 end
