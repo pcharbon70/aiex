@@ -1,0 +1,279 @@
+defmodule Aiex.Context.Manager do
+  @moduledoc """
+  Context manager that coordinates distributed context operations using Horde
+  for distributed process management and pg for event distribution.
+  
+  Manages context sessions across cluster nodes with automatic failover and
+  distributed state synchronization.
+  """
+
+  use GenServer
+  require Logger
+
+  ## Client API
+
+  @doc """
+  Starts the context manager.
+  """
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @doc """
+  Gets or creates a context session, potentially on any cluster node.
+  """
+  def get_or_create_session(session_id, user_id \\ nil) do
+    GenServer.call(__MODULE__, {:get_or_create_session, session_id, user_id})
+  end
+
+  @doc """
+  Updates context for a session with distributed synchronization.
+  """
+  def update_context(session_id, updates) do
+    GenServer.call(__MODULE__, {:update_context, session_id, updates})
+  end
+
+  @doc """
+  Gets the current context for a session.
+  """
+  def get_context(session_id) do
+    GenServer.call(__MODULE__, {:get_context, session_id})
+  end
+
+  @doc """
+  Lists all active sessions across the cluster.
+  """
+  def list_sessions do
+    GenServer.call(__MODULE__, :list_sessions)
+  end
+
+  @doc """
+  Archives a session and removes it from active memory.
+  """
+  def archive_session(session_id) do
+    GenServer.call(__MODULE__, {:archive_session, session_id})
+  end
+
+  ## Server Callbacks
+
+  @impl true
+  def init(_opts) do
+    # Join the context management process group (wait a bit for pg to be ready)
+    Process.send_after(self(), :join_pg_groups, 100)
+
+    # Initialize Horde registry for session tracking
+    {:ok, _} = Horde.Registry.start_link(
+      name: Aiex.Context.SessionRegistry,
+      keys: :unique
+    )
+
+    state = %{
+      local_sessions: %{},
+      node: node()
+    }
+
+    Logger.info("Context manager started on node #{node()}")
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_call({:get_or_create_session, session_id, user_id}, _from, state) do
+    case find_session_process(session_id) do
+      {:ok, pid} -> 
+        {:reply, {:ok, pid}, state}
+      
+      {:error, :not_found} -> 
+        case create_session_process(session_id, user_id) do
+          {:ok, pid} -> 
+            new_state = track_local_session(state, session_id, pid)
+            {:reply, {:ok, pid}, new_state}
+          
+          {:error, reason} -> 
+            {:reply, {:error, reason}, state}
+        end
+    end
+  end
+
+  @impl true
+  def handle_call({:update_context, session_id, updates}, _from, state) do
+    case Aiex.Context.DistributedEngine.get_context(session_id) do
+      {:ok, current_context} ->
+        merged_context = Map.merge(current_context, updates)
+        result = Aiex.Context.DistributedEngine.put_context(session_id, merged_context)
+        {:reply, result, state}
+      
+      {:error, :not_found} ->
+        # Create new context with updates
+        new_context = Map.merge(%{
+          session_id: session_id,
+          created_at: DateTime.utc_now()
+        }, updates)
+        
+        result = Aiex.Context.DistributedEngine.put_context(session_id, new_context)
+        {:reply, result, state}
+      
+      error ->
+        {:reply, error, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:get_context, session_id}, _from, state) do
+    result = Aiex.Context.DistributedEngine.get_context(session_id)
+    {:reply, result, state}
+  end
+
+  @impl true
+  def handle_call(:list_sessions, _from, state) do
+    # Get sessions from all nodes in the cluster
+    local_sessions = Map.keys(state.local_sessions)
+    
+    cluster_sessions = 
+      [node() | Node.list()]
+      |> Enum.flat_map(fn node ->
+        try do
+          :rpc.call(node, __MODULE__, :get_local_sessions, [], 5000)
+        catch
+          _, _ -> []
+        end
+      end)
+      |> Enum.uniq()
+
+    all_sessions = Enum.uniq(local_sessions ++ cluster_sessions)
+    {:reply, {:ok, all_sessions}, state}
+  end
+
+  @impl true
+  def handle_call({:archive_session, session_id}, _from, state) do
+    # Remove from local tracking
+    new_state = %{state | local_sessions: Map.delete(state.local_sessions, session_id)}
+    
+    # Notify cluster of session archival
+    broadcast_session_event(session_id, :archived)
+    
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_local_sessions_only, _from, state) do
+    {:reply, Map.keys(state.local_sessions), state}
+  end
+
+  @impl true
+  def handle_info(:join_pg_groups, state) do
+    # Join the context management process group
+    :pg.join(:context_managers, self())
+    
+    # Subscribe to context update events
+    :pg.join(:context_updates, self())
+    
+    Logger.info("Joined pg groups for context management")
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:context_update, event}, state) do
+    Logger.debug("Received context update: #{inspect(event)}")
+    # Handle context synchronization events from other nodes
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:DOWN, _ref, :process, pid, reason}, state) do
+    # Handle session process termination
+    case find_session_by_pid(state, pid) do
+      {:ok, session_id} ->
+        Logger.warning("Session #{session_id} process terminated: #{inspect(reason)}")
+        new_state = %{state | local_sessions: Map.delete(state.local_sessions, session_id)}
+        
+        # Broadcast session termination
+        broadcast_session_event(session_id, :terminated)
+        
+        {:noreply, new_state}
+      
+      :not_found ->
+        {:noreply, state}
+    end
+  end
+
+  ## Public functions for RPC calls
+
+  @doc """
+  Gets local sessions for this node (used by RPC calls).
+  """
+  def get_local_sessions do
+    case GenServer.whereis(__MODULE__) do
+      nil -> []
+      pid -> 
+        try do
+          GenServer.call(pid, :get_local_sessions_only)
+        catch
+          _, _ -> []
+        end
+    end
+  end
+
+  ## Private Functions
+
+  defp find_session_process(session_id) do
+    case Horde.Registry.lookup(Aiex.Context.SessionRegistry, {:session, session_id}) do
+      [{pid, _}] when is_pid(pid) -> {:ok, pid}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  defp create_session_process(session_id, user_id) do
+    session_spec = %{
+      id: {:session, session_id},
+      start: {Aiex.Context.Session, :start_link, [session_id, user_id]},
+      restart: :transient
+    }
+
+    case Horde.DynamicSupervisor.start_child(
+      Aiex.Context.SessionSupervisor,
+      session_spec
+    ) do
+      {:ok, pid} ->
+        # Register in Horde registry
+        Horde.Registry.register(
+          Aiex.Context.SessionRegistry,
+          {:session, session_id},
+          %{user_id: user_id, started_at: DateTime.utc_now()}
+        )
+        
+        {:ok, pid}
+      
+      error ->
+        error
+    end
+  end
+
+  defp track_local_session(state, session_id, pid) do
+    # Monitor the session process
+    Process.monitor(pid)
+    
+    %{state | local_sessions: Map.put(state.local_sessions, session_id, pid)}
+  end
+
+  defp find_session_by_pid(state, pid) do
+    case Enum.find(state.local_sessions, fn {_id, p} -> p == pid end) do
+      {session_id, ^pid} -> {:ok, session_id}
+      nil -> :not_found
+    end
+  end
+
+  defp broadcast_session_event(session_id, action) do
+    event = %{
+      session_id: session_id,
+      action: action,
+      node: node(),
+      timestamp: DateTime.utc_now()
+    }
+
+    # Broadcast to all context managers
+    members = :pg.get_members(:context_managers)
+    Enum.each(members, fn pid ->
+      send(pid, {:session_event, event})
+    end)
+  end
+end

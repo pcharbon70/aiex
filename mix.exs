@@ -15,7 +15,7 @@ defmodule Aiex.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :mnesia],
       mod: {Aiex, []}
     ]
   end
@@ -23,11 +23,17 @@ defmodule Aiex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      # CLI and HTTP
       {:owl, "~> 0.12.0"},
       {:optimus, "~> 0.3.0"},
       {:finch, "~> 0.18.0"},
       {:hammer, "~> 6.1"},
-      {:jason, "~> 1.4"}
+      {:jason, "~> 1.4"},
+      
+      # Distributed OTP
+      {:horde, "~> 0.9.0"},
+      {:libcluster, "~> 3.3"},
+      {:syn, "~> 3.3"}
     ]
   end
 
