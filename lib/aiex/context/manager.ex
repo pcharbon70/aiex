@@ -162,17 +162,14 @@ defmodule Aiex.Context.Manager do
   @impl true
   def handle_info(:join_pg_groups, state) do
     try do
-      # Ensure pg scopes exist
-      ensure_pg_scope(:context_managers)
-      ensure_pg_scope(:context_updates)
-      
-      # Join the context management process group
-      :pg.join(:context_managers, self())
-      
-      # Subscribe to context update events
-      :pg.join(:context_updates, self())
-      
-      Logger.info("Joined pg groups for context management")
+      # Ensure pg scopes exist - each scope is a separate pg instance
+      with :ok <- ensure_pg_scope(:aiex_events) do
+        # Join the process groups within the aiex_events scope
+        :pg.join(:aiex_events, :context_managers, self())
+        :pg.join(:aiex_events, :context_updates, self())
+        
+        Logger.info("Joined pg groups for context management")
+      end
     catch
       :error, reason ->
         Logger.warning("Failed to join pg groups: #{inspect(reason)}")
@@ -228,28 +225,16 @@ defmodule Aiex.Context.Manager do
   ## Private Functions
   
   defp ensure_pg_scope(scope) do
-    # First ensure the pg application is started
-    with :ok <- ensure_pg_application(),
-         result <- start_pg_scope(scope) do
-      result
-    end
-  end
-  
-  defp ensure_pg_application do
-    # pg is part of kernel, just check if it's available
-    case Code.ensure_loaded(:pg) do
-      {:module, :pg} -> :ok
-      {:error, reason} -> 
-        Logger.warning("pg module not available: #{inspect(reason)}")
-        {:error, reason}
-    end
-  end
-  
-  defp start_pg_scope(scope) do
-    case :pg.start(scope) do
-      :ok -> :ok
-      {:error, {:already_started, _}} -> :ok
-      error -> error
+    # The scope should already be started by the TUI.EventBridge
+    # Just check if it exists, don't try to start it
+    case :pg.which_groups(scope) do
+      groups when is_list(groups) -> :ok
+      {:error, {:no_such_group, _}} -> 
+        # Scope doesn't exist, but that's okay - it will be created when first used
+        :ok
+      error -> 
+        Logger.debug("pg scope #{scope} check returned: #{inspect(error)}")
+        :ok  # Don't fail - let the join operation handle it
     end
   end
 
@@ -304,9 +289,7 @@ defmodule Aiex.Context.Manager do
 
   defp broadcast_session_event(session_id, action) do
     # Skip broadcasting in test environment
-    if Mix.env() == :test do
-      :ok
-    else
+    unless Application.get_env(:aiex, :test_mode, false) do
       event = %{
         session_id: session_id,
         action: action,
@@ -315,8 +298,8 @@ defmodule Aiex.Context.Manager do
       }
 
       try do
-        # Broadcast to all context managers
-        members = :pg.get_members(:context_managers)
+        # Broadcast to all context managers in the aiex_events scope
+        members = :pg.get_members(:aiex_events, :context_managers)
         Enum.each(members, fn pid ->
           send(pid, {:session_event, event})
         end)
