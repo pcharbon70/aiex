@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use dashmap::DashMap;
 use chrono::{DateTime, Utc};
 
 use crate::config::Config;

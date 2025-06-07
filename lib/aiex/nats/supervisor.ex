@@ -15,10 +15,12 @@ defmodule Aiex.NATS.Supervisor do
   
   @impl true
   def init(_opts) do
-    children = [
-      # NATS connection management
-      {Aiex.NATS.ConnectionManager, []},
-      
+    # Check if we should start embedded NATS server
+    nats_config = Application.get_env(:aiex, :nats, [])
+    mode = Keyword.get(nats_config, :mode, :external)
+    
+    # Base children that always start
+    base_children = [
       # Consumer supervisor for handling messages
       {Aiex.NATS.ConsumerSupervisor, []},
       
@@ -28,6 +30,25 @@ defmodule Aiex.NATS.Supervisor do
       # Command handler supervisor
       {DynamicSupervisor, strategy: :one_for_one, name: Aiex.NATS.CommandSupervisor}
     ]
+    
+    # Conditionally add server manager and connection manager
+    children = case mode do
+      :embedded ->
+        [
+          # Start embedded NATS server first
+          {Aiex.NATS.ServerManager, []},
+          # Then connection manager with a delay to let server start
+          {Aiex.NATS.ConnectionManager, [startup_delay: 2000]}
+          | base_children
+        ]
+        
+      _ ->
+        [
+          # External NATS - just the connection manager
+          {Aiex.NATS.ConnectionManager, []}
+          | base_children
+        ]
+    end
     
     Supervisor.init(children, strategy: :rest_for_one)
   end

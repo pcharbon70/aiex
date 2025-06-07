@@ -6,6 +6,8 @@ config :libcluster,
 
 # Test configuration
 config :aiex,
+  # Disable clustering for tests - single node mode
+  cluster_enabled: false,
   llm: [
     default_provider: :openai,
     # Shorter timeout for tests

@@ -32,7 +32,12 @@ config :libcluster,
 
 # Application-specific configuration
 config :aiex,
-  # Distributed cluster configuration
+  # Clustering configuration
+  # Set cluster_enabled: true in production for distributed deployment
+  # Default: false (single-node mode for development)
+  cluster_enabled: true,
+  
+  # Distributed cluster configuration (only used when cluster_enabled: true)
   cluster: [
     node_name: :aiex,
     discovery_strategy: :kubernetes_dns,

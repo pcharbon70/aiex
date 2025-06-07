@@ -70,6 +70,13 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   @doc """
+  Analyzes code content and returns structured analysis.
+  """
+  def analyze_code(content, context \\ %{}) do
+    GenServer.call(__MODULE__, {:analyze_code, content, context})
+  end
+
+  @doc """
   Gets distributed context statistics.
   """
   def stats do
@@ -206,6 +213,24 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   @impl true
+  def handle_call({:analyze_code, content, context}, _from, state) do
+    # Basic code analysis - in a real implementation this would use
+    # tree-sitter or other parsing tools
+    analysis = %{
+      timestamp: DateTime.utc_now(),
+      content_length: String.length(content),
+      lines: String.split(content, "\n") |> length(),
+      context: context,
+      # Basic heuristics - replace with real analysis
+      complexity: estimate_complexity(content),
+      language: detect_language(content),
+      functions: extract_functions(content)
+    }
+    
+    {:reply, {:ok, analysis}, state}
+  end
+
+  @impl true
   def handle_call(:stats, _from, state) do
     stats = %{
       node: node(),
@@ -220,6 +245,46 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   ## Private Functions
+
+  defp estimate_complexity(content) do
+    # Simple heuristic based on lines and nesting
+    lines = String.split(content, "\n")
+    line_count = length(lines)
+    
+    # Count nesting indicators
+    nesting_score = Enum.reduce(lines, 0, fn line, acc ->
+      cond do
+        String.contains?(line, ["if", "case", "cond", "with", "for", "fn"]) -> acc + 1
+        String.contains?(line, ["do", "{"]) -> acc + 1
+        true -> acc
+      end
+    end)
+    
+    cond do
+      line_count < 50 and nesting_score < 5 -> :low
+      line_count < 200 and nesting_score < 20 -> :medium
+      true -> :high
+    end
+  end
+  
+  defp detect_language(content) do
+    cond do
+      String.contains?(content, ["defmodule", "defp", "def ", "|>"]) -> :elixir
+      String.contains?(content, ["fn ", "use ", "require ", "import "]) -> :elixir
+      String.contains?(content, ["function", "const", "let", "var", "=>"]) -> :javascript
+      String.contains?(content, ["def ", "class ", "import ", "from "]) -> :python
+      String.contains?(content, ["pub fn", "let ", "match", "impl"]) -> :rust
+      true -> :unknown
+    end
+  end
+  
+  defp extract_functions(content) do
+    # Extract Elixir function definitions
+    ~r/def\s+(\w+)/
+    |> Regex.scan(content)
+    |> Enum.map(fn [_, name] -> name end)
+    |> Enum.uniq()
+  end
 
   defp setup_mnesia do
     nodes = [node() | Node.list()]

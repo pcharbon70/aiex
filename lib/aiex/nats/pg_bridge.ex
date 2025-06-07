@@ -53,6 +53,9 @@ defmodule Aiex.NATS.PGBridge do
     # Monitor pg scope for membership changes
     {_groups, monitor_ref} = :pg.monitor_scope(@pg_scope)
     
+    # Register to receive NATS connection updates
+    :pg.join(@pg_scope, :nats_listeners, self())
+    
     # Subscribe to common events by default
     default_groups = [:context_updates, :model_responses, :interface_events]
     subscribed = MapSet.new(default_groups)
@@ -64,6 +67,9 @@ defmodule Aiex.NATS.PGBridge do
     }
     
     Logger.info("PG-NATS Bridge started, monitoring scope: #{@pg_scope}")
+    
+    # Schedule initial NATS status check
+    Process.send_after(self(), :check_nats_status, 1000)
     
     {:ok, state}
   end
@@ -104,6 +110,21 @@ defmodule Aiex.NATS.PGBridge do
     {:noreply, state}
   end
   
+  def handle_info({:nats_connected, _pid}, state) do
+    Logger.info("PG-NATS Bridge: NATS connection established")
+    {:noreply, state}
+  end
+  
+  def handle_info(:check_nats_status, state) do
+    case :global.whereis_name(state.gnat_conn) do
+      :undefined ->
+        Logger.debug("NATS not connected yet, PG-NATS Bridge waiting...")
+      pid when is_pid(pid) ->
+        Logger.info("NATS connection active, PG-NATS Bridge ready")
+    end
+    {:noreply, state}
+  end
+  
   def handle_info(msg, state) do
     Logger.debug("PG Bridge received unexpected message: #{inspect(msg)}")
     {:noreply, state}
@@ -112,7 +133,8 @@ defmodule Aiex.NATS.PGBridge do
   defp publish_to_nats(gnat_conn_name, topic, event_data) do
     case :global.whereis_name(gnat_conn_name) do
       :undefined ->
-        Logger.warning("NATS connection not available for publishing to #{topic}")
+        # Don't warn on every attempt - NATS might not be running yet
+        Logger.debug("NATS connection not available for publishing to #{topic}")
         
       pid when is_pid(pid) ->
         encoded_event = Msgpax.pack!(event_data)

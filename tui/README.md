@@ -27,11 +27,16 @@ The TUI communicates with the Elixir OTP application through **NATS messaging** 
 
 ## Features
 
-### Multi-Pane Layout
+### Enhanced Multi-Pane Layout
+- **Header Tabs**: Navigate between Explorer, Search, Git, Extensions, and Settings
 - **File Tree**: Navigate project structure with vim-like keybindings
 - **Code View**: Display file contents with syntax highlighting hints
-- **Diff View**: Show code changes and modifications
-- **Event Log**: Real-time updates from OTP application
+- **Tabbed Bottom Panel**: Switch between Event Log, Build Output, Debug, and Performance views
+- **Event Log**: Real-time updates with color-coded table format
+- **Build Output**: Live build and compilation results
+- **Debug Panel**: Memory usage gauge and system debug information
+- **Performance Panel**: CPU usage sparkline and performance metrics table
+- **Enhanced Status Bar**: Comprehensive system status with keyboard shortcuts
 
 ### Real-Time Communication
 - **Command/Response**: Send file operations, build requests to OTP
@@ -250,6 +255,7 @@ RUST_LOG=aiex_tui::nats_client=trace cargo run
 - **Cross-platform**: Works on Windows, macOS, Linux
 - **Performance**: Efficient terminal rendering with minimal screen updates
 - **Async-first**: Integrates well with tokio async runtime
+- **Rich Widgets**: All-widgets feature enabled for advanced UI components (tables, gauges, sparklines, tabs)
 
 ### Why The Elm Architecture?
 - **Predictable State**: All state changes flow through messages

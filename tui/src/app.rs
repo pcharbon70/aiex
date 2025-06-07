@@ -1,13 +1,14 @@
 use anyhow::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+    event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{prelude::*, DefaultTerminal};
+use serde_json;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{
     config::Config,
@@ -15,7 +16,6 @@ use crate::{
     message::{Message, TuiEvent},
     nats_client::NatsManager,
     state::AppState,
-    tui::Tui,
     ui::render_ui,
 };
 
@@ -229,7 +229,7 @@ impl App {
         });
 
         self.nats_manager
-            .publish("tui.command.project.refresh", request)
+            .publish("tui.command.project.refresh".to_string(), request)
             .await?;
 
         self.state.add_event_log("Project refresh requested".to_string());
@@ -248,7 +248,7 @@ impl App {
             });
 
             self.nats_manager
-                .publish("tui.command.file.open", request)
+                .publish("tui.command.file.open".to_string(), request)
                 .await?;
 
             self.state

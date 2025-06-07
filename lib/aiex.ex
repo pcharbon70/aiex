@@ -12,7 +12,7 @@ defmodule Aiex do
   - **Multi-LLM Support**: OpenAI, Anthropic, Ollama, and LM Studio adapters
   - **Secure Operations**: Sandboxed file operations with audit logging
   - **Multi-Interface**: CLI, Phoenix LiveView, and VS Code LSP support
-  - **Production Ready**: Kubernetes-native deployment with libcluster
+  - **Production Ready**: Kubernetes-native deployment with optional libcluster
 
   ## Architecture Overview
 
@@ -79,8 +79,16 @@ defmodule Aiex do
 
   ## Distributed Deployment
 
-  For Kubernetes deployment:
+  Clustering is optional and disabled by default for development.
+  
+  For single-node development (default):
+  
+      config :aiex, cluster_enabled: false
+  
+  For Kubernetes distributed deployment:
 
+      config :aiex, cluster_enabled: true
+      
       config :libcluster,
         topologies: [
           aiex_cluster: [
@@ -139,8 +147,8 @@ defmodule Aiex do
       # Interface Gateway for unified access
       {Aiex.InterfaceGateway, []},
 
-      # NATS messaging infrastructure for TUI integration
-      Aiex.NATS.Supervisor,
+      # TUI communication infrastructure
+      Aiex.TUI.Supervisor,
 
       # LLM Client (optional - only start if configured)
       llm_client_spec(),
@@ -157,10 +165,33 @@ defmodule Aiex do
   # Private functions
 
   defp cluster_supervisor do
-    # Only start cluster supervisor if topology is configured
-    case Application.get_env(:libcluster, :topologies) do
-      nil -> nil
-      topologies -> {Cluster.Supervisor, [topologies, [name: Aiex.ClusterSupervisor]]}
+    # Only start cluster supervisor if:
+    # 1. Clustering is explicitly enabled in config
+    # 2. libcluster dependency is available
+    # 3. Topologies are configured
+    with true <- Application.get_env(:aiex, :cluster_enabled, false),
+         {:ok, _} <- Application.ensure_loaded(:libcluster),
+         topologies when not is_nil(topologies) and topologies != [] <- 
+           Application.get_env(:libcluster, :topologies) do
+      
+      require Logger
+      Logger.info("Starting distributed clustering with #{length(topologies)} topology(ies)")
+      {Cluster.Supervisor, [topologies, [name: Aiex.ClusterSupervisor]]}
+    else
+      false ->
+        require Logger
+        Logger.debug("Clustering disabled in configuration - running in single-node mode")
+        nil
+      
+      {:error, :nofile} ->
+        require Logger
+        Logger.info("libcluster not available - running in single-node mode")
+        nil
+      
+      _ ->
+        require Logger
+        Logger.debug("No cluster topologies configured - running in single-node mode")
+        nil
     end
   end
 

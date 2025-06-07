@@ -42,7 +42,7 @@ defmodule Aiex.MixProject do
       
       # Distributed OTP
       {:horde, "~> 0.9.0"},
-      {:libcluster, "~> 3.3"},
+      {:libcluster, "~> 3.3", optional: true},
       {:syn, "~> 3.3"},
       
       # NATS messaging

@@ -6,6 +6,13 @@ config :libcluster,
 
 # Development configuration
 config :aiex,
+  # Disable clustering for development - single node mode
+  cluster_enabled: false,
+  # TUI server configuration
+  tui: [
+    enabled: true,
+    port: 9487
+  ],
   llm: [
     default_provider: :openai,
     # Longer timeout for development

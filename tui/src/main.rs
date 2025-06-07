@@ -5,7 +5,7 @@ use tracing_subscriber;
 
 mod app;
 mod config;
-mod nats_client;
+mod otp_client;
 mod state;
 mod tui;
 mod events;
@@ -22,9 +22,9 @@ struct Cli {
     #[arg(short, long)]
     config: Option<String>,
 
-    /// NATS server URL
-    #[arg(short, long, default_value = "nats://localhost:4222")]
-    nats_url: String,
+    /// OTP server address
+    #[arg(short, long, default_value = "127.0.0.1:9487")]
+    otp_addr: String,
 
     /// Enable debug logging
     #[arg(short, long)]
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
     let config = Config::load(cli.config.as_deref())?;
 
     // Create and run the application
-    let mut app = App::new(config, cli.nats_url, cli.project_dir).await?;
+    let mut app = App::new(config, cli.otp_addr, cli.project_dir).await?;
     app.run().await?;
 
     info!("Aiex TUI shutting down");

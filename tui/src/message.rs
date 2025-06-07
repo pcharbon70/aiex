@@ -7,8 +7,14 @@ pub enum Message {
     /// Terminal UI events (keyboard, mouse, resize)
     TuiEvent(TuiEvent),
 
-    /// NATS messages from OTP application
-    NatsMessage { topic: String, data: Vec<u8> },
+    /// Connection status updates
+    ConnectionStatus { connected: bool, details: String },
+
+    /// OTP events from TCP connection
+    OtpEvent { event_type: String, data: serde_json::Value },
+
+    /// Command responses from OTP application
+    CommandResult { request_id: String, result: serde_json::Value },
 
     /// File system events
     FileChanged { path: String, content: String },

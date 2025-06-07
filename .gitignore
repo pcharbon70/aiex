@@ -21,3 +21,13 @@ aiex-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# NATS embedded server files
+/priv/nats/bin/
+/priv/nats/data/
+/priv/nats/logs/
+# Keep config directory
+!/priv/nats/config/.gitkeep
+
+# Rust TUI build artifacts
+/tui/target/

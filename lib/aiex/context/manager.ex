@@ -59,7 +59,7 @@ defmodule Aiex.Context.Manager do
   @impl true
   def init(_opts) do
     # Only join pg groups if not in test environment
-    if Mix.env() != :test do
+    unless Application.get_env(:aiex, :test_mode, false) do
       Process.send_after(self(), :join_pg_groups, 100)
     end
 
@@ -162,6 +162,10 @@ defmodule Aiex.Context.Manager do
   @impl true
   def handle_info(:join_pg_groups, state) do
     try do
+      # Ensure pg scopes exist
+      ensure_pg_scope(:context_managers)
+      ensure_pg_scope(:context_updates)
+      
       # Join the context management process group
       :pg.join(:context_managers, self())
       
@@ -222,6 +226,32 @@ defmodule Aiex.Context.Manager do
   end
 
   ## Private Functions
+  
+  defp ensure_pg_scope(scope) do
+    # First ensure the pg application is started
+    with :ok <- ensure_pg_application(),
+         result <- start_pg_scope(scope) do
+      result
+    end
+  end
+  
+  defp ensure_pg_application do
+    # pg is part of kernel, just check if it's available
+    case Code.ensure_loaded(:pg) do
+      {:module, :pg} -> :ok
+      {:error, reason} -> 
+        Logger.warning("pg module not available: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+  
+  defp start_pg_scope(scope) do
+    case :pg.start(scope) do
+      :ok -> :ok
+      {:error, {:already_started, _}} -> :ok
+      error -> error
+    end
+  end
 
   defp find_session_process(session_id) do
     lookup_result = Horde.Registry.lookup(Aiex.Context.SessionRegistry, {:session, session_id})

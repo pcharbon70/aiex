@@ -50,8 +50,11 @@ defmodule Aiex.NATS.ConnectionManager do
     config = build_config(opts)
     state = %__MODULE__{gnat_config: config}
     
-    # Start connection attempt
-    send(self(), :connect)
+    # Check for startup delay (useful when using embedded NATS)
+    startup_delay = Keyword.get(opts, :startup_delay, 0)
+    
+    # Start connection attempt after delay
+    Process.send_after(self(), :connect, startup_delay)
     
     {:ok, state}
   end
@@ -85,6 +88,10 @@ defmodule Aiex.NATS.ConnectionManager do
         # Register connection for other processes
         :global.register_name(:nats_conn, pid)
         
+        # Notify interested processes that NATS is connected
+        :pg.get_members(:aiex_events, :nats_listeners)
+        |> Enum.each(&send(&1, {:nats_connected, pid}))
+        
         {:noreply, %{state | 
           connection_pid: pid, 
           status: :connected,
@@ -92,7 +99,11 @@ defmodule Aiex.NATS.ConnectionManager do
         }}
         
       {:error, reason} ->
-        Logger.warning("Failed to connect to NATS: #{inspect(reason)}")
+        if state.reconnect_attempts == 0 do
+          Logger.info("NATS server not available at startup, will retry in background")
+        else
+          Logger.debug("NATS connection attempt #{state.reconnect_attempts + 1} failed: #{inspect(reason)}")
+        end
         schedule_reconnect(state.reconnect_attempts)
         
         {:noreply, %{state |
@@ -129,9 +140,30 @@ defmodule Aiex.NATS.ConnectionManager do
   end
   
   defp build_config(opts) do
-    defaults = [
-      host: '127.0.0.1',
-      port: 4222,
+    # Check if we're in embedded mode
+    nats_config = Application.get_env(:aiex, :nats, [])
+    mode = Keyword.get(nats_config, :mode, :external)
+    
+    # Get base config from app env or use defaults
+    base_config = case mode do
+      :embedded ->
+        # For embedded mode, we'll get config from ServerManager
+        # But we need defaults for initial connection
+        server_config = Application.get_env(:aiex, :nats_server, [])
+        [
+          host: ~c"127.0.0.1",
+          port: Keyword.get(server_config, :port, 4222)
+        ]
+        
+      _ ->
+        # External mode - use configured values
+        [
+          host: Keyword.get(nats_config, :host, ~c"127.0.0.1"),
+          port: Keyword.get(nats_config, :port, 4222)
+        ]
+    end
+    
+    defaults = base_config ++ [
       tcp_opts: [:binary, packet: :raw, active: false],
       connection_timeout: @connection_timeout
     ]
