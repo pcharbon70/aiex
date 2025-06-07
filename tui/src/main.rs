@@ -7,7 +7,6 @@ mod app;
 mod config;
 mod otp_client;
 mod state;
-mod tui;
 mod events;
 mod ui;
 mod message;

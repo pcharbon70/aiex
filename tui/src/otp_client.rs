@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use futures::StreamExt;
 use rmp_serde as rmps;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

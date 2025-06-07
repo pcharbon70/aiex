@@ -15,8 +15,8 @@ crossterm = "0.28"
 tokio = { version = "1.37", features = ["full"] }
 tokio-stream = "0.1"
 
-# NATS client
-async-nats = "0.35"
+# MessagePack for OTP communication
+rmp = "0.8"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

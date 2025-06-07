@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, KeyCode},
     execute,
@@ -85,7 +86,7 @@ impl App {
     async fn start_background_tasks(&mut self) -> Result<()> {
         // Create a new OTP client for background processing
         // (we keep the original for potential direct operations)
-        let otp_client = OtpClient::new(
+        let mut otp_client = OtpClient::new(
             self.otp_client.server_addr.clone(),
             self.event_tx.clone(),
         ).await?;
