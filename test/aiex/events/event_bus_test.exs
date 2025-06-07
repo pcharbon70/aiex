@@ -3,7 +3,13 @@ defmodule Aiex.Events.EventBusTest do
   alias Aiex.Events.EventBus
 
   setup do
-    {:ok, _pid} = start_supervised(EventBus)
+    # EventBus should already be running from the application
+    # Just ensure it's available
+    case Process.whereis(EventBus) do
+      nil -> start_supervised!(EventBus)
+      _pid -> :ok
+    end
+    
     :ok
   end
 
@@ -28,13 +34,14 @@ defmodule Aiex.Events.EventBusTest do
 
     test "multiple subscribers receive the same event" do
       topic = "multi_subscriber_#{:rand.uniform(10000)}"
+      test_pid = self()
       
       # Start multiple subscriber processes
       subscribers = for i <- 1..3 do
         spawn(fn ->
           EventBus.subscribe(topic)
           receive do
-            {:event_bus, event} -> send(self(), {:received, i, event})
+            {:event_bus, event} -> send(test_pid, {:received, i, event})
           end
         end)
       end
@@ -48,7 +55,7 @@ defmodule Aiex.Events.EventBusTest do
       
       # All subscribers should receive the event
       for i <- 1..3 do
-        assert_receive {:received, ^i, received_event}
+        assert_receive {:received, ^i, received_event}, 1000
         assert received_event.event == event
       end
       

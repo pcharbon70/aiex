@@ -26,6 +26,7 @@ defmodule Aiex do
 
       # Distributed context management
       Aiex.Context.DistributedEngine,
+      {Horde.Registry, name: Aiex.Context.SessionRegistry, keys: :unique},
       Aiex.Context.Manager,
       Aiex.Context.SessionSupervisor,
 

@@ -280,7 +280,12 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   defp mnesia_transaction(fun) do
-    :mnesia.transaction(fun)
+    try do
+      :mnesia.transaction(fun)
+    catch
+      :exit, {:aborted, reason} -> {:aborted, reason}
+      :exit, reason -> {:aborted, reason}
+    end
   end
 
   defp table_size(table_name) do

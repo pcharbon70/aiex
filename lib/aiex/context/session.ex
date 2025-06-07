@@ -83,22 +83,45 @@ defmodule Aiex.Context.Session do
       
       {:error, :not_found} ->
         Logger.info("Creating new context for session #{session_id}")
-        %__MODULE__{
-          session_id: session_id,
-          user_id: user_id,
-          conversation_history: [],
-          active_model: nil,
-          embeddings: %{},
-          created_at: DateTime.utc_now(),
-          last_activity: DateTime.utc_now(),
-          metadata: %{}
-        }
+        create_new_session_state(session_id, user_id)
+      
+      {:error, reason} ->
+        Logger.warning("Failed to load context for session #{session_id}: #{inspect(reason)}, creating new")
+        create_new_session_state(session_id, user_id)
     end
 
-    # Schedule periodic persistence
-    schedule_persistence()
+    # Register this process in the session registry
+    case Horde.Registry.register(
+      Aiex.Context.SessionRegistry,
+      {:session, session_id},
+      %{user_id: user_id, started_at: DateTime.utc_now()}
+    ) do
+      {:ok, _} -> 
+        # Schedule periodic persistence
+        schedule_persistence()
+        {:ok, initial_state}
+        
+      {:error, {:already_registered, _existing_pid}} ->
+        # Another session with the same ID already exists, we should terminate
+        {:stop, {:shutdown, :already_registered}}
+        
+      error ->
+        Logger.error("Failed to register session #{session_id}: #{inspect(error)}")
+        {:stop, error}
+    end
+  end
 
-    {:ok, initial_state}
+  defp create_new_session_state(session_id, user_id) do
+    %__MODULE__{
+      session_id: session_id,
+      user_id: user_id,
+      conversation_history: [],
+      active_model: nil,
+      embeddings: %{},
+      created_at: DateTime.utc_now(),
+      last_activity: DateTime.utc_now(),
+      metadata: %{}
+    }
   end
 
   @impl true

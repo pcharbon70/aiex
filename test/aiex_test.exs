@@ -8,9 +8,9 @@ defmodule AiexTest do
     assert Code.ensure_loaded?(Aiex.Sandbox.AuditLogger)
   end
 
-  test "context engine is running" do
-    # The context engine should be started by the application
-    assert Process.whereis(Aiex.Context.Engine) |> is_pid()
+  test "distributed context engine is running" do
+    # The distributed context engine should be started by the application
+    assert Process.whereis(Aiex.Context.DistributedEngine) |> is_pid()
   end
 
   test "sandbox config is running" do

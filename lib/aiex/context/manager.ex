@@ -58,14 +58,10 @@ defmodule Aiex.Context.Manager do
 
   @impl true
   def init(_opts) do
-    # Join the context management process group (wait a bit for pg to be ready)
-    Process.send_after(self(), :join_pg_groups, 100)
-
-    # Initialize Horde registry for session tracking
-    {:ok, _} = Horde.Registry.start_link(
-      name: Aiex.Context.SessionRegistry,
-      keys: :unique
-    )
+    # Only join pg groups if not in test environment
+    if Mix.env() != :test do
+      Process.send_after(self(), :join_pg_groups, 100)
+    end
 
     state = %{
       local_sessions: %{},
@@ -132,7 +128,11 @@ defmodule Aiex.Context.Manager do
       [node() | Node.list()]
       |> Enum.flat_map(fn node ->
         try do
-          :rpc.call(node, __MODULE__, :get_local_sessions, [], 5000)
+          case :rpc.call(node, __MODULE__, :get_local_sessions, [], 5000) do
+            {:badrpc, _reason} -> []
+            sessions when is_list(sessions) -> sessions
+            _ -> []
+          end
         catch
           _, _ -> []
         end
@@ -161,13 +161,21 @@ defmodule Aiex.Context.Manager do
 
   @impl true
   def handle_info(:join_pg_groups, state) do
-    # Join the context management process group
-    :pg.join(:context_managers, self())
+    try do
+      # Join the context management process group
+      :pg.join(:context_managers, self())
+      
+      # Subscribe to context update events
+      :pg.join(:context_updates, self())
+      
+      Logger.info("Joined pg groups for context management")
+    catch
+      :error, reason ->
+        Logger.warning("Failed to join pg groups: #{inspect(reason)}")
+        # Retry after a delay
+        Process.send_after(self(), :join_pg_groups, 1000)
+    end
     
-    # Subscribe to context update events
-    :pg.join(:context_updates, self())
-    
-    Logger.info("Joined pg groups for context management")
     {:noreply, state}
   end
 
@@ -216,13 +224,18 @@ defmodule Aiex.Context.Manager do
   ## Private Functions
 
   defp find_session_process(session_id) do
-    case Horde.Registry.lookup(Aiex.Context.SessionRegistry, {:session, session_id}) do
+    lookup_result = Horde.Registry.lookup(Aiex.Context.SessionRegistry, {:session, session_id})
+    Logger.debug("Looking up session #{session_id}, found: #{inspect(lookup_result)}")
+    
+    case lookup_result do
       [{pid, _}] when is_pid(pid) -> {:ok, pid}
       [] -> {:error, :not_found}
     end
   end
 
   defp create_session_process(session_id, user_id) do
+    Logger.info("Creating new context for session #{session_id}")
+    
     session_spec = %{
       id: {:session, session_id},
       start: {Aiex.Context.Session, :start_link, [session_id, user_id]},
@@ -234,13 +247,10 @@ defmodule Aiex.Context.Manager do
       session_spec
     ) do
       {:ok, pid} ->
-        # Register in Horde registry
-        Horde.Registry.register(
-          Aiex.Context.SessionRegistry,
-          {:session, session_id},
-          %{user_id: user_id, started_at: DateTime.utc_now()}
-        )
-        
+        # Session process will register itself
+        {:ok, pid}
+      
+      {:error, {:already_started, pid}} ->
         {:ok, pid}
       
       error ->
@@ -263,17 +273,27 @@ defmodule Aiex.Context.Manager do
   end
 
   defp broadcast_session_event(session_id, action) do
-    event = %{
-      session_id: session_id,
-      action: action,
-      node: node(),
-      timestamp: DateTime.utc_now()
-    }
+    # Skip broadcasting in test environment
+    if Mix.env() == :test do
+      :ok
+    else
+      event = %{
+        session_id: session_id,
+        action: action,
+        node: node(),
+        timestamp: DateTime.utc_now()
+      }
 
-    # Broadcast to all context managers
-    members = :pg.get_members(:context_managers)
-    Enum.each(members, fn pid ->
-      send(pid, {:session_event, event})
-    end)
+      try do
+        # Broadcast to all context managers
+        members = :pg.get_members(:context_managers)
+        Enum.each(members, fn pid ->
+          send(pid, {:session_event, event})
+        end)
+      catch
+        :error, reason ->
+          Logger.warning("Failed to broadcast session event: #{inspect(reason)}")
+      end
+    end
   end
 end

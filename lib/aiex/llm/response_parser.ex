@@ -271,10 +271,16 @@ defmodule Aiex.LLM.ResponseParser do
 
   defp validate_elixir_code(code) do
     try do
-      Code.string_to_quoted(code)
-      :ok
+      # Use Code.string_to_quoted! with strict mode
+      case Code.string_to_quoted(code, warn_on_unnecessary_quotes: false) do
+        {:ok, _ast} -> :ok
+        {:error, {_line, message, _token}} -> {:error, message}
+        {:error, message} -> {:error, message}
+      end
     rescue
       e -> {:error, Exception.message(e)}
+    catch
+      _, e -> {:error, "Syntax error: #{inspect(e)}"}
     end
   end
 

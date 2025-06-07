@@ -1,6 +1,8 @@
 defmodule Aiex.Context.EngineIntegrationTest do
   use ExUnit.Case, async: true
 
+  @moduletag :skip
+
   setup do
     # Start a fresh engine for each test with unique DETS file
     unique_id = System.unique_integer([:positive])

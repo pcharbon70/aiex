@@ -3,13 +3,8 @@ defmodule Aiex.Context.DistributedEngineTest do
   alias Aiex.Context.DistributedEngine
 
   setup do
-    # Clean up any existing Mnesia data
-    :mnesia.stop()
-    :mnesia.delete_schema([node()])
-    
-    # Start fresh
-    {:ok, _pid} = start_supervised(DistributedEngine)
-    
+    # For tests, just use the existing running engine
+    # Don't restart Mnesia as it affects other tests
     :ok
   end
 
