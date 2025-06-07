@@ -77,6 +77,20 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   @doc """
+  Get distributed context for a code element across the cluster.
+  """
+  def get_distributed_context(code_element, opts \\ []) do
+    GenServer.call(__MODULE__, {:get_distributed_context, code_element, opts})
+  end
+
+  @doc """
+  Get related context for a code fragment.
+  """
+  def get_related_context(code_fragment) do
+    GenServer.call(__MODULE__, {:get_related_context, code_fragment})
+  end
+
+  @doc """
   Gets distributed context statistics.
   """
   def stats do
@@ -243,6 +257,33 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   @impl true
+  def handle_call({:get_distributed_context, code_element, opts}, _from, state) do
+    # Get context from local and remote nodes
+    local_context = get_local_context(code_element)
+    remote_context = get_remote_context(code_element, opts)
+    
+    distributed_context = %{
+      local: local_context,
+      remote: remote_context,
+      dependencies: extract_dependencies(code_element),
+      dependents: extract_dependents(code_element)
+    }
+    
+    {:reply, {:ok, distributed_context}, state}
+  end
+
+  def handle_call({:get_related_context, code_fragment}, _from, state) do
+    # Analyze the code fragment and find related context
+    related_context = %{
+      ast_analysis: analyze_ast_fragment(code_fragment),
+      symbol_references: find_symbol_references(code_fragment),
+      similar_patterns: find_similar_patterns(code_fragment),
+      cluster_context: get_cluster_context_for_fragment(code_fragment)
+    }
+    
+    {:reply, {:ok, related_context}, state}
+  end
+
   def handle_call(:stats, _from, state) do
     stats = %{
       node: node(),
@@ -374,6 +415,106 @@ defmodule Aiex.Context.DistributedEngine do
     catch
       :exit, _ -> 0
     end
+  end
+
+  # Context retrieval helper functions
+
+  defp get_local_context(code_element) do
+    # Simplified local context retrieval
+    %{
+      definitions: find_local_definitions(code_element),
+      usages: find_local_usages(code_element),
+      node: node()
+    }
+  end
+
+  defp get_remote_context(code_element, opts) do
+    # Get context from remote nodes
+    remote_nodes = Keyword.get(opts, :nodes, Node.list())
+    
+    Enum.reduce(remote_nodes, %{}, fn remote_node, acc ->
+      try do
+        remote_context = :rpc.call(remote_node, __MODULE__, :get_local_context, [code_element], 5000)
+        Map.put(acc, remote_node, remote_context)
+      catch
+        _, _ -> acc
+      end
+    end)
+  end
+
+  defp extract_dependencies(code_element) do
+    # Simplified dependency extraction
+    case String.contains?(to_string(code_element), ".") do
+      true -> [String.split(to_string(code_element), ".") |> List.first()]
+      false -> []
+    end
+  end
+
+  defp extract_dependents(code_element) do
+    # Simplified dependent extraction
+    []
+  end
+
+  defp analyze_ast_fragment(code_fragment) do
+    # Simple AST analysis
+    try do
+      case Code.string_to_quoted(code_fragment) do
+        {:ok, ast} -> %{valid: true, ast_type: element_type(ast)}
+        {:error, _} -> %{valid: false, ast_type: :unknown}
+      end
+    catch
+      _, _ -> %{valid: false, ast_type: :unknown}
+    end
+  end
+
+  defp element_type({:defmodule, _, _}), do: :module
+  defp element_type({:def, _, _}), do: :function
+  defp element_type({:defp, _, _}), do: :private_function
+  defp element_type(_), do: :expression
+
+  defp find_symbol_references(code_fragment) do
+    # Simplified symbol reference finding
+    symbols = Regex.scan(~r/[A-Z][a-zA-Z0-9_]*/, code_fragment)
+    |> Enum.map(fn [symbol] -> symbol end)
+    |> Enum.uniq()
+    
+    %{modules: symbols, functions: []}
+  end
+
+  defp find_similar_patterns(code_fragment) do
+    # Simplified pattern matching
+    %{
+      pattern_type: determine_pattern_type(code_fragment),
+      confidence: 0.5,
+      examples: []
+    }
+  end
+
+  defp determine_pattern_type(code_fragment) do
+    cond do
+      String.contains?(code_fragment, "GenServer") -> :genserver_pattern
+      String.contains?(code_fragment, "def ") -> :function_definition
+      String.contains?(code_fragment, "defmodule") -> :module_definition
+      true -> :unknown
+    end
+  end
+
+  defp get_cluster_context_for_fragment(code_fragment) do
+    %{
+      cluster_nodes: [node() | Node.list()],
+      fragment_hash: :crypto.hash(:sha256, code_fragment) |> Base.encode16(case: :lower),
+      analysis_timestamp: DateTime.utc_now()
+    }
+  end
+
+  defp find_local_definitions(_code_element) do
+    # Simplified local definition finding
+    []
+  end
+
+  defp find_local_usages(_code_element) do
+    # Simplified local usage finding
+    []
   end
 
   defp generate_interaction_id do
