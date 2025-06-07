@@ -9,6 +9,8 @@ defmodule Aiex.LLM.ModelCoordinator do
 
   use GenServer
   require Logger
+  alias Aiex.Context.Compressor
+  alias Aiex.Semantic.Chunker
 
   @pg_scope :llm_coordination
   @health_check_interval 30_000
@@ -49,11 +51,19 @@ defmodule Aiex.LLM.ModelCoordinator do
   end
 
   @doc """
-  Selects the best available provider for a request.
+  Selects the best available provider for a request with context compression.
   """
   @spec select_provider(map(), keyword()) :: {:ok, {atom(), module()}} | {:error, any()}
   def select_provider(request, opts \\ []) do
     GenServer.call(__MODULE__, {:select_provider, request, opts}, @provider_timeout)
+  end
+
+  @doc """
+  Processes a request with automatic context compression and chunking.
+  """
+  @spec process_request(map(), keyword()) :: {:ok, map()} | {:error, any()}
+  def process_request(request, opts \\ []) do
+    GenServer.call(__MODULE__, {:process_request, request, opts}, 30_000)
   end
 
   @doc """
@@ -92,10 +102,20 @@ defmodule Aiex.LLM.ModelCoordinator do
 
   @impl true
   def init(opts) do
+    # Start pg scope for LLM coordination
+    case :pg.start(@pg_scope) do
+      {:ok, _pid} ->
+        Logger.debug("Started LLM coordination pg scope: #{@pg_scope}")
+
+      {:error, {:already_started, _pid}} ->
+        Logger.debug("LLM coordination pg scope already started")
+    end
+
     # Join the LLM coordination process group
-    # pg should be started automatically by OTP
-    # Skip pg coordination for now - will implement later
-    # :pg.join(@pg_scope, :model_coordinators, self())
+    :pg.join(@pg_scope, :model_coordinators, self())
+    
+    # Subscribe to cluster events
+    :pg.monitor(@pg_scope, :model_coordinators)
 
     # Initialize providers from config
     providers = initialize_providers(opts)
@@ -132,6 +152,16 @@ defmodule Aiex.LLM.ModelCoordinator do
     end
   end
 
+  def handle_call({:process_request, request, opts}, _from, state) do
+    case process_request_with_compression(request, opts, state) do
+      {:ok, response} ->
+        {:reply, {:ok, response}, state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
   @impl true
   def handle_call({:register_provider, name, adapter, config}, _from, state) do
     provider_info = %{
@@ -158,6 +188,14 @@ defmodule Aiex.LLM.ModelCoordinator do
     # Collect status from all nodes
     cluster_status = collect_cluster_status(state)
     {:reply, cluster_status, state}
+  end
+
+  def handle_call(:get_local_providers, _from, state) do
+    # Return local provider information for distributed coordination
+    local_providers = Enum.into(state.providers, %{}, fn {name, info} ->
+      {name, Map.put(info, :node, node())}
+    end)
+    {:reply, local_providers, state}
   end
 
   @impl true
@@ -194,6 +232,11 @@ defmodule Aiex.LLM.ModelCoordinator do
     else
       {:noreply, state}
     end
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    # Handle coordinator process failure across cluster
+    {:noreply, state}
   end
 
   ## Private Functions
@@ -493,5 +536,301 @@ defmodule Aiex.LLM.ModelCoordinator do
   defp handle_pg_message(_message, state) do
     # Handle other pg messages
     state
+  end
+
+  ## Enhanced Request Processing
+
+  defp process_request_with_compression(request, opts, state) do
+    # Step 1: Select optimal provider considering distributed load
+    case select_optimal_provider_distributed(request, opts, state) do
+      {:ok, {provider, adapter}} ->
+        start_time = System.monotonic_time(:millisecond)
+
+        # Step 2: Process context with compression if needed
+        processed_request = prepare_request_context(request, opts)
+
+        # Step 3: Execute request with circuit breaker
+        case execute_with_circuit_breaker(adapter, processed_request, provider, state) do
+          {:ok, response} ->
+            # Step 4: Report metrics
+            end_time = System.monotonic_time(:millisecond)
+            response_time = end_time - start_time
+            
+            report_request_result(provider, :success, %{response_time: response_time})
+            
+            {:ok, Map.put(response, :provider, provider)}
+
+          {:error, reason} ->
+            report_request_result(provider, :error, %{error: reason})
+            {:error, reason}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp select_optimal_provider_distributed(request, opts, state) do
+    # Get cluster-wide provider status
+    cluster_providers = get_cluster_providers(state)
+    
+    # Apply distributed selection strategy
+    case select_from_cluster(request, cluster_providers, opts, state) do
+      {:ok, {provider, adapter, node}} when node == node() ->
+        # Local provider
+        {:ok, {provider, adapter}}
+        
+      {:ok, {provider, adapter, remote_node}} ->
+        # Delegate to remote coordinator
+        delegate_to_remote_coordinator(remote_node, provider, request, opts)
+        
+      error ->
+        # Fallback to local selection
+        select_optimal_provider(request, opts, state)
+    end
+  end
+
+  defp prepare_request_context(request, opts) do
+    # Extract context from request
+    context_items = extract_context_items(request)
+    
+    case context_items do
+      [] ->
+        request
+        
+      items ->
+        # Compress context using our context compressor
+        compression_opts = [
+          model: Map.get(request, :model, "gpt-4"),
+          strategy: Keyword.get(opts, :compression_strategy, :semantic),
+          max_tokens: Keyword.get(opts, :max_context_tokens),
+          force_local: Keyword.get(opts, :force_local_compression, false)
+        ]
+        
+        case Compressor.compress_context(items, compression_opts) do
+          {:ok, compressed} ->
+            # Replace context with compressed version
+            request
+            |> Map.put(:context, compressed)
+            |> Map.put(:compression_used, true)
+            
+          {:error, reason} ->
+            Logger.warning("Context compression failed: #{inspect(reason)}, using original context")
+            request
+        end
+    end
+  end
+
+  defp extract_context_items(request) do
+    # Extract context items from various sources
+    context = Map.get(request, :context, %{})
+    
+    []
+    |> maybe_add_file_context(context)
+    |> maybe_add_code_context(context)
+    |> maybe_add_conversation_history(request)
+  end
+
+  defp maybe_add_file_context(items, context) do
+    case Map.get(context, :files) do
+      nil -> items
+      files when is_list(files) ->
+        file_items = Enum.map(files, fn file ->
+          %{
+            content: Map.get(file, :content, ""),
+            type: :current_file,
+            priority: Map.get(file, :priority, 5),
+            metadata: %{path: Map.get(file, :path)}
+          }
+        end)
+        items ++ file_items
+      _ -> items
+    end
+  end
+
+  defp maybe_add_code_context(items, context) do
+    case Map.get(context, :code_analysis) do
+      nil -> items
+      analysis ->
+        code_item = %{
+          content: inspect(analysis),
+          type: :code_analysis,
+          priority: 3
+        }
+        [code_item | items]
+    end
+  end
+
+  defp maybe_add_conversation_history(items, request) do
+    case Map.get(request, :messages) do
+      nil -> items
+      messages when is_list(messages) ->
+        # Take recent conversation history
+        recent_messages = Enum.take(messages, -5)
+        history_content = Enum.map_join(recent_messages, "\n", fn msg ->
+          "#{Map.get(msg, :role, "user")}: #{Map.get(msg, :content, "")}"
+        end)
+        
+        if String.trim(history_content) != "" do
+          history_item = %{
+            content: history_content,
+            type: :conversation_history,
+            priority: 2
+          }
+          [history_item | items]
+        else
+          items
+        end
+      _ -> items
+    end
+  end
+
+  defp execute_with_circuit_breaker(adapter, request, provider, state) do
+    # Simple circuit breaker implementation
+    error_rate = get_error_rate(provider, state)
+    
+    if error_rate > 0.8 do
+      {:error, :circuit_breaker_open}
+    else
+      try do
+        # Execute the actual LLM request
+        adapter.complete(request, [])
+      rescue
+        e ->
+          Logger.error("LLM request failed for provider #{provider}: #{inspect(e)}")
+          {:error, :request_failed}
+      catch
+        :exit, reason ->
+          Logger.error("LLM request exited for provider #{provider}: #{inspect(reason)}")
+          {:error, :request_timeout}
+      end
+    end
+  end
+
+  defp get_cluster_providers(state) do
+    # Get providers from all coordinator nodes
+    coordinators = :pg.get_members(@pg_scope, :model_coordinators)
+    
+    # Collect provider information from all nodes
+    Enum.reduce(coordinators, %{}, fn coordinator_pid, acc ->
+      if coordinator_pid != self() do
+        try do
+          # Request remote provider status
+          remote_providers = GenServer.call(coordinator_pid, :get_local_providers, 1000)
+          Map.merge(acc, remote_providers)
+        catch
+          _, _ -> acc
+        end
+      else
+        # Add local providers
+        Map.merge(acc, state.providers)
+      end
+    end)
+  end
+
+  defp select_from_cluster(request, cluster_providers, opts, state) do
+    # Filter providers based on health and model support across cluster
+    available = cluster_providers
+                |> Enum.filter(fn {provider, info} -> 
+                  provider_healthy_cluster?(provider, info) and 
+                  supports_model_cluster?(provider, Map.get(request, :model), info)
+                end)
+
+    case available do
+      [] -> {:error, :no_available_providers}
+      providers ->
+        # Select based on cluster-wide strategy
+        strategy = Keyword.get(opts, :selection_strategy, :load_balanced)
+        select_by_cluster_strategy(providers, strategy, state)
+    end
+  end
+
+  defp provider_healthy_cluster?(provider, info) do
+    Map.get(info, :health, :healthy) != :unhealthy
+  end
+
+  defp supports_model_cluster?(provider, model, info) do
+    # Similar logic to local model support checking
+    model == nil or 
+    try do
+      adapter = Map.get(info, :adapter)
+      supported = adapter.supported_models()
+      model in supported
+    rescue
+      _ -> true
+    end
+  end
+
+  defp select_by_cluster_strategy(providers, strategy, state) do
+    # Enhanced selection that considers cluster topology
+    case strategy do
+      :local_affinity -> select_with_local_affinity(providers)
+      :load_balanced -> select_least_loaded_cluster(providers, state)
+      :round_robin -> select_round_robin_cluster(providers, state)
+      _ -> select_random_cluster(providers)
+    end
+  end
+
+  defp select_with_local_affinity(providers) do
+    # Prefer providers on local node, then closest nodes
+    local_providers = Enum.filter(providers, fn {_, info} ->
+      Map.get(info, :node, node()) == node()
+    end)
+    
+    case local_providers do
+      [] -> select_random_cluster(providers)
+      local -> select_random_cluster(local)
+    end
+  end
+
+  defp select_least_loaded_cluster(providers, state) do
+    # Select provider with lowest load across cluster
+    {provider, info} = Enum.min_by(providers, fn {provider, info} ->
+      calculate_cluster_load_score(provider, info, state)
+    end)
+    
+    adapter = Map.get(info, :adapter)
+    provider_node = Map.get(info, :node, node())
+    {:ok, {provider, adapter, provider_node}}
+  end
+
+  defp select_round_robin_cluster(providers, state) do
+    # Simple round-robin based on request counts
+    {provider, info} = Enum.min_by(providers, fn {provider, _} ->
+      Map.get(state.load_balancer_state.request_counts, provider, 0)
+    end)
+    
+    adapter = Map.get(info, :adapter)
+    provider_node = Map.get(info, :node, node())
+    {:ok, {provider, adapter, provider_node}}
+  end
+
+  defp select_random_cluster(providers) do
+    {provider, info} = Enum.random(providers)
+    adapter = Map.get(info, :adapter)
+    provider_node = Map.get(info, :node, node())
+    {:ok, {provider, adapter, provider_node}}
+  end
+
+  defp calculate_cluster_load_score(provider, info, state) do
+    # Consider both local metrics and remote provider info
+    base_score = Map.get(info, :load_score, 0.0)
+    local_error_rate = get_error_rate(provider, state)
+    
+    # Factor in node distance (lower score for local nodes)
+    node_penalty = if Map.get(info, :node, node()) == node(), do: 0.0, else: 10.0
+    
+    base_score + local_error_rate * 100.0 + node_penalty
+  end
+
+  defp delegate_to_remote_coordinator(remote_node, provider, request, opts) do
+    # Delegate request to coordinator on remote node
+    try do
+      :rpc.call(remote_node, __MODULE__, :process_request, [request, opts], 30_000)
+    catch
+      _, reason ->
+        Logger.warning("Failed to delegate to remote coordinator on #{remote_node}: #{inspect(reason)}")
+        {:error, :remote_delegation_failed}
+    end
   end
 end

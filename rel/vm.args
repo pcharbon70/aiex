@@ -1,0 +1,29 @@
+## Aiex VM Configuration for Standalone Release
+
+## Node name and configuration
+-name aiex@127.0.0.1
+-setcookie aiex_release_cookie
+
+## Memory and GC tuning
++hms 8     # Minimum heap size (MB)
++hmbs 16   # Minimum binary virtual heap size (MB)
+
+## Enable dirty schedulers
++SDio 4    # Dirty I/O schedulers
+
+## Enable SMP
+-smp enable
+
+## Disable shell history to avoid dependencies
+-kernel shell_history enabled
+
+## Mnesia directory (relative to release)
+-mnesia dir '"./data/mnesia"'
+
+## Distributed configuration
+-kernel inet_dist_listen_min 9000
+-kernel inet_dist_listen_max 9100
+
+## Logging
+-kernel logger_level info
+-kernel logger '[{handler,default,logger_std_h,#{config=>#{file=>"./log/aiex.log"}}}]'

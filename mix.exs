@@ -9,6 +9,7 @@ defmodule Aiex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: escript(),
+      releases: releases(),
 
       # Hex package configuration
       description: description(),
@@ -58,6 +59,40 @@ defmodule Aiex.MixProject do
     [
       main_module: Aiex.CLI
     ]
+  end
+
+  defp releases do
+    [
+      aiex: [
+        include_executables_for: [:unix],
+        applications: [runtime_tools: :permanent],
+        steps: [:assemble, &copy_tui_binary/1, &copy_launcher/1],
+        strip_beams: Mix.env() == :prod,
+        include_erts: true,
+        cookie: "aiex_release_cookie",
+        quiet: true
+      ]
+    ]
+  end
+
+  # Copy the Rust TUI binary into the release
+  defp copy_tui_binary(release) do
+    tui_binary = Path.join(["tui", "target", "release", "aiex-tui"])
+    if File.exists?(tui_binary) do
+      File.cp!(tui_binary, Path.join([release.path, "bin", "aiex-tui"]))
+      File.chmod!(Path.join([release.path, "bin", "aiex-tui"]), 0o755)
+    end
+    release
+  end
+
+  # Copy the launcher script into the release
+  defp copy_launcher(release) do
+    launcher_script = "scripts/aiex-launcher.sh"
+    if File.exists?(launcher_script) do
+      File.cp!(launcher_script, Path.join([release.path, "bin", "aiex"]))
+      File.chmod!(Path.join([release.path, "bin", "aiex"]), 0o755)
+    end
+    release
   end
 
   defp description do

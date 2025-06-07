@@ -75,6 +75,11 @@ defmodule Aiex.LLM.Adapter do
             }
 
   @doc """
+  Check the health of the adapter/provider.
+  """
+  @callback health_check(map()) :: :ok | {:error, term()}
+
+  @doc """
   Estimate the cost of a completion request.
   """
   @callback estimate_cost(completion_request()) :: %{
