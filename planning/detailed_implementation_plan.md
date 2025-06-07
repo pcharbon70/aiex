@@ -200,11 +200,145 @@ Creating essential Mix tasks that integrate AI capabilities into existing Elixir
 - [ ] Multi-node cluster formation tests
 - [ ] Interface abstraction layer validation
 
-## Phase 2: Distributed Language Processing (Weeks 5-8)
+## Phase 2: Rust TUI with NATS Integration (Weeks 4.5-6.5)
+
+This phase implements a sophisticated Rust-based Terminal User Interface (TUI) using Ratatui that communicates with the Elixir OTP application through NATS messaging. The architecture follows a hub-and-spoke pattern with NATS as the central messaging backbone, enabling real-time bidirectional communication while maintaining clean separation between the OTP core logic and TUI interface.
+
+### Section 2.1: NATS Infrastructure Setup
+- [ ] **Completed**
+
+Establishing NATS cluster integration with the Elixir OTP application for production-ready messaging infrastructure.
+
+**Tasks:**
+- [ ] Add NATS server embedding in Aiex application supervision tree
+- [ ] Implement NATSSupervisor with connection management
+- [ ] Create NATSConnectionManager for robust connection handling
+- [ ] Setup NATS subject naming conventions (tui.command.*, otp.event.*)
+- [ ] Implement PGNATSBridge for automatic pg-to-NATS event bridging
+- [ ] Add NATS consumer supervisor for message processing
+- [ ] Configure NATS clustering for high availability
+- [ ] Implement NATS JetStream for guaranteed delivery
+
+**Tests Required:**
+- [ ] NATS server startup and shutdown tests
+- [ ] Connection resilience and reconnection tests
+- [ ] Message routing and subject pattern tests
+- [ ] PG-to-NATS bridge functionality tests
+- [ ] NATS cluster formation tests
+- [ ] Message persistence with JetStream tests
+- [ ] Network partition handling tests
+
+### Section 2.2: Rust TUI Foundation
+- [ ] **Completed**
+
+Building the Rust TUI application using Ratatui with async architecture and proper state management.
+
+**Tasks:**
+- [ ] Create Rust workspace under tui/ directory
+- [ ] Setup Ratatui with crossterm backend for multi-platform support
+- [ ] Implement The Elm Architecture (TEA) pattern for state management
+- [ ] Create async event loop with tokio runtime
+- [ ] Add terminal capability detection and fallback
+- [ ] Implement multi-pane layout system (file tree, code view, diff view)
+- [ ] Create keyboard input handling and navigation
+- [ ] Add real-time update processing with controlled frame rate
+
+**Tests Required:**
+- [ ] TUI component rendering tests
+- [ ] Keyboard input handling tests
+- [ ] Layout system responsiveness tests
+- [ ] Async event processing tests
+- [ ] Terminal compatibility tests
+- [ ] Multi-pane navigation tests
+- [ ] Frame rate limiting tests
+
+### Section 2.3: NATS Client Integration
+- [ ] **Completed**
+
+Integrating async-nats client with robust connection management and message processing.
+
+**Tasks:**
+- [ ] Add async-nats dependency with connection pooling
+- [ ] Implement NatsManager with reconnection logic
+- [ ] Create bidirectional message handling (commands, events, queries)
+- [ ] Add MessagePack serialization for efficient data transfer
+- [ ] Implement circuit breakers for external communications
+- [ ] Create message batching for performance optimization
+- [ ] Add subscription filtering with precise subject patterns
+- [ ] Implement command queuing for offline capability
+
+**Tests Required:**
+- [ ] NATS client connection tests
+- [ ] Message serialization/deserialization tests
+- [ ] Bidirectional communication tests
+- [ ] Circuit breaker functionality tests
+- [ ] Message batching efficiency tests
+- [ ] Offline command queuing tests
+- [ ] Reconnection resilience tests
+
+### Section 2.4: Protocol Implementation
+- [ ] **Completed**
+
+Implementing the communication protocol between Rust TUI and Elixir OTP using MessagePack over NATS.
+
+**Tasks:**
+- [ ] Define message schema for commands, events, and queries
+- [ ] Implement command/response pattern (TUI → OTP)
+- [ ] Create event streaming pattern (OTP → TUI)
+- [ ] Add state query pattern with caching
+- [ ] Implement request correlation and timeout handling
+- [ ] Create error handling with graceful degradation
+- [ ] Add message versioning for protocol evolution
+- [ ] Implement distributed tracing for debugging
+
+**Tests Required:**
+- [ ] Message schema validation tests
+- [ ] Command/response pattern tests
+- [ ] Event streaming functionality tests
+- [ ] State synchronization tests
+- [ ] Request correlation tests
+- [ ] Error handling and fallback tests
+- [ ] Protocol versioning tests
+
+### Section 2.5: State Synchronization
+- [ ] **Completed**
+
+Implementing efficient state synchronization between TUI and OTP with local caching and real-time updates.
+
+**Tasks:**
+- [ ] Create StateSync layer with local cache management
+- [ ] Implement cache invalidation strategies
+- [ ] Add real-time state update subscriptions
+- [ ] Create distributed state queries with timeout
+- [ ] Implement optimistic UI updates
+- [ ] Add conflict resolution for concurrent updates
+- [ ] Create state persistence for TUI session recovery
+- [ ] Implement background state preloading
+
+**Tests Required:**
+- [ ] Local cache functionality tests
+- [ ] State synchronization accuracy tests
+- [ ] Real-time update processing tests
+- [ ] Cache invalidation tests
+- [ ] Optimistic update tests
+- [ ] Conflict resolution tests
+- [ ] Session recovery tests
+
+**Phase 2 Integration Tests:**
+- [ ] End-to-end TUI to OTP command execution
+- [ ] Real-time file change notifications
+- [ ] Distributed state consistency verification
+- [ ] Network failure recovery scenarios
+- [ ] Multi-user TUI session coordination
+- [ ] Performance under concurrent load
+- [ ] NATS cluster failover handling
+- [ ] Message ordering and delivery guarantees
+
+## Phase 3: Distributed Language Processing (Weeks 7-10)
 
 This phase introduces sophisticated distributed language processing with semantic chunking across nodes, distributed context compression, multi-LLM coordination with pg process groups, and multi-interface support (CLI, LiveView, LSP). The focus is on scalable code understanding and interface flexibility.
 
-### Section 2.1: Distributed Semantic Chunking
+### Section 3.1: Distributed Semantic Chunking
 - [ ] **Completed**
 
 Implementing distributed semantic code chunking using Tree-sitter via Rustler NIFs with work distribution across nodes using pg process groups. This section enables parallel parsing and intelligent chunk creation at scale.
@@ -228,7 +362,7 @@ Implementing distributed semantic code chunking using Tree-sitter via Rustler NI
 - [ ] Performance benchmarks across cluster
 - [ ] Node failure during parsing tests
 
-### Section 2.2: Distributed Context Compression
+### Section 3.2: Distributed Context Compression
 - [ ] **Completed**
 
 Building distributed context compression with work distribution using pg process groups and Mnesia for storing compressed contexts. This section optimizes context usage across the cluster.
@@ -252,7 +386,7 @@ Building distributed context compression with work distribution using pg process
 - [ ] Strategy synchronization tests
 - [ ] State consistency tests
 
-### Section 2.3: Distributed Multi-LLM Coordination
+### Section 3.3: Distributed Multi-LLM Coordination
 - [ ] **Completed**
 
 Creating a distributed ModelCoordinator using pg process groups with node-aware provider selection and cross-node circuit breakers. This section ensures reliable AI interactions across the cluster.
@@ -276,7 +410,7 @@ Creating a distributed ModelCoordinator using pg process groups with node-aware 
 - [ ] Health monitoring accuracy tests
 - [ ] Failover across nodes tests
 
-### Section 2.4: Multi-Interface Architecture
+### Section 3.4: Multi-Interface Architecture
 - [ ] **Completed**
 
 Implementing the interface abstraction layer with support for CLI, Phoenix LiveView, and VS Code LSP. This section enables multiple ways to interact with the distributed AI assistant.
@@ -300,7 +434,7 @@ Implementing the interface abstraction layer with support for CLI, Phoenix LiveV
 - [ ] State synchronization tests
 - [ ] Multi-interface interaction tests
 
-### Section 2.5: Distributed IEx Integration
+### Section 3.5: Distributed IEx Integration
 - [ ] **Completed**
 
 Developing distributed IEx helpers that work across cluster nodes, enabling AI-assisted development with access to the full distributed context.
@@ -323,7 +457,7 @@ Developing distributed IEx helpers that work across cluster nodes, enabling AI-a
 - [ ] Result aggregation tests
 - [ ] Node failure handling tests
 
-**Phase 2 Integration Tests:**
+**Phase 3 Integration Tests:**
 - [ ] Distributed semantic chunking at scale
 - [ ] Context compression across nodes
 - [ ] Multi-provider failover with node failures
@@ -333,11 +467,11 @@ Developing distributed IEx helpers that work across cluster nodes, enabling AI-a
 - [ ] Performance under distributed load
 - [ ] Interface switching scenarios
 
-## Phase 3: Distributed State Management (Weeks 9-12)
+## Phase 4: Distributed State Management (Weeks 11-14)
 
 This phase implements distributed state management using event sourcing with pg-based event bus, Mnesia for persistence, comprehensive test generation across nodes, and cluster-wide security. The focus is on distributed reliability, auditability, and consistency.
 
-### Section 3.1: Distributed Event Sourcing with pg
+### Section 4.1: Distributed Event Sourcing with pg
 - [ ] **Completed**
 
 Building a distributed event sourcing system using pg module for event distribution and Mnesia for event storage. This section provides cluster-wide auditability without external dependencies.
@@ -361,7 +495,7 @@ Building a distributed event sourcing system using pg module for event distribut
 - [ ] Snapshot synchronization tests
 - [ ] Network partition event tests
 
-### Section 3.2: Distributed Session Management
+### Section 4.2: Distributed Session Management
 - [ ] **Completed**
 
 Implementing distributed session management with Horde.DynamicSupervisor, automatic session migration between nodes, and network partition handling.
@@ -385,7 +519,7 @@ Implementing distributed session management with Horde.DynamicSupervisor, automa
 - [ ] Handoff mechanism tests
 - [ ] Split-brain resolution tests
 
-### Section 3.3: Distributed Test Generation
+### Section 4.3: Distributed Test Generation
 - [ ] **Completed**
 
 Creating distributed test generation with work distribution across nodes using pg process groups for parallel test creation.
@@ -409,7 +543,7 @@ Creating distributed test generation with work distribution across nodes using p
 - [ ] Generated test distribution tests
 - [ ] Node failure during generation tests
 
-### Section 3.4: Distributed Security Architecture
+### Section 4.4: Distributed Security Architecture
 - [ ] **Completed**
 
 Implementing cluster-wide security with distributed audit logging, node-to-node encryption, and multi-interface authentication.
@@ -433,7 +567,7 @@ Implementing cluster-wide security with distributed audit logging, node-to-node 
 - [ ] Security event correlation tests
 - [ ] Key distribution tests
 
-### Section 3.5: Distributed Checkpoint System
+### Section 4.5: Distributed Checkpoint System
 - [ ] **Completed**
 
 Building a distributed checkpoint system with Mnesia storage and cross-node synchronization for cluster-wide state management.
@@ -457,7 +591,7 @@ Building a distributed checkpoint system with Mnesia storage and cross-node sync
 - [ ] Cleanup coordination tests
 - [ ] Storage distribution tests
 
-**Phase 3 Integration Tests:**
+**Phase 4 Integration Tests:**
 - [ ] Distributed event sourcing workflows
 - [ ] Session recovery with node failures
 - [ ] Distributed test generation at scale
@@ -467,11 +601,11 @@ Building a distributed checkpoint system with Mnesia storage and cross-node sync
 - [ ] Performance with network partitions
 - [ ] Multi-node consistency verification
 
-## Phase 4: Production Distributed Deployment (Weeks 13-16)
+## Phase 5: Production Distributed Deployment (Weeks 15-18)
 
 This phase focuses on production deployment with Kubernetes integration, cluster-wide performance optimization, distributed monitoring with telemetry aggregation, and multi-node operational excellence. The emphasis is on horizontal scalability and fault tolerance.
 
-### Section 4.1: Distributed Performance Optimization
+### Section 5.1: Distributed Performance Optimization
 - [ ] **Completed**
 
 Implementing cluster-wide performance analysis and optimization with distributed profiling and monitoring. Includes proven patterns from Discord and WhatsApp deployments.
@@ -494,7 +628,7 @@ Implementing cluster-wide performance analysis and optimization with distributed
 - [ ] Distributed profiling tests
 - [ ] Dashboard aggregation tests
 
-### Section 4.2: Kubernetes Production Deployment
+### Section 5.2: Kubernetes Production Deployment
 - [ ] **Completed**
 
 Implementing Kubernetes-native deployment with libcluster, automatic scaling, and production supervision trees for cloud-native operation.
@@ -518,7 +652,7 @@ Implementing Kubernetes-native deployment with libcluster, automatic scaling, an
 - [ ] Network policy tests
 - [ ] Persistent volume tests
 
-### Section 4.3: Distributed Monitoring and Observability
+### Section 5.3: Distributed Monitoring and Observability
 - [ ] **Completed**
 
 Creating cluster-wide monitoring with telemetry aggregation, distributed tracing, and unified observability across all nodes and interfaces.
@@ -542,7 +676,7 @@ Creating cluster-wide monitoring with telemetry aggregation, distributed tracing
 - [ ] Dashboard federation tests
 - [ ] Log aggregation tests
 
-### Section 4.4: Distributed Release Engineering
+### Section 5.4: Distributed Release Engineering
 - [ ] **Completed**
 
 Setting up distributed Mix releases with cluster-aware configuration and container orchestration support.
@@ -566,7 +700,7 @@ Setting up distributed Mix releases with cluster-aware configuration and contain
 - [ ] Cluster rollback tests
 - [ ] Version synchronization tests
 
-### Section 4.5: Distributed Developer Tools
+### Section 5.5: Distributed Developer Tools
 - [ ] **Completed**
 
 Creating distributed debugging tools, cluster management utilities, and comprehensive documentation for distributed development.
@@ -590,7 +724,7 @@ Creating distributed debugging tools, cluster management utilities, and comprehe
 - [ ] Distributed coverage tests
 - [ ] Cluster integration tests
 
-**Phase 4 Integration Tests:**
+**Phase 5 Integration Tests:**
 - [ ] Cluster-wide performance benchmarks
 - [ ] Kubernetes deployment scenarios
 - [ ] Distributed monitoring accuracy
@@ -600,11 +734,11 @@ Creating distributed debugging tools, cluster management utilities, and comprehe
 - [ ] Cluster disaster recovery
 - [ ] Network partition handling
 
-## Phase 5: Distributed AI Intelligence (Weeks 17-20)
+## Phase 6: Distributed AI Intelligence (Weeks 19-22)
 
 This phase implements distributed AI response comparison, quality assessment, and selection across the cluster. The focus is on leveraging distributed computing for parallel LLM requests, consensus-based selection, and cluster-wide learning from user preferences.
 
-### Section 5.1: Distributed Response Comparison
+### Section 6.1: Distributed Response Comparison
 - [ ] **Completed**
 
 Building a distributed system using pg process groups for coordinating parallel LLM requests across nodes with intelligent comparison and aggregation.
@@ -628,7 +762,7 @@ Building a distributed system using pg process groups for coordinating parallel 
 - [ ] Correlation consistency tests
 - [ ] Distributed memory tests
 
-### Section 5.2: Distributed Quality Assessment
+### Section 6.2: Distributed Quality Assessment
 - [ ] **Completed**
 
 Implementing distributed quality assessment with work distribution across nodes for parallel evaluation of responses.
@@ -652,7 +786,7 @@ Implementing distributed quality assessment with work distribution across nodes 
 - [ ] Parallel detection tests
 - [ ] Consensus metric tests
 
-### Section 5.3: Distributed Response Selection
+### Section 6.3: Distributed Response Selection
 - [ ] **Completed**
 
 Implementing distributed ML-based selection using consensus algorithms across nodes with pg coordination.
@@ -676,7 +810,7 @@ Implementing distributed ML-based selection using consensus algorithms across no
 - [ ] Distributed adaptation tests
 - [ ] Explanation consistency tests
 
-### Section 5.4: Distributed Analytics Platform
+### Section 6.4: Distributed Analytics Platform
 - [ ] **Completed**
 
 Building a distributed analytics platform with Mnesia storage and cluster-wide aggregation for comprehensive insights.
@@ -700,7 +834,7 @@ Building a distributed analytics platform with Mnesia storage and cluster-wide a
 - [ ] Cluster monitoring tests
 - [ ] Distributed anomaly tests
 
-### Section 5.5: Distributed Context Intelligence
+### Section 6.5: Distributed Context Intelligence
 - [ ] **Completed**
 
 Implementing distributed context awareness with Mnesia-based knowledge storage and cluster-wide pattern analysis.
@@ -724,7 +858,7 @@ Implementing distributed context awareness with Mnesia-based knowledge storage a
 - [ ] Distributed knowledge tests
 - [ ] Consensus optimization tests
 
-**Phase 5 Integration Tests:**
+**Phase 6 Integration Tests:**
 - [ ] Distributed comparison workflows
 - [ ] Cluster-wide quality assessment
 - [ ] Distributed selection effectiveness

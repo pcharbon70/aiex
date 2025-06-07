@@ -2,8 +2,99 @@ defmodule Aiex do
   @moduledoc """
   Aiex - Distributed AI-powered Elixir coding assistant.
 
-  This module provides the main entry point and distributed supervision tree 
-  for the Aiex application using OTP primitives for scalability and fault tolerance.
+  Aiex is a sophisticated coding assistant built with pure OTP primitives, designed for
+  horizontal scaling and fault tolerance. It provides intelligent code analysis, module
+  generation, and multi-provider LLM integration across distributed Elixir clusters.
+
+  ## Features
+
+  - **Distributed Architecture**: Built with pure OTP clustering, Horde, and Mnesia
+  - **Multi-LLM Support**: OpenAI, Anthropic, Ollama, and LM Studio adapters
+  - **Secure Operations**: Sandboxed file operations with audit logging
+  - **Multi-Interface**: CLI, Phoenix LiveView, and VS Code LSP support
+  - **Production Ready**: Kubernetes-native deployment with libcluster
+
+  ## Architecture Overview
+
+  The application follows a distributed supervision tree design with five main subsystems:
+
+  1. **CLI Interface** - Rich terminal UI with verb-noun command structure
+  2. **Context Management Engine** - Distributed context with Mnesia persistence
+  3. **LLM Integration Layer** - Multi-provider coordination with intelligent routing
+  4. **File Operation Sandbox** - Security-focused operations with path validation
+  5. **Interface Gateway** - Unified access point for all interface types
+
+  ## Getting Started
+
+  ### Using the CLI
+
+      # Generate a new module
+      mix ai.gen.module Calculator "basic arithmetic operations"
+
+      # Explain existing code
+      mix ai.explain lib/my_module.ex
+
+      # Get help
+      mix ai
+
+  ### Using Programmatically
+
+      # Start the application
+      Application.ensure_all_started(:aiex)
+
+      # Register an interface
+      config = %{
+        type: :api,
+        session_id: "my_session",
+        user_id: nil,
+        capabilities: [:text_output],
+        settings: %{}
+      }
+      {:ok, interface_id} = Aiex.InterfaceGateway.register_interface(MyInterface, config)
+
+      # Submit a request
+      request = %{
+        id: "req_1",
+        type: :completion,
+        content: "Explain this code",
+        context: %{},
+        options: []
+      }
+      {:ok, request_id} = Aiex.InterfaceGateway.submit_request(interface_id, request)
+
+  ## Configuration
+
+  Configure providers in `config/config.exs`:
+
+      config :aiex,
+        llm: [
+          default_provider: :ollama,
+          distributed_coordination: true,
+          provider_affinity: :local_preferred
+        ],
+        cluster: [
+          discovery_strategy: :kubernetes_dns,
+          heartbeat_interval: 5_000
+        ]
+
+  ## Distributed Deployment
+
+  For Kubernetes deployment:
+
+      config :libcluster,
+        topologies: [
+          aiex_cluster: [
+            strategy: Cluster.Strategy.Kubernetes.DNS,
+            config: [
+              service: "aiex-headless",
+              application_name: "aiex"
+            ]
+          ]
+        ]
+
+  See the [Implementation Plan](planning/detailed_implementation_plan.md) for detailed
+  architecture documentation and the [Architecture Overview](research/coding_agent_overview.md)
+  for design principles.
   """
 
   use Application
@@ -20,6 +111,9 @@ defmodule Aiex do
       
       # Distributed event bus
       Aiex.Events.EventBus,
+
+      # Distributed configuration management
+      Aiex.Config.DistributedConfig,
       
       # HTTP Client for LLM requests
       {Finch, name: AiexFinch},
@@ -41,6 +135,12 @@ defmodule Aiex do
 
       # Distributed LLM Model Coordinator
       {Aiex.LLM.ModelCoordinator, []},
+
+      # Interface Gateway for unified access
+      {Aiex.InterfaceGateway, []},
+
+      # NATS messaging infrastructure for TUI integration
+      Aiex.NATS.Supervisor,
 
       # LLM Client (optional - only start if configured)
       llm_client_spec(),

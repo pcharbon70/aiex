@@ -199,6 +199,40 @@ defmodule Aiex.Sandbox do
     Config.get(opts)
   end
 
+  # Convenience functions for NATS handlers
+
+  @doc """
+  Reads a file within the sandbox boundaries (alias for read/2).
+  """
+  @spec read_file(String.t(), keyword()) :: {:ok, binary()} | {:error, any()}
+  def read_file(path, opts \\ []) do
+    read(path, opts)
+  end
+
+  @doc """
+  Writes content to a file within the sandbox boundaries (alias for write/3).
+  """
+  @spec write_file(String.t(), iodata(), keyword()) :: :ok | {:error, any()}
+  def write_file(path, content, opts \\ []) do
+    write(path, content, opts)
+  end
+
+  @doc """
+  Lists files in a directory within the sandbox boundaries (alias for list_dir/2).
+  """
+  @spec list_directory(String.t(), keyword()) :: {:ok, [String.t()]} | {:error, any()}
+  def list_directory(path, opts \\ []) do
+    list_dir(path, opts)
+  end
+
+  @doc """
+  Creates a directory within the sandbox boundaries (alias for mkdir_p/2).
+  """
+  @spec create_directory(String.t(), keyword()) :: :ok | {:error, any()}
+  def create_directory(path, opts \\ []) do
+    mkdir_p(path, opts)
+  end
+
   # Private functions
 
   defp get_config!(opts) do

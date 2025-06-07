@@ -1,5 +1,9 @@
 import Config
 
+# Disable libcluster for tests
+config :libcluster,
+  topologies: []
+
 # Test configuration
 config :aiex,
   llm: [

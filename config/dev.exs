@@ -1,5 +1,9 @@
 import Config
 
+# Override libcluster for development - disable clustering to avoid errors
+config :libcluster,
+  topologies: []
+
 # Development configuration
 config :aiex,
   llm: [
