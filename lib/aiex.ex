@@ -80,11 +80,11 @@ defmodule Aiex do
   ## Distributed Deployment
 
   Clustering is optional and disabled by default for development.
-  
+
   For single-node development (default):
-  
+
       config :aiex, cluster_enabled: false
-  
+
   For Kubernetes distributed deployment:
 
       config :aiex, cluster_enabled: true
@@ -111,52 +111,59 @@ defmodule Aiex do
   def start(_type, _args) do
     # pg is started automatically by OTP, no need to start it manually
 
-    children = [
-      # Core infrastructure
-      {Registry, keys: :unique, name: Aiex.Registry},
-      {Horde.Registry, name: Aiex.HordeRegistry, keys: :unique},
-      {Horde.DynamicSupervisor, name: Aiex.HordeSupervisor, strategy: :one_for_one},
-      
-      # Distributed event bus
-      Aiex.Events.EventBus,
+    children =
+      [
+        # Core infrastructure
+        {Registry, keys: :unique, name: Aiex.Registry},
+        {Horde.Registry, name: Aiex.HordeRegistry, keys: :unique},
+        {Horde.DynamicSupervisor, name: Aiex.HordeSupervisor, strategy: :one_for_one},
 
-      # Distributed configuration management
-      Aiex.Config.DistributedConfig,
-      
-      # HTTP Client for LLM requests
-      {Finch, name: AiexFinch},
+        # Distributed event bus
+        Aiex.Events.EventBus,
 
-      # Distributed context management
-      Aiex.Context.DistributedEngine,
-      {Horde.Registry, name: Aiex.Context.SessionRegistry, keys: :unique},
-      Aiex.Context.Manager,
-      Aiex.Context.SessionSupervisor,
+        # Distributed configuration management
+        Aiex.Config.DistributedConfig,
 
-      # Sandbox Configuration
-      Aiex.Sandbox.Config,
+        # HTTP Client for LLM requests
+        {Finch, name: AiexFinch},
 
-      # Audit Logger
-      Aiex.Sandbox.AuditLogger,
+        # Distributed context management
+        Aiex.Context.DistributedEngine,
+        {Horde.Registry, name: Aiex.Context.SessionRegistry, keys: :unique},
+        Aiex.Context.Manager,
+        Aiex.Context.SessionSupervisor,
 
-      # LLM Rate Limiter
-      Aiex.LLM.RateLimiter,
+        # Context compression
+        Aiex.Context.Compressor,
 
-      # Distributed LLM Model Coordinator
-      {Aiex.LLM.ModelCoordinator, []},
+        # Sandbox Configuration
+        Aiex.Sandbox.Config,
 
-      # Interface Gateway for unified access
-      {Aiex.InterfaceGateway, []},
+        # Audit Logger
+        Aiex.Sandbox.AuditLogger,
 
-      # TUI communication infrastructure
-      Aiex.TUI.Supervisor,
+        # LLM Rate Limiter
+        Aiex.LLM.RateLimiter,
 
-      # LLM Client (optional - only start if configured)
-      llm_client_spec(),
-      
-      # Cluster coordination (if libcluster is configured)
-      cluster_supervisor()
-    ]
-    |> Enum.reject(&is_nil/1)
+        # Distributed LLM Model Coordinator
+        {Aiex.LLM.ModelCoordinator, []},
+
+        # Semantic Analysis
+        Aiex.Semantic.Chunker,
+
+        # Interface Gateway for unified access
+        {Aiex.InterfaceGateway, []},
+
+        # TUI communication infrastructure
+        Aiex.TUI.Supervisor,
+
+        # LLM Client (optional - only start if configured)
+        llm_client_spec(),
+
+        # Cluster coordination (if libcluster is configured)
+        cluster_supervisor()
+      ]
+      |> Enum.reject(&is_nil/1)
 
     opts = [strategy: :one_for_one, name: Aiex.Supervisor]
     Supervisor.start_link(children, opts)
@@ -171,9 +178,8 @@ defmodule Aiex do
     # 3. Topologies are configured
     with true <- Application.get_env(:aiex, :cluster_enabled, false),
          {:ok, _} <- Application.ensure_loaded(:libcluster),
-         topologies when not is_nil(topologies) and topologies != [] <- 
+         topologies when not is_nil(topologies) and topologies != [] <-
            Application.get_env(:libcluster, :topologies) do
-      
       require Logger
       Logger.info("Starting distributed clustering with #{length(topologies)} topology(ies)")
       {Cluster.Supervisor, [topologies, [name: Aiex.ClusterSupervisor]]}
@@ -182,12 +188,12 @@ defmodule Aiex do
         require Logger
         Logger.debug("Clustering disabled in configuration - running in single-node mode")
         nil
-      
+
       {:error, :nofile} ->
         require Logger
         Logger.info("libcluster not available - running in single-node mode")
         nil
-      
+
       _ ->
         require Logger
         Logger.debug("No cluster topologies configured - running in single-node mode")

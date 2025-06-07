@@ -36,7 +36,7 @@ config :aiex,
   # Set cluster_enabled: true in production for distributed deployment
   # Default: false (single-node mode for development)
   cluster_enabled: true,
-  
+
   # Distributed cluster configuration (only used when cluster_enabled: true)
   cluster: [
     node_name: :aiex,

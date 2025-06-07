@@ -9,11 +9,11 @@ defmodule Aiex.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       escript: escript(),
-      
+
       # Hex package configuration
       description: description(),
       package: package(),
-      
+
       # Documentation configuration
       name: "Aiex",
       source_url: "https://github.com/your-org/aiex",
@@ -39,16 +39,16 @@ defmodule Aiex.MixProject do
       {:finch, "~> 0.18.0"},
       {:hammer, "~> 6.1"},
       {:jason, "~> 1.4"},
-      
+
       # Distributed OTP
       {:horde, "~> 0.9.0"},
       {:libcluster, "~> 3.3", optional: true},
       {:syn, "~> 3.3"},
-      
+
       # NATS messaging
       {:gnat, "~> 1.8"},
       {:msgpax, "~> 2.4"},
-      
+
       # Documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
@@ -63,7 +63,7 @@ defmodule Aiex.MixProject do
   defp description do
     """
     Aiex is a distributed AI-powered Elixir coding assistant built with OTP primitives.
-    
+
     Features include intelligent code analysis, module generation, distributed LLM coordination,
     secure sandboxed file operations, and multi-interface support (CLI, LiveView, LSP).
     Built for horizontal scaling and fault tolerance using pure Erlang/OTP clustering.
@@ -131,13 +131,13 @@ defmodule Aiex.MixProject do
           Aiex.Sandbox.Config,
           Aiex.Sandbox.PathValidator
         ],
-        "Configuration": [
+        Configuration: [
           Aiex.Config.DistributedConfig
         ],
         "Events & Communication": [
           Aiex.Events.EventBus
         ],
-        "Interfaces": [
+        Interfaces: [
           Aiex.Interfaces.CLIInterface
         ],
         "Mix Tasks": [
@@ -145,14 +145,14 @@ defmodule Aiex.MixProject do
           Mix.Tasks.Ai.Explain,
           Mix.Tasks.Ai.Gen.Module
         ],
-        "Templates": [
+        Templates: [
           Aiex.LLM.Templates.PromptTemplate
         ]
       ],
       groups_for_docs: [
         "Client API": &(&1[:type] == :client),
         "Server Callbacks": &(&1[:type] == :callback),
-        "Configuration": &(&1[:type] == :config)
+        Configuration: &(&1[:type] == :config)
       ]
     ]
   end

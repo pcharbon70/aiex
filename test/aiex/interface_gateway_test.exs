@@ -1,6 +1,6 @@
 defmodule Aiex.InterfaceGatewayTest do
   use ExUnit.Case, async: false
-  
+
   alias Aiex.InterfaceGateway
   alias Aiex.InterfaceBehaviour
 
@@ -20,12 +20,12 @@ defmodule Aiex.InterfaceGatewayTest do
         capabilities: [:test_capability],
         settings: %{}
       }
-      
+
       assert {:ok, interface_id} = InterfaceGateway.register_interface(TestInterface, config)
       assert is_binary(interface_id)
       assert String.starts_with?(interface_id, "test_")
     end
-    
+
     test "unregisters interface successfully" do
       config = %{
         type: :test,
@@ -34,7 +34,7 @@ defmodule Aiex.InterfaceGatewayTest do
         capabilities: [:test_capability],
         settings: %{}
       }
-      
+
       {:ok, interface_id} = InterfaceGateway.register_interface(TestInterface, config)
       assert :ok = InterfaceGateway.unregister_interface(interface_id)
       assert {:error, :not_found} = InterfaceGateway.unregister_interface(interface_id)
@@ -50,9 +50,9 @@ defmodule Aiex.InterfaceGatewayTest do
         capabilities: [:test_capability],
         settings: %{}
       }
-      
+
       {:ok, interface_id} = InterfaceGateway.register_interface(TestInterface, config)
-      
+
       request = %{
         id: "test_request",
         type: :completion,
@@ -60,11 +60,11 @@ defmodule Aiex.InterfaceGatewayTest do
         context: %{},
         options: []
       }
-      
+
       assert {:ok, request_id} = InterfaceGateway.submit_request(interface_id, request)
       assert is_binary(request_id)
     end
-    
+
     test "fails to submit request for unregistered interface" do
       request = %{
         id: "test_request",
@@ -73,8 +73,9 @@ defmodule Aiex.InterfaceGatewayTest do
         context: %{},
         options: []
       }
-      
-      assert {:error, :interface_not_found} = InterfaceGateway.submit_request("nonexistent", request)
+
+      assert {:error, :interface_not_found} =
+               InterfaceGateway.submit_request("nonexistent", request)
     end
   end
 
@@ -87,9 +88,9 @@ defmodule Aiex.InterfaceGatewayTest do
         capabilities: [:test_capability],
         settings: %{}
       }
-      
+
       {:ok, interface_id} = InterfaceGateway.register_interface(TestInterface, config)
-      
+
       request = %{
         id: "test_request",
         type: :completion,
@@ -97,15 +98,15 @@ defmodule Aiex.InterfaceGatewayTest do
         context: %{},
         options: []
       }
-      
+
       {:ok, request_id} = InterfaceGateway.submit_request(interface_id, request)
-      
+
       assert {:ok, status} = InterfaceGateway.get_request_status(request_id)
       assert status.id == request_id
       assert status.interface_id == interface_id
       assert status.status == :processing
     end
-    
+
     test "returns error for unknown request" do
       assert {:error, :not_found} = InterfaceGateway.get_request_status("unknown_request")
     end
@@ -114,7 +115,7 @@ defmodule Aiex.InterfaceGatewayTest do
   describe "cluster status" do
     test "returns cluster status information" do
       status = InterfaceGateway.get_cluster_status()
-      
+
       assert is_map(status)
       assert Map.has_key?(status, :node)
       assert Map.has_key?(status, :interfaces)
@@ -132,14 +133,19 @@ defmodule Aiex.InterfaceGatewayTest do
         capabilities: [:test_capability],
         settings: %{}
       }
-      
+
       {:ok, interface_id} = InterfaceGateway.register_interface(TestInterface, config)
-      
-      assert :ok = InterfaceGateway.subscribe_events(interface_id, [:request_completed, :request_failed])
+
+      assert :ok =
+               InterfaceGateway.subscribe_events(interface_id, [
+                 :request_completed,
+                 :request_failed
+               ])
     end
-    
+
     test "fails to subscribe events for unregistered interface" do
-      assert {:error, :interface_not_found} = InterfaceGateway.subscribe_events("nonexistent", [:test_event])
+      assert {:error, :interface_not_found} =
+               InterfaceGateway.subscribe_events("nonexistent", [:test_event])
     end
   end
 end

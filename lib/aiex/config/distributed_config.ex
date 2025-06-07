@@ -1,7 +1,7 @@
 defmodule Aiex.Config.DistributedConfig do
   @moduledoc """
   Distributed configuration management for the Aiex cluster.
-  
+
   This module manages configuration synchronization across cluster nodes,
   provides runtime configuration updates, and ensures consistency of
   settings across the distributed system.
@@ -57,7 +57,7 @@ defmodule Aiex.Config.DistributedConfig do
   def get_all(app) do
     distributed_config = get_all_distributed_config(app)
     local_config = Application.get_all_env(app)
-    
+
     # Merge with distributed config taking precedence
     Keyword.merge(local_config, distributed_config)
   end
@@ -84,25 +84,25 @@ defmodule Aiex.Config.DistributedConfig do
   def init(opts) do
     # Create ETS table for configuration cache
     :ets.new(@config_table, [:set, :public, :named_table, {:read_concurrency, true}])
-    
+
     # Subscribe to configuration events
     EventBus.subscribe(:config_updated)
     EventBus.subscribe(:node_joined)
     EventBus.subscribe(:node_left)
-    
+
     # Schedule periodic synchronization
     sync_timer = Process.send_after(self(), :sync_cluster, @config_sync_interval)
-    
+
     state = %__MODULE__{
       node: node(),
       config_cache: %{},
       sync_timer: sync_timer,
       pending_updates: []
     }
-    
+
     # Initial sync
     perform_cluster_sync(state)
-    
+
     Logger.info("Distributed configuration manager started on #{node()}")
     {:ok, state}
   end
@@ -111,7 +111,7 @@ defmodule Aiex.Config.DistributedConfig do
   def handle_call({:put_config, app, key, value}, _from, state) do
     # Store locally first
     :ets.insert(@config_table, {{app, key}, value, node(), DateTime.utc_now()})
-    
+
     # Broadcast to cluster
     EventBus.publish(:config_updated, %{
       app: app,
@@ -120,10 +120,10 @@ defmodule Aiex.Config.DistributedConfig do
       node: node(),
       timestamp: DateTime.utc_now()
     })
-    
+
     # Update runtime configuration
     Application.put_env(app, key, value)
-    
+
     Logger.info("Configuration updated: #{app}.#{key} = #{inspect(value)}")
     {:reply, :ok, state}
   end
@@ -137,7 +137,7 @@ defmodule Aiex.Config.DistributedConfig do
       last_sync: state.sync_timer,
       pending_updates: length(state.pending_updates)
     }
-    
+
     {:reply, status, state}
   end
 
@@ -151,10 +151,10 @@ defmodule Aiex.Config.DistributedConfig do
   def handle_info(:sync_cluster, state) do
     # Periodic sync
     new_state = perform_cluster_sync(state)
-    
+
     # Schedule next sync
     sync_timer = Process.send_after(self(), :sync_cluster, @config_sync_interval)
-    
+
     {:noreply, %{new_state | sync_timer: sync_timer}}
   end
 
@@ -164,7 +164,7 @@ defmodule Aiex.Config.DistributedConfig do
     if event_data.node != node() do
       handle_remote_config_update(event_data, state)
     end
-    
+
     {:noreply, state}
   end
 
@@ -198,17 +198,17 @@ defmodule Aiex.Config.DistributedConfig do
   end
 
   defp get_all_distributed_config(app) do
-    :ets.match(@config_table, {{app, :'$1'}, :'$2', :_, :_})
+    :ets.match(@config_table, {{app, :"$1"}, :"$2", :_, :_})
     |> Enum.into(%{})
   end
 
   defp perform_cluster_sync(state) do
     cluster_nodes = Node.list()
-    
+
     if length(cluster_nodes) > 0 do
       sync_with_cluster_nodes(cluster_nodes)
     end
-    
+
     state
   end
 
@@ -219,7 +219,7 @@ defmodule Aiex.Config.DistributedConfig do
         case :rpc.call(node, __MODULE__, :get_node_config, []) do
           {:ok, node_config} ->
             merge_node_config(node_config, node)
-            
+
           {:error, reason} ->
             Logger.warn("Failed to sync config with #{node}: #{inspect(reason)}")
         end
@@ -230,11 +230,11 @@ defmodule Aiex.Config.DistributedConfig do
   defp sync_with_new_node(new_node) do
     # Send our configuration to the new node
     local_config = export_local_config()
-    
+
     case :rpc.call(new_node, __MODULE__, :import_config, [local_config, node()]) do
       :ok ->
         Logger.info("Successfully synced config to new node: #{new_node}")
-        
+
       {:error, reason} ->
         Logger.warn("Failed to sync config to new node #{new_node}: #{inspect(reason)}")
     end
@@ -242,14 +242,14 @@ defmodule Aiex.Config.DistributedConfig do
 
   defp handle_remote_config_update(event_data, _state) do
     %{app: app, key: key, value: value, node: remote_node, timestamp: timestamp} = event_data
-    
+
     # Check if we should accept this update (timestamp-based conflict resolution)
     case :ets.lookup(@config_table, {app, key}) do
       [{_key, _current_value, _current_node, current_timestamp}] ->
         if DateTime.compare(timestamp, current_timestamp) == :gt do
           accept_config_update(app, key, value, remote_node, timestamp)
         end
-        
+
       [] ->
         accept_config_update(app, key, value, remote_node, timestamp)
     end
@@ -258,7 +258,7 @@ defmodule Aiex.Config.DistributedConfig do
   defp accept_config_update(app, key, value, remote_node, timestamp) do
     :ets.insert(@config_table, {{app, key}, value, remote_node, timestamp})
     Application.put_env(app, key, value)
-    
+
     Logger.debug("Accepted config update from #{remote_node}: #{app}.#{key} = #{inspect(value)}")
   end
 
@@ -266,11 +266,11 @@ defmodule Aiex.Config.DistributedConfig do
     # Remove configurations that were set by the departed node
     # (if they haven't been overridden by other nodes)
     match_spec = [
-      {{{:'$1', :'$2'}, :'$3', departed_node, :'$4'}, [], [{{:'$1', :'$2'}}]}
+      {{{:"$1", :"$2"}, :"$3", departed_node, :"$4"}, [], [{{:"$1", :"$2"}}]}
     ]
-    
+
     departed_configs = :ets.select(@config_table, match_spec)
-    
+
     Enum.each(departed_configs, fn {app, key} ->
       :ets.delete(@config_table, {app, key})
       Logger.debug("Cleaned up config from departed node #{departed_node}: #{app}.#{key}")
@@ -279,7 +279,7 @@ defmodule Aiex.Config.DistributedConfig do
 
   @doc false
   def get_node_config do
-    config_list = :ets.match(@config_table, {:'$1', :'$2', :'$3', :'$4'})
+    config_list = :ets.match(@config_table, {:"$1", :"$2", :"$3", :"$4"})
     {:ok, config_list}
   end
 
@@ -292,18 +292,18 @@ defmodule Aiex.Config.DistributedConfig do
             :ets.insert(@config_table, {{app, key}, value, remote_node, timestamp})
             Application.put_env(app, key, value)
           end
-          
+
         [] ->
           :ets.insert(@config_table, {{app, key}, value, remote_node, timestamp})
           Application.put_env(app, key, value)
       end
     end)
-    
+
     :ok
   end
 
   defp export_local_config do
-    :ets.match(@config_table, {:'$1', :'$2', :'$3', :'$4'})
+    :ets.match(@config_table, {:"$1", :"$2", :"$3", :"$4"})
   end
 
   defp merge_node_config(node_config, remote_node) do
@@ -314,7 +314,7 @@ defmodule Aiex.Config.DistributedConfig do
             :ets.insert(@config_table, {{app, key}, value, remote_node, timestamp})
             Application.put_env(app, key, value)
           end
-          
+
         [] ->
           :ets.insert(@config_table, {{app, key}, value, remote_node, timestamp})
           Application.put_env(app, key, value)

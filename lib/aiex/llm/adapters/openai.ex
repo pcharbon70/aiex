@@ -231,22 +231,22 @@ defmodule Aiex.LLM.Adapters.OpenAI do
   """
   def health_check(opts \\ []) do
     api_key = Keyword.get(opts, :api_key) || Application.get_env(:aiex, :openai_api_key)
-    
+
     if api_key do
       # Try to make a simple request to check API health
       headers = build_headers(api_key)
-      
+
       case Finch.build(:get, @base_url <> "/models", headers)
            |> Finch.request(AiexFinch, receive_timeout: 5_000) do
         {:ok, %Finch.Response{status: 200}} ->
           :ok
-        
+
         {:ok, %Finch.Response{status: status}} ->
           {:error, "OpenAI API returned status #{status}"}
-        
+
         {:error, %Mint.TransportError{reason: :econnrefused}} ->
           {:error, "Connection refused - OpenAI API unreachable"}
-        
+
         {:error, reason} ->
           {:error, "Health check failed: #{inspect(reason)}"}
       end

@@ -1,7 +1,7 @@
 defmodule Aiex.Events.EventBus do
   @moduledoc """
   Distributed event bus using Erlang's pg module for pure OTP pub/sub.
-  
+
   Provides distributed event publishing and subscription without external
   dependencies, using pg process groups for efficient message distribution.
   """
@@ -61,13 +61,13 @@ defmodule Aiex.Events.EventBus do
   def init(_opts) do
     # Start pg scope for this event bus
     case :pg.start(@event_scope) do
-      {:ok, _pid} -> 
+      {:ok, _pid} ->
         Logger.info("Started event bus with pg scope: #{@event_scope}")
-      
-      {:error, {:already_started, _pid}} -> 
+
+      {:error, {:already_started, _pid}} ->
         Logger.debug("Event bus pg scope already started")
         :ok
-      
+
       {:error, reason} ->
         Logger.error("Failed to start pg scope: #{inspect(reason)}")
         {:stop, reason}
@@ -87,12 +87,12 @@ defmodule Aiex.Events.EventBus do
   def handle_call({:subscribe, topic, pid}, _from, state) do
     # Join the process group for this topic
     :ok = :pg.join(@event_scope, topic, pid)
-    
+
     # Monitor the subscriber process
     Process.monitor(pid)
-    
+
     new_state = %{state | subscription_count: state.subscription_count + 1}
-    
+
     Logger.debug("Process #{inspect(pid)} subscribed to topic: #{topic}")
     {:reply, :ok, new_state}
   end
@@ -101,7 +101,7 @@ defmodule Aiex.Events.EventBus do
   def handle_call({:unsubscribe, topic, pid}, _from, state) do
     # Leave the process group
     :ok = :pg.leave(@event_scope, topic, pid)
-    
+
     Logger.debug("Process #{inspect(pid)} unsubscribed from topic: #{topic}")
     {:reply, :ok, state}
   end
@@ -120,7 +120,7 @@ defmodule Aiex.Events.EventBus do
 
     # Get all members of the topic group
     members = :pg.get_members(@event_scope, topic)
-    
+
     # Dispatch to all subscribers concurrently
     Task.async_stream(
       members,
@@ -134,7 +134,7 @@ defmodule Aiex.Events.EventBus do
     |> Stream.run()
 
     new_state = %{state | event_count: state.event_count + 1}
-    
+
     Logger.debug("Published event to #{length(members)} subscribers on topic: #{topic}")
     {:reply, {:ok, length(members)}, new_state}
   end
@@ -142,14 +142,16 @@ defmodule Aiex.Events.EventBus do
   @impl true
   def handle_call({:subscribers, topic}, _from, state) do
     members = :pg.get_members(@event_scope, topic)
-    subscriber_info = Enum.map(members, fn pid ->
-      %{
-        pid: pid,
-        node: node(pid),
-        alive: Process.alive?(pid)
-      }
-    end)
-    
+
+    subscriber_info =
+      Enum.map(members, fn pid ->
+        %{
+          pid: pid,
+          node: node(pid),
+          alive: Process.alive?(pid)
+        }
+      end)
+
     {:reply, {:ok, subscriber_info}, state}
   end
 
@@ -157,15 +159,17 @@ defmodule Aiex.Events.EventBus do
   def handle_call(:stats, _from, state) do
     # Get all groups and their member counts
     all_groups = :pg.which_groups(@event_scope)
-    
-    group_stats = Enum.map(all_groups, fn group ->
-      members = :pg.get_members(@event_scope, group)
-      %{
-        topic: group,
-        subscriber_count: length(members),
-        nodes: members |> Enum.map(&node/1) |> Enum.uniq()
-      }
-    end)
+
+    group_stats =
+      Enum.map(all_groups, fn group ->
+        members = :pg.get_members(@event_scope, group)
+
+        %{
+          topic: group,
+          subscriber_count: length(members),
+          nodes: members |> Enum.map(&node/1) |> Enum.uniq()
+        }
+      end)
 
     stats = %{
       node: state.node,
@@ -195,7 +199,10 @@ defmodule Aiex.Events.EventBus do
       :ok
     catch
       kind, reason ->
-        Logger.warning("Failed to dispatch event to #{inspect(pid)}: #{Exception.format(kind, reason)}")
+        Logger.warning(
+          "Failed to dispatch event to #{inspect(pid)}: #{Exception.format(kind, reason)}"
+        )
+
         :error
     end
   end

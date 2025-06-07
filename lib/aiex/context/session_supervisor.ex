@@ -1,7 +1,7 @@
 defmodule Aiex.Context.SessionSupervisor do
   @moduledoc """
   Distributed supervisor for context session processes using Horde.
-  
+
   Provides automatic distribution of session processes across cluster nodes
   with fault tolerance and automatic migration on node failures.
   """
@@ -31,11 +31,11 @@ defmodule Aiex.Context.SessionSupervisor do
       {:ok, pid} ->
         Logger.info("Started session #{session_id} on node #{node()}")
         {:ok, pid}
-      
+
       {:error, {:already_started, pid}} ->
         Logger.debug("Session #{session_id} already exists")
         {:ok, pid}
-      
+
       error ->
         Logger.error("Failed to start session #{session_id}: #{inspect(error)}")
         error
@@ -49,7 +49,7 @@ defmodule Aiex.Context.SessionSupervisor do
     case find_session_child(session_id) do
       {:ok, pid} ->
         Horde.DynamicSupervisor.terminate_child(__MODULE__, pid)
-      
+
       {:error, :not_found} ->
         {:error, :not_found}
     end
@@ -74,7 +74,7 @@ defmodule Aiex.Context.SessionSupervisor do
   """
   def stats do
     children = Horde.DynamicSupervisor.which_children(__MODULE__)
-    
+
     %{
       total_sessions: length(children),
       local_sessions: count_local_sessions(children),
@@ -93,10 +93,13 @@ defmodule Aiex.Context.SessionSupervisor do
       distribution_strategy: Horde.UniformQuorumDistribution,
       members: get_cluster_members()
     ]
-    
+
     merged_options = Keyword.merge(horde_options, opts)
-    
-    Logger.info("Starting distributed session supervisor with options: #{inspect(merged_options)}")
+
+    Logger.info(
+      "Starting distributed session supervisor with options: #{inspect(merged_options)}"
+    )
+
     Horde.DynamicSupervisor.init(merged_options)
   end
 
@@ -129,7 +132,7 @@ defmodule Aiex.Context.SessionSupervisor do
 
   defp get_cluster_members do
     cluster_nodes = [node() | Node.list()]
-    
+
     Enum.map(cluster_nodes, fn node ->
       {Aiex.Context.SessionSupervisor, node}
     end)

@@ -312,29 +312,34 @@ defmodule Aiex.LLM.Adapters.Anthropic do
   """
   def health_check(opts \\ []) do
     api_key = Keyword.get(opts, :api_key) || Application.get_env(:aiex, :anthropic_api_key)
-    
+
     if api_key do
       # Try a minimal completion request to check API health
       headers = build_headers(api_key)
-      
+
       # Minimal test request
       test_request = %{
         model: "claude-3-haiku-20240307",
         max_tokens: 1,
         messages: [%{role: "user", content: "Hi"}]
       }
-      
-      case Finch.build(:post, @base_url <> @messages_endpoint, headers, Jason.encode!(test_request))
+
+      case Finch.build(
+             :post,
+             @base_url <> @messages_endpoint,
+             headers,
+             Jason.encode!(test_request)
+           )
            |> Finch.request(AiexFinch, receive_timeout: 5_000) do
         {:ok, %Finch.Response{status: 200}} ->
           :ok
-        
+
         {:ok, %Finch.Response{status: status}} ->
           {:error, "Anthropic API returned status #{status}"}
-        
+
         {:error, %Mint.TransportError{reason: :econnrefused}} ->
           {:error, "Connection refused - Anthropic API unreachable"}
-        
+
         {:error, reason} ->
           {:error, "Health check failed: #{inspect(reason)}"}
       end

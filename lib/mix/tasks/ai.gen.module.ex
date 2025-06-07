@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Ai.Gen.Module do
   @shortdoc "Generate an Elixir module with AI assistance"
-  
+
   @moduledoc """
   Generate an Elixir module using AI-powered assistance.
 
@@ -31,57 +31,63 @@ defmodule Mix.Tasks.Ai.Gen.Module do
 
   @impl Mix.Task
   def run(args) do
-    {opts, args, _invalid} = OptionParser.parse(args,
-      strict: [
-        adapter: :string,
-        model: :string,
-        output_dir: :string,
-        test: :boolean,
-        docs: :boolean,
-        help: :boolean
-      ],
-      aliases: [h: :help]
-    )
+    {opts, args, _invalid} =
+      OptionParser.parse(args,
+        strict: [
+          adapter: :string,
+          model: :string,
+          output_dir: :string,
+          test: :boolean,
+          docs: :boolean,
+          help: :boolean
+        ],
+        aliases: [h: :help]
+      )
 
     if opts[:help] do
       Mix.shell().info(@moduledoc)
     else
-
       case args do
         [module_name, description] ->
           generate_module(module_name, description, opts)
-        
+
         [module_name] ->
-          Mix.shell().info("Description required. Usage: mix ai.gen.module #{module_name} \"description\"")
-          
+          Mix.shell().info(
+            "Description required. Usage: mix ai.gen.module #{module_name} \"description\""
+          )
+
         [] ->
-          Mix.shell().info("Module name and description required. Usage: mix ai.gen.module ModuleName \"description\"")
-          
+          Mix.shell().info(
+            "Module name and description required. Usage: mix ai.gen.module ModuleName \"description\""
+          )
+
         _ ->
-          Mix.shell().info("Too many arguments. Usage: mix ai.gen.module ModuleName \"description\"")
+          Mix.shell().info(
+            "Too many arguments. Usage: mix ai.gen.module ModuleName \"description\""
+          )
       end
     end
   end
 
   defp generate_module(module_name, description, opts) do
     Mix.shell().info("🤖 Generating module #{module_name} with AI assistance...")
-    
+
     # Start application to ensure LLM services are available
     Mix.Task.run("app.start")
-    
+
     # Build the generation request
     request = build_generation_request(module_name, description, opts)
-    
+
     case call_llm(request, opts) do
       {:ok, generated_code} ->
         write_module_file(module_name, generated_code, opts)
-        
+
         if opts[:test] do
           generate_test_file(module_name, description, opts)
         end
-        
+
         Mix.shell().info("✅ Successfully generated #{module_name}")
-        
+
       {:error, reason} ->
         Mix.shell().error("❌ Failed to generate module: #{reason}")
         System.halt(1)
@@ -90,7 +96,7 @@ defmodule Mix.Tasks.Ai.Gen.Module do
 
   defp build_generation_request(module_name, description, opts) do
     include_docs = Keyword.get(opts, :docs, false)
-    
+
     prompt = """
     Generate an Elixir module named `#{module_name}` based on this description:
 
@@ -110,25 +116,29 @@ defmodule Mix.Tasks.Ai.Gen.Module do
 
     %{
       messages: [
-        %{role: :system, content: "You are an expert Elixir developer. Generate clean, idiomatic Elixir code."},
+        %{
+          role: :system,
+          content: "You are an expert Elixir developer. Generate clean, idiomatic Elixir code."
+        },
         %{role: :user, content: prompt}
       ],
       model: opts[:model],
-      temperature: 0.3,  # Lower temperature for more consistent code generation
+      # Lower temperature for more consistent code generation
+      temperature: 0.3,
       max_tokens: 2000
     }
   end
 
   defp call_llm(request, opts) do
     adapter = get_adapter(opts)
-    
+
     case Aiex.LLM.Client.complete(request, adapter: adapter) do
       {:ok, %{content: content}} ->
         {:ok, clean_generated_code(content)}
-        
+
       {:error, reason} ->
         {:error, "LLM request failed: #{inspect(reason)}"}
-        
+
       other ->
         {:error, "Unexpected LLM response: #{inspect(other)}"}
     end
@@ -139,12 +149,23 @@ defmodule Mix.Tasks.Ai.Gen.Module do
 
   defp get_adapter(opts) do
     case opts[:adapter] do
-      "openai" -> :openai
-      "anthropic" -> :anthropic  
-      "ollama" -> :ollama
-      "lm_studio" -> :lm_studio
-      nil -> :ollama  # Default to local model
-      other -> 
+      "openai" ->
+        :openai
+
+      "anthropic" ->
+        :anthropic
+
+      "ollama" ->
+        :ollama
+
+      "lm_studio" ->
+        :lm_studio
+
+      # Default to local model
+      nil ->
+        :ollama
+
+      other ->
         Mix.shell().info("Unknown adapter '#{other}', using ollama")
         :ollama
     end
@@ -160,41 +181,43 @@ defmodule Mix.Tasks.Ai.Gen.Module do
   defp write_module_file(module_name, code, opts) do
     output_dir = Keyword.get(opts, :output_dir, "lib")
     file_path = Path.join([output_dir, "#{Macro.underscore(module_name)}.ex"])
-    
+
     # Ensure directory exists
     File.mkdir_p!(Path.dirname(file_path))
-    
+
     # Write the file
     File.write!(file_path, code)
-    
+
     # Format the file
     case System.cmd("mix", ["format", file_path], stderr_to_stdout: true) do
-      {_, 0} -> :ok
-      {output, _} -> 
+      {_, 0} ->
+        :ok
+
+      {output, _} ->
         Mix.shell().info("⚠️  Format warning: #{output}")
     end
-    
+
     Mix.shell().info("📁 Created #{file_path}")
   end
 
   defp generate_test_file(module_name, description, opts) do
     Mix.shell().info("🧪 Generating test file...")
-    
+
     test_request = build_test_generation_request(module_name, description)
-    
+
     case call_llm(test_request, opts) do
       {:ok, test_code} ->
         test_dir = "test"
         test_file = Path.join([test_dir, "#{Macro.underscore(module_name)}_test.exs"])
-        
+
         File.mkdir_p!(Path.dirname(test_file))
         File.write!(test_file, test_code)
-        
+
         # Format the test file
         System.cmd("mix", ["format", test_file])
-        
+
         Mix.shell().info("📁 Created #{test_file}")
-        
+
       {:error, reason} ->
         Mix.shell().error("❌ Failed to generate test: #{reason}")
     end

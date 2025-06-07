@@ -23,21 +23,21 @@ defmodule Aiex.LLM.ModelCoordinator do
   ]
 
   @type provider_info :: %{
-    adapter: module(),
-    config: map(),
-    health: :healthy | :degraded | :unhealthy,
-    last_check: DateTime.t(),
-    local_affinity: boolean(),
-    load_score: float()
-  }
+          adapter: module(),
+          config: map(),
+          health: :healthy | :degraded | :unhealthy,
+          last_check: DateTime.t(),
+          local_affinity: boolean(),
+          load_score: float()
+        }
 
   @type t :: %__MODULE__{
-    node: node(),
-    providers: %{atom() => provider_info()},
-    provider_health: %{atom() => :healthy | :degraded | :unhealthy},
-    node_affinity: %{atom() => [node()]},
-    load_balancer_state: map()
-  }
+          node: node(),
+          providers: %{atom() => provider_info()},
+          provider_health: %{atom() => :healthy | :degraded | :unhealthy},
+          node_affinity: %{atom() => [node()]},
+          load_balancer_state: map()
+        }
 
   ## Client API
 
@@ -96,13 +96,13 @@ defmodule Aiex.LLM.ModelCoordinator do
     # pg should be started automatically by OTP
     # Skip pg coordination for now - will implement later
     # :pg.join(@pg_scope, :model_coordinators, self())
-    
+
     # Initialize providers from config
     providers = initialize_providers(opts)
-    
+
     # Schedule initial health check
     schedule_health_check()
-    
+
     state = %__MODULE__{
       node: node(),
       providers: providers,
@@ -126,7 +126,7 @@ defmodule Aiex.LLM.ModelCoordinator do
         # Update load balancing metrics
         new_state = update_request_metrics(provider, state)
         {:reply, result, new_state}
-      
+
       error ->
         {:reply, error, state}
     end
@@ -201,16 +201,17 @@ defmodule Aiex.LLM.ModelCoordinator do
   defp initialize_providers(opts) do
     # Load provider configurations
     configured_providers = Keyword.get(opts, :providers, default_providers())
-    
+
     Enum.into(configured_providers, %{}, fn {name, {adapter, config}} ->
-      {name, %{
-        adapter: adapter,
-        config: config,
-        health: :healthy,
-        last_check: DateTime.utc_now(),
-        local_affinity: is_local_provider?(adapter),
-        load_score: 0.0
-      }}
+      {name,
+       %{
+         adapter: adapter,
+         config: config,
+         health: :healthy,
+         last_check: DateTime.utc_now(),
+         local_affinity: is_local_provider?(adapter),
+         load_score: 0.0
+       }}
     end)
   end
 
@@ -232,9 +233,9 @@ defmodule Aiex.LLM.ModelCoordinator do
     # Get provider preferences from request or options
     preferred_providers = Keyword.get(opts, :providers, Map.keys(state.providers))
     model = Map.get(request, :model)
-    
+
     # Filter available providers
-    available_providers = 
+    available_providers =
       preferred_providers
       |> Enum.filter(&Map.has_key?(state.providers, &1))
       |> Enum.filter(&provider_healthy?(&1, state))
@@ -243,12 +244,12 @@ defmodule Aiex.LLM.ModelCoordinator do
     case available_providers do
       [] ->
         {:error, :no_available_providers}
-      
+
       providers ->
         # Select based on load balancing strategy
         strategy = Keyword.get(opts, :selection_strategy, :load_balanced)
         selected = select_by_strategy(providers, strategy, state)
-        
+
         provider_info = Map.get(state.providers, selected)
         {:ok, {selected, provider_info.adapter}}
     end
@@ -261,15 +262,18 @@ defmodule Aiex.LLM.ModelCoordinator do
     end
   end
 
-  defp supports_model?(_provider, nil, _state), do: true  # No specific model requirement
+  # No specific model requirement
+  defp supports_model?(_provider, nil, _state), do: true
+
   defp supports_model?(provider, model, state) do
     provider_info = Map.get(state.providers, provider)
-    
+
     try do
       supported_models = provider_info.adapter.supported_models()
       model in supported_models
     rescue
-      _ -> true  # Assume support if we can't check
+      # Assume support if we can't check
+      _ -> true
     end
   end
 
@@ -280,7 +284,7 @@ defmodule Aiex.LLM.ModelCoordinator do
   defp select_by_strategy(providers, :round_robin, state) do
     # Simple round-robin based on request counts
     counts = state.load_balancer_state.request_counts
-    
+
     providers
     |> Enum.min_by(fn provider ->
       Map.get(counts, provider, 0)
@@ -298,10 +302,11 @@ defmodule Aiex.LLM.ModelCoordinator do
 
   defp select_by_strategy(providers, :local_affinity, state) do
     # Prefer local providers first, then load balance
-    local_providers = Enum.filter(providers, fn provider ->
-      provider_info = Map.get(state.providers, provider)
-      provider_info.local_affinity
-    end)
+    local_providers =
+      Enum.filter(providers, fn provider ->
+        provider_info = Map.get(state.providers, provider)
+        provider_info.local_affinity
+      end)
 
     case local_providers do
       [] -> select_by_strategy(providers, :load_balanced, state)
@@ -311,13 +316,13 @@ defmodule Aiex.LLM.ModelCoordinator do
 
   defp calculate_load_score(provider, provider_info, state) do
     base_score = provider_info.load_score || 0.0
-    
+
     # Factor in recent error rate
     error_rate = get_error_rate(provider, state)
     response_time = get_avg_response_time(provider, state)
-    
+
     # Combine metrics (lower score is better)
-    base_score + (error_rate * 100.0) + (response_time / 1000.0)
+    base_score + error_rate * 100.0 + response_time / 1000.0
   end
 
   defp get_error_rate(provider, state) do
@@ -331,7 +336,7 @@ defmodule Aiex.LLM.ModelCoordinator do
   defp update_request_metrics(provider, state) do
     counts = state.load_balancer_state.request_counts
     new_counts = Map.update(counts, provider, 1, &(&1 + 1))
-    
+
     new_lb_state = %{state.load_balancer_state | request_counts: new_counts}
     %{state | load_balancer_state: new_lb_state}
   end
@@ -340,64 +345,72 @@ defmodule Aiex.LLM.ModelCoordinator do
     # Update error rates
     error_rates = state.load_balancer_state.error_rates
     current_rate = Map.get(error_rates, provider, 0.0)
-    
-    new_error_rate = case result do
-      :success -> current_rate * 0.95  # Decay error rate on success
-      :error -> min(current_rate + 0.1, 1.0)  # Increase error rate on error
-    end
-    
+
+    new_error_rate =
+      case result do
+        # Decay error rate on success
+        :success -> current_rate * 0.95
+        # Increase error rate on error
+        :error -> min(current_rate + 0.1, 1.0)
+      end
+
     new_error_rates = Map.put(error_rates, provider, new_error_rate)
-    
+
     # Update response times if provided
     response_times = state.load_balancer_state.response_times
-    new_response_times = case Map.get(metadata, :response_time) do
-      nil -> response_times
-      time -> 
-        current_avg = Map.get(response_times, provider, 0.0)
-        # Exponential moving average
-        new_avg = current_avg * 0.8 + time * 0.2
-        Map.put(response_times, provider, new_avg)
-    end
-    
+
+    new_response_times =
+      case Map.get(metadata, :response_time) do
+        nil ->
+          response_times
+
+        time ->
+          current_avg = Map.get(response_times, provider, 0.0)
+          # Exponential moving average
+          new_avg = current_avg * 0.8 + time * 0.2
+          Map.put(response_times, provider, new_avg)
+      end
+
     new_lb_state = %{
-      state.load_balancer_state | 
-      error_rates: new_error_rates,
-      response_times: new_response_times
+      state.load_balancer_state
+      | error_rates: new_error_rates,
+        response_times: new_response_times
     }
-    
+
     new_state = %{state | load_balancer_state: new_lb_state}
-    
+
     # Update provider health based on metrics
     update_provider_health(provider, new_error_rate, new_state)
   end
 
   defp update_provider_health(provider, error_rate, state) do
-    new_health = cond do
-      error_rate > 0.5 -> :unhealthy
-      error_rate > 0.2 -> :degraded
-      true -> :healthy
-    end
-    
+    new_health =
+      cond do
+        error_rate > 0.5 -> :unhealthy
+        error_rate > 0.2 -> :degraded
+        true -> :healthy
+      end
+
     old_health = Map.get(state.provider_health, provider, :healthy)
     new_provider_health = Map.put(state.provider_health, provider, new_health)
-    
+
     # Log health changes
     if old_health != new_health do
       Logger.info("Provider #{provider} health changed: #{old_health} -> #{new_health}")
       broadcast_health_update(provider, new_health)
     end
-    
+
     %{state | provider_health: new_provider_health}
   end
 
   defp perform_health_checks(state) do
     # Perform health checks on all providers
-    new_provider_health = 
+    new_provider_health =
       Enum.into(state.providers, %{}, fn {provider, info} ->
         health = check_provider_health(provider, info)
         {provider, health}
       end)
-    
+
     %{state | provider_health: new_provider_health}
   end
 
@@ -438,30 +451,35 @@ defmodule Aiex.LLM.ModelCoordinator do
         end
       end)
     catch
-      _, _ -> :ok  # Ignore broadcast failures
+      # Ignore broadcast failures
+      _, _ -> :ok
     end
   end
 
   defp collect_cluster_status(state) do
     # For now, return local status
     # In a full implementation, would collect from all coordinator nodes
-    %{node() => %{
-      providers: state.providers,
-      health: state.provider_health
-    }}
+    %{
+      node() => %{
+        providers: state.providers,
+        health: state.provider_health
+      }
+    }
   end
 
   defp handle_remote_provider_update(node, provider, action, _info, state) do
     Logger.debug("Received provider update from #{node}: #{provider} #{action}")
-    
+
     # Update node affinity information
     affinity = Map.get(state.node_affinity, provider, [])
-    new_affinity = case action do
-      :registered -> Enum.uniq([node | affinity])
-      :unregistered -> List.delete(affinity, node)
-      _ -> affinity
-    end
-    
+
+    new_affinity =
+      case action do
+        :registered -> Enum.uniq([node | affinity])
+        :unregistered -> List.delete(affinity, node)
+        _ -> affinity
+      end
+
     new_node_affinity = Map.put(state.node_affinity, provider, new_affinity)
     %{state | node_affinity: new_node_affinity}
   end

@@ -148,16 +148,15 @@ defmodule Aiex.LLM.Client do
   defp process_completion(request, opts, state) do
     # Use distributed coordinator for provider selection if available
     start_time = :os.system_time(:millisecond)
-    
+
     with {:ok, {provider, adapter}} <- select_provider(request, opts, state),
          :ok <- RateLimiter.check_rate_limit(provider),
          {:ok, validated_request} <- validate_request(request, state),
          {:ok, response} <- call_distributed_adapter(adapter, validated_request, opts, state) do
-      
       # Report success to coordinator
       response_time = :os.system_time(:millisecond) - start_time
       report_request_result(provider, :success, %{response_time: response_time})
-      
+
       new_stats = update_stats(state.stats, response)
       new_state = %{state | stats: new_stats}
 
@@ -172,18 +171,19 @@ defmodule Aiex.LLM.Client do
       {:error, :rate_limited} = _error ->
         Logger.warning("Rate limit exceeded")
         new_stats = Map.update!(state.stats, :failed_requests, &(&1 + 1))
+
         {:error, %{type: :rate_limit, message: "Rate limit exceeded"},
          %{state | stats: new_stats}}
 
       {:error, reason} = _error ->
         Logger.error("LLM completion failed: #{inspect(reason)}")
-        
+
         # Report failure to coordinator if we had a provider
         case select_provider(request, opts, state) do
           {:ok, {provider, _}} -> report_request_result(provider, :error, %{error: reason})
           _ -> :ok
         end
-        
+
         new_stats = Map.update!(state.stats, :failed_requests, &(&1 + 1))
         {:error, reason, %{state | stats: new_stats}}
     end
@@ -195,11 +195,13 @@ defmodule Aiex.LLM.Client do
       nil ->
         # No coordinator available, use configured provider
         {:ok, {state.config.provider, state.adapter_module}}
-      
+
       _pid ->
         # Use distributed coordinator
         case Aiex.LLM.ModelCoordinator.select_provider(request, opts) do
-          {:ok, result} -> {:ok, result}
+          {:ok, result} ->
+            {:ok, result}
+
           {:error, _} ->
             # Fall back to configured provider
             {:ok, {state.config.provider, state.adapter_module}}
@@ -213,7 +215,8 @@ defmodule Aiex.LLM.Client do
 
   defp report_request_result(provider, result, metadata) do
     case Process.whereis(Aiex.LLM.ModelCoordinator) do
-      nil -> :ok  # No coordinator available
+      # No coordinator available
+      nil -> :ok
       _pid -> Aiex.LLM.ModelCoordinator.report_request_result(provider, result, metadata)
     end
   end

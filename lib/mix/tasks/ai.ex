@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Ai do
   @shortdoc "AI-powered development tools for Elixir"
-  
+
   @moduledoc """
   AI-powered development tools for Elixir using the Aiex framework.
 
@@ -52,10 +52,10 @@ defmodule Mix.Tasks.Ai do
     case args do
       [] ->
         show_overview()
-        
+
       ["--help"] ->
         Mix.shell().info(@moduledoc)
-        
+
       [task | _rest] ->
         Mix.shell().info("Unknown AI task: #{task}")
         Mix.shell().info("Run `mix ai` to see available tasks.")

@@ -89,10 +89,11 @@ defmodule Aiex.Context.DistributedEngine do
   def init(_opts) do
     # Initialize Mnesia if not already done
     case setup_mnesia() do
-      :ok -> 
+      :ok ->
         Logger.info("Distributed context engine started successfully")
         {:ok, %{node: node()}}
-      {:error, reason} -> 
+
+      {:error, reason} ->
         Logger.error("Failed to setup Mnesia: #{inspect(reason)}")
         {:stop, reason}
     end
@@ -100,25 +101,26 @@ defmodule Aiex.Context.DistributedEngine do
 
   @impl true
   def handle_call({:put_context, session_id, context}, _from, state) do
-    result = mnesia_transaction(fn ->
-      context_record = %{
-        session_id: session_id,
-        user_id: Map.get(context, :user_id),
-        conversation_history: Map.get(context, :conversation_history, []),
-        active_model: Map.get(context, :active_model),
-        embeddings: Map.get(context, :embeddings, %{}),
-        created_at: Map.get(context, :created_at, DateTime.utc_now()),
-        last_updated: DateTime.utc_now()
-      }
-      
-      :mnesia.write({@ai_context_table, session_id, context_record})
-    end)
+    result =
+      mnesia_transaction(fn ->
+        context_record = %{
+          session_id: session_id,
+          user_id: Map.get(context, :user_id),
+          conversation_history: Map.get(context, :conversation_history, []),
+          active_model: Map.get(context, :active_model),
+          embeddings: Map.get(context, :embeddings, %{}),
+          created_at: Map.get(context, :created_at, DateTime.utc_now()),
+          last_updated: DateTime.utc_now()
+        }
+
+        :mnesia.write({@ai_context_table, session_id, context_record})
+      end)
 
     # Broadcast context update via pg (only if available)
     try do
       broadcast_context_update(session_id, :updated)
     catch
-      _, _ -> 
+      _, _ ->
         Logger.debug("pg not available for broadcasting, skipping")
     end
 
@@ -127,12 +129,13 @@ defmodule Aiex.Context.DistributedEngine do
 
   @impl true
   def handle_call({:get_context, session_id}, _from, state) do
-    result = mnesia_transaction(fn ->
-      case :mnesia.read({@ai_context_table, session_id}) do
-        [{@ai_context_table, ^session_id, context}] -> {:ok, context}
-        [] -> {:error, :not_found}
-      end
-    end)
+    result =
+      mnesia_transaction(fn ->
+        case :mnesia.read({@ai_context_table, session_id}) do
+          [{@ai_context_table, ^session_id, context}] -> {:ok, context}
+          [] -> {:error, :not_found}
+        end
+      end)
 
     case result do
       {:atomic, inner_result} -> {:reply, inner_result, state}
@@ -142,29 +145,31 @@ defmodule Aiex.Context.DistributedEngine do
 
   @impl true
   def handle_call({:put_analysis, file_path, analysis}, _from, state) do
-    result = mnesia_transaction(fn ->
-      analysis_record = %{
-        file_path: file_path,
-        ast: Map.get(analysis, :ast),
-        symbols: Map.get(analysis, :symbols, []),
-        dependencies: Map.get(analysis, :dependencies, []),
-        last_analyzed: DateTime.utc_now()
-      }
-      
-      :mnesia.write({@code_analysis_cache_table, file_path, analysis_record})
-    end)
+    result =
+      mnesia_transaction(fn ->
+        analysis_record = %{
+          file_path: file_path,
+          ast: Map.get(analysis, :ast),
+          symbols: Map.get(analysis, :symbols, []),
+          dependencies: Map.get(analysis, :dependencies, []),
+          last_analyzed: DateTime.utc_now()
+        }
+
+        :mnesia.write({@code_analysis_cache_table, file_path, analysis_record})
+      end)
 
     {:reply, result, state}
   end
 
   @impl true
   def handle_call({:get_analysis, file_path}, _from, state) do
-    result = mnesia_transaction(fn ->
-      case :mnesia.read({@code_analysis_cache_table, file_path}) do
-        [{@code_analysis_cache_table, ^file_path, analysis}] -> {:ok, analysis}
-        [] -> {:error, :not_found}
-      end
-    end)
+    result =
+      mnesia_transaction(fn ->
+        case :mnesia.read({@code_analysis_cache_table, file_path}) do
+          [{@code_analysis_cache_table, ^file_path, analysis}] -> {:ok, analysis}
+          [] -> {:error, :not_found}
+        end
+      end)
 
     case result do
       {:atomic, inner_result} -> {:reply, inner_result, state}
@@ -175,39 +180,46 @@ defmodule Aiex.Context.DistributedEngine do
   @impl true
   def handle_call({:record_interaction, interaction}, _from, state) do
     interaction_id = generate_interaction_id()
-    
-    result = mnesia_transaction(fn ->
-      interaction_record = %{
-        interaction_id: interaction_id,
-        session_id: Map.get(interaction, :session_id),
-        prompt: Map.get(interaction, :prompt),
-        response: Map.get(interaction, :response),
-        model_used: Map.get(interaction, :model_used),
-        tokens_used: Map.get(interaction, :tokens_used),
-        latency_ms: Map.get(interaction, :latency_ms),
-        timestamp: DateTime.utc_now()
-      }
-      
-      :mnesia.write({@llm_interaction_table, interaction_id, interaction_record})
-    end)
+
+    result =
+      mnesia_transaction(fn ->
+        interaction_record = %{
+          interaction_id: interaction_id,
+          session_id: Map.get(interaction, :session_id),
+          prompt: Map.get(interaction, :prompt),
+          response: Map.get(interaction, :response),
+          model_used: Map.get(interaction, :model_used),
+          tokens_used: Map.get(interaction, :tokens_used),
+          latency_ms: Map.get(interaction, :latency_ms),
+          timestamp: DateTime.utc_now()
+        }
+
+        :mnesia.write({@llm_interaction_table, interaction_id, interaction_record})
+      end)
 
     {:reply, result, state}
   end
 
   @impl true
   def handle_call({:get_interactions, session_id}, _from, state) do
-    result = mnesia_transaction(fn ->
-      # For now, scan all interactions to find by session_id
-      all_interactions = :mnesia.select(@llm_interaction_table, [{{@llm_interaction_table, :'$1', :'$2'}, [], [:'$2']}])
-      Enum.filter(all_interactions, fn record -> 
-        Map.get(record, :session_id) == session_id 
+    result =
+      mnesia_transaction(fn ->
+        # For now, scan all interactions to find by session_id
+        all_interactions =
+          :mnesia.select(@llm_interaction_table, [
+            {{@llm_interaction_table, :"$1", :"$2"}, [], [:"$2"]}
+          ])
+
+        Enum.filter(all_interactions, fn record ->
+          Map.get(record, :session_id) == session_id
+        end)
       end)
-    end)
 
     case result do
-      {:atomic, interactions} -> 
+      {:atomic, interactions} ->
         {:reply, {:ok, interactions}, state}
-      {:aborted, reason} -> 
+
+      {:aborted, reason} ->
         {:reply, {:error, reason}, state}
     end
   end
@@ -226,7 +238,7 @@ defmodule Aiex.Context.DistributedEngine do
       language: detect_language(content),
       functions: extract_functions(content)
     }
-    
+
     {:reply, {:ok, analysis}, state}
   end
 
@@ -250,23 +262,24 @@ defmodule Aiex.Context.DistributedEngine do
     # Simple heuristic based on lines and nesting
     lines = String.split(content, "\n")
     line_count = length(lines)
-    
+
     # Count nesting indicators
-    nesting_score = Enum.reduce(lines, 0, fn line, acc ->
-      cond do
-        String.contains?(line, ["if", "case", "cond", "with", "for", "fn"]) -> acc + 1
-        String.contains?(line, ["do", "{"]) -> acc + 1
-        true -> acc
-      end
-    end)
-    
+    nesting_score =
+      Enum.reduce(lines, 0, fn line, acc ->
+        cond do
+          String.contains?(line, ["if", "case", "cond", "with", "for", "fn"]) -> acc + 1
+          String.contains?(line, ["do", "{"]) -> acc + 1
+          true -> acc
+        end
+      end)
+
     cond do
       line_count < 50 and nesting_score < 5 -> :low
       line_count < 200 and nesting_score < 20 -> :medium
       true -> :high
     end
   end
-  
+
   defp detect_language(content) do
     cond do
       String.contains?(content, ["defmodule", "defp", "def ", "|>"]) -> :elixir
@@ -277,7 +290,7 @@ defmodule Aiex.Context.DistributedEngine do
       true -> :unknown
     end
   end
-  
+
   defp extract_functions(content) do
     # Extract Elixir function definitions
     ~r/def\s+(\w+)/
@@ -288,7 +301,7 @@ defmodule Aiex.Context.DistributedEngine do
 
   defp setup_mnesia do
     nodes = [node() | Node.list()]
-    
+
     # Create schema if it doesn't exist
     case :mnesia.create_schema(nodes) do
       :ok -> :ok
@@ -306,7 +319,7 @@ defmodule Aiex.Context.DistributedEngine do
   defp create_tables(nodes) do
     # AI Context table - use ram_copies for single node development
     table_type = if length(nodes) > 1, do: :disc_copies, else: :ram_copies
-    
+
     create_table(@ai_context_table, [
       {table_type, nodes},
       {:attributes, [:session_id, :context]},
@@ -332,13 +345,15 @@ defmodule Aiex.Context.DistributedEngine do
 
   defp create_table(name, options) do
     case :mnesia.create_table(name, options) do
-      {:atomic, :ok} -> 
+      {:atomic, :ok} ->
         Logger.info("Created Mnesia table: #{name}")
         :ok
-      {:aborted, {:already_exists, ^name}} -> 
+
+      {:aborted, {:already_exists, ^name}} ->
         Logger.debug("Mnesia table already exists: #{name}")
         :ok
-      {:aborted, reason} -> 
+
+      {:aborted, reason} ->
         Logger.error("Failed to create Mnesia table #{name}: #{inspect(reason)}")
         {:error, reason}
     end
@@ -376,9 +391,10 @@ defmodule Aiex.Context.DistributedEngine do
 
     # Join the context_updates group if not already joined
     :pg.join(:context_updates, self())
-    
+
     # Broadcast to all members of the group
     members = :pg.get_members(:context_updates)
+
     Enum.each(members, fn pid ->
       send(pid, {:context_update, event})
     end)

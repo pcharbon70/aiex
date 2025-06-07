@@ -11,7 +11,7 @@ defmodule Aiex.Context.DistributedEngineTest do
   describe "distributed context management" do
     test "stores and retrieves AI context" do
       session_id = "test_session_#{:rand.uniform(10000)}"
-      
+
       context = %{
         user_id: "user123",
         conversation_history: [
@@ -33,7 +33,7 @@ defmodule Aiex.Context.DistributedEngineTest do
 
     test "stores and retrieves code analysis cache" do
       file_path = "/path/to/test.ex"
-      
+
       analysis = %{
         ast: {:defmodule, [], []},
         symbols: ["Test", "function1"],
@@ -52,7 +52,7 @@ defmodule Aiex.Context.DistributedEngineTest do
 
     test "records and retrieves LLM interactions" do
       session_id = "test_session_#{:rand.uniform(10000)}"
-      
+
       interaction = %{
         session_id: session_id,
         prompt: "What is Elixir?",
@@ -68,7 +68,7 @@ defmodule Aiex.Context.DistributedEngineTest do
       # Retrieve interactions for session
       assert {:ok, interactions} = DistributedEngine.get_interactions(session_id)
       assert length(interactions) == 1
-      
+
       [recorded] = interactions
       assert recorded.session_id == session_id
       assert recorded.prompt == "What is Elixir?"
@@ -78,13 +78,13 @@ defmodule Aiex.Context.DistributedEngineTest do
 
     test "handles non-existent context gracefully" do
       non_existent_session = "non_existent_#{:rand.uniform(10000)}"
-      
+
       assert {:error, :not_found} = DistributedEngine.get_context(non_existent_session)
     end
 
     test "provides statistics" do
       stats = DistributedEngine.stats()
-      
+
       assert is_map(stats)
       assert Map.has_key?(stats, :node)
       assert Map.has_key?(stats, :ai_contexts)
@@ -98,14 +98,14 @@ defmodule Aiex.Context.DistributedEngineTest do
   describe "context updates" do
     test "updates existing context" do
       session_id = "update_test_#{:rand.uniform(10000)}"
-      
+
       # Create initial context
       initial_context = %{
         user_id: "user123",
         conversation_history: [],
         active_model: "gpt-3.5"
       }
-      
+
       assert {:atomic, :ok} = DistributedEngine.put_context(session_id, initial_context)
 
       # Update context
@@ -114,7 +114,7 @@ defmodule Aiex.Context.DistributedEngineTest do
         conversation_history: [%{role: "user", content: "Hello"}],
         active_model: "gpt-4"
       }
-      
+
       assert {:atomic, :ok} = DistributedEngine.put_context(session_id, updated_context)
 
       # Verify update

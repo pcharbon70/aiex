@@ -2,7 +2,7 @@ defmodule Aiex.Context.Manager do
   @moduledoc """
   Context manager that coordinates distributed context operations using Horde
   for distributed process management and pg for event distribution.
-  
+
   Manages context sessions across cluster nodes with automatic failover and
   distributed state synchronization.
   """
@@ -75,16 +75,16 @@ defmodule Aiex.Context.Manager do
   @impl true
   def handle_call({:get_or_create_session, session_id, user_id}, _from, state) do
     case find_session_process(session_id) do
-      {:ok, pid} -> 
+      {:ok, pid} ->
         {:reply, {:ok, pid}, state}
-      
-      {:error, :not_found} -> 
+
+      {:error, :not_found} ->
         case create_session_process(session_id, user_id) do
-          {:ok, pid} -> 
+          {:ok, pid} ->
             new_state = track_local_session(state, session_id, pid)
             {:reply, {:ok, pid}, new_state}
-          
-          {:error, reason} -> 
+
+          {:error, reason} ->
             {:reply, {:error, reason}, state}
         end
     end
@@ -97,17 +97,21 @@ defmodule Aiex.Context.Manager do
         merged_context = Map.merge(current_context, updates)
         result = Aiex.Context.DistributedEngine.put_context(session_id, merged_context)
         {:reply, result, state}
-      
+
       {:error, :not_found} ->
         # Create new context with updates
-        new_context = Map.merge(%{
-          session_id: session_id,
-          created_at: DateTime.utc_now()
-        }, updates)
-        
+        new_context =
+          Map.merge(
+            %{
+              session_id: session_id,
+              created_at: DateTime.utc_now()
+            },
+            updates
+          )
+
         result = Aiex.Context.DistributedEngine.put_context(session_id, new_context)
         {:reply, result, state}
-      
+
       error ->
         {:reply, error, state}
     end
@@ -123,8 +127,8 @@ defmodule Aiex.Context.Manager do
   def handle_call(:list_sessions, _from, state) do
     # Get sessions from all nodes in the cluster
     local_sessions = Map.keys(state.local_sessions)
-    
-    cluster_sessions = 
+
+    cluster_sessions =
       [node() | Node.list()]
       |> Enum.flat_map(fn node ->
         try do
@@ -147,10 +151,10 @@ defmodule Aiex.Context.Manager do
   def handle_call({:archive_session, session_id}, _from, state) do
     # Remove from local tracking
     new_state = %{state | local_sessions: Map.delete(state.local_sessions, session_id)}
-    
+
     # Notify cluster of session archival
     broadcast_session_event(session_id, :archived)
-    
+
     {:reply, :ok, new_state}
   end
 
@@ -167,7 +171,7 @@ defmodule Aiex.Context.Manager do
         # Join the process groups within the aiex_events scope
         :pg.join(:aiex_events, :context_managers, self())
         :pg.join(:aiex_events, :context_updates, self())
-        
+
         Logger.info("Joined pg groups for context management")
       end
     catch
@@ -176,7 +180,7 @@ defmodule Aiex.Context.Manager do
         # Retry after a delay
         Process.send_after(self(), :join_pg_groups, 1000)
     end
-    
+
     {:noreply, state}
   end
 
@@ -194,12 +198,12 @@ defmodule Aiex.Context.Manager do
       {:ok, session_id} ->
         Logger.warning("Session #{session_id} process terminated: #{inspect(reason)}")
         new_state = %{state | local_sessions: Map.delete(state.local_sessions, session_id)}
-        
+
         # Broadcast session termination
         broadcast_session_event(session_id, :terminated)
-        
+
         {:noreply, new_state}
-      
+
       :not_found ->
         {:noreply, state}
     end
@@ -212,8 +216,10 @@ defmodule Aiex.Context.Manager do
   """
   def get_local_sessions do
     case GenServer.whereis(__MODULE__) do
-      nil -> []
-      pid -> 
+      nil ->
+        []
+
+      pid ->
         try do
           GenServer.call(pid, :get_local_sessions_only)
         catch
@@ -223,25 +229,29 @@ defmodule Aiex.Context.Manager do
   end
 
   ## Private Functions
-  
+
   defp ensure_pg_scope(scope) do
     # The scope should already be started by the TUI.EventBridge
     # Just check if it exists, don't try to start it
     case :pg.which_groups(scope) do
-      groups when is_list(groups) -> :ok
-      {:error, {:no_such_group, _}} -> 
+      groups when is_list(groups) ->
+        :ok
+
+      {:error, {:no_such_group, _}} ->
         # Scope doesn't exist, but that's okay - it will be created when first used
         :ok
-      error -> 
+
+      error ->
         Logger.debug("pg scope #{scope} check returned: #{inspect(error)}")
-        :ok  # Don't fail - let the join operation handle it
+        # Don't fail - let the join operation handle it
+        :ok
     end
   end
 
   defp find_session_process(session_id) do
     lookup_result = Horde.Registry.lookup(Aiex.Context.SessionRegistry, {:session, session_id})
     Logger.debug("Looking up session #{session_id}, found: #{inspect(lookup_result)}")
-    
+
     case lookup_result do
       [{pid, _}] when is_pid(pid) -> {:ok, pid}
       [] -> {:error, :not_found}
@@ -250,7 +260,7 @@ defmodule Aiex.Context.Manager do
 
   defp create_session_process(session_id, user_id) do
     Logger.info("Creating new context for session #{session_id}")
-    
+
     session_spec = %{
       id: {:session, session_id},
       start: {Aiex.Context.Session, :start_link, [session_id, user_id]},
@@ -258,16 +268,16 @@ defmodule Aiex.Context.Manager do
     }
 
     case Horde.DynamicSupervisor.start_child(
-      Aiex.Context.SessionSupervisor,
-      session_spec
-    ) do
+           Aiex.Context.SessionSupervisor,
+           session_spec
+         ) do
       {:ok, pid} ->
         # Session process will register itself
         {:ok, pid}
-      
+
       {:error, {:already_started, pid}} ->
         {:ok, pid}
-      
+
       error ->
         error
     end
@@ -276,7 +286,7 @@ defmodule Aiex.Context.Manager do
   defp track_local_session(state, session_id, pid) do
     # Monitor the session process
     Process.monitor(pid)
-    
+
     %{state | local_sessions: Map.put(state.local_sessions, session_id, pid)}
   end
 
@@ -300,6 +310,7 @@ defmodule Aiex.Context.Manager do
       try do
         # Broadcast to all context managers in the aiex_events scope
         members = :pg.get_members(:aiex_events, :context_managers)
+
         Enum.each(members, fn pid ->
           send(pid, {:session_event, event})
         end)

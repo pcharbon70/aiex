@@ -9,14 +9,14 @@ defmodule Aiex.SandboxTest do
   setup do
     # Create test sandbox directory
     File.mkdir_p!(@test_sandbox)
-    
+
     # Configure sandbox
     config_opts = [
       sandbox_roots: [@test_sandbox],
       audit_enabled: true,
       audit_level: :verbose
     ]
-    
+
     # Start or update the config
     case Process.whereis(Config) do
       nil -> start_supervised!({Config, config_opts})
@@ -42,30 +42,30 @@ defmodule Aiex.SandboxTest do
     test "reads files within sandbox", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "test.txt")
       content = "Hello, World!"
-      
+
       File.write!(test_file, content)
-      
+
       assert {:ok, ^content} = Sandbox.read(test_file)
     end
 
     test "reads lines from files within sandbox", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "lines.txt")
       content = "Line 1\nLine 2\nLine 3"
-      
+
       File.write!(test_file, content)
-      
+
       assert {:ok, ["Line 1", "Line 2", "Line 3"]} = Sandbox.read_lines(test_file)
     end
 
     test "rejects reading files outside sandbox" do
       outside_file = "/etc/passwd"
-      
+
       assert {:error, :outside_sandbox} = Sandbox.read(outside_file)
     end
 
     test "rejects reading with directory traversal attempts", %{test_dir: test_dir} do
       malicious_path = Path.join(test_dir, "../../../etc/passwd")
-      
+
       assert {:error, :traversal_attempt} = Sandbox.read(malicious_path)
     end
   end
@@ -74,7 +74,7 @@ defmodule Aiex.SandboxTest do
     test "writes files within sandbox", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "write_test.txt")
       content = "Test content"
-      
+
       assert :ok = Sandbox.write(test_file, content)
       assert File.read!(test_file) == content
     end
@@ -83,9 +83,9 @@ defmodule Aiex.SandboxTest do
       test_file = Path.join(test_dir, "append_test.txt")
       initial_content = "Initial content\n"
       appended_content = "Appended content"
-      
+
       File.write!(test_file, initial_content)
-      
+
       assert :ok = Sandbox.append(test_file, appended_content)
       assert File.read!(test_file) == initial_content <> appended_content
     end
@@ -93,14 +93,14 @@ defmodule Aiex.SandboxTest do
     test "creates parent directories when writing", %{test_dir: test_dir} do
       nested_file = Path.join([test_dir, "subdir", "nested", "file.txt"])
       content = "Nested content"
-      
+
       assert :ok = Sandbox.write(nested_file, content)
       assert File.read!(nested_file) == content
     end
 
     test "rejects writing files outside sandbox" do
       outside_file = "/tmp/outside_sandbox.txt"
-      
+
       assert {:error, :outside_sandbox} = Sandbox.write(outside_file, "content")
     end
   end
@@ -109,7 +109,7 @@ defmodule Aiex.SandboxTest do
     test "lists directory contents within sandbox", %{test_dir: test_dir} do
       File.write!(Path.join(test_dir, "file1.txt"), "content1")
       File.write!(Path.join(test_dir, "file2.txt"), "content2")
-      
+
       assert {:ok, entries} = Sandbox.list_dir(test_dir)
       assert "file1.txt" in entries
       assert "file2.txt" in entries
@@ -117,7 +117,7 @@ defmodule Aiex.SandboxTest do
 
     test "creates directories within sandbox", %{test_dir: test_dir} do
       new_dir = Path.join(test_dir, "new_directory")
-      
+
       assert :ok = Sandbox.mkdir_p(new_dir)
       assert File.dir?(new_dir)
     end
@@ -131,7 +131,7 @@ defmodule Aiex.SandboxTest do
     test "deletes files within sandbox", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "delete_me.txt")
       File.write!(test_file, "content")
-      
+
       assert File.exists?(test_file)
       assert :ok = Sandbox.delete(test_file)
       refute File.exists?(test_file)
@@ -141,9 +141,9 @@ defmodule Aiex.SandboxTest do
       source = Path.join(test_dir, "source.txt")
       destination = Path.join(test_dir, "destination.txt")
       content = "Copy this content"
-      
+
       File.write!(source, content)
-      
+
       assert :ok = Sandbox.copy(source, destination)
       assert File.read!(destination) == content
     end
@@ -152,9 +152,9 @@ defmodule Aiex.SandboxTest do
       source = Path.join(test_dir, "move_source.txt")
       destination = Path.join(test_dir, "move_destination.txt")
       content = "Move this content"
-      
+
       File.write!(source, content)
-      
+
       assert :ok = Sandbox.move(source, destination)
       refute File.exists?(source)
       assert File.read!(destination) == content
@@ -163,9 +163,9 @@ defmodule Aiex.SandboxTest do
     test "rejects copying to outside sandbox", %{test_dir: test_dir} do
       source = Path.join(test_dir, "source.txt")
       destination = "/tmp/outside.txt"
-      
+
       File.write!(source, "content")
-      
+
       assert {:error, :outside_sandbox} = Sandbox.copy(source, destination)
     end
   end
@@ -174,16 +174,16 @@ defmodule Aiex.SandboxTest do
     test "gets file stats within sandbox", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "stat_test.txt")
       File.write!(test_file, "content")
-      
+
       assert {:ok, %File.Stat{}} = Sandbox.stat(test_file)
     end
 
     test "checks file existence within sandbox", %{test_dir: test_dir} do
       existing_file = Path.join(test_dir, "existing.txt")
       non_existing_file = Path.join(test_dir, "non_existing.txt")
-      
+
       File.write!(existing_file, "content")
-      
+
       assert Sandbox.exists?(existing_file)
       refute Sandbox.exists?(non_existing_file)
     end
@@ -196,15 +196,15 @@ defmodule Aiex.SandboxTest do
   describe "configuration management" do
     test "manages allowlist", %{test_dir: test_dir} do
       new_path = Path.join(test_dir, "allowed")
-      
+
       # Add to allowlist
       assert :ok = Sandbox.add_to_allowlist(new_path)
-      
+
       # Should now be accessible
       File.mkdir_p!(new_path)
       test_file = Path.join(new_path, "test.txt")
       assert :ok = Sandbox.write(test_file, "content")
-      
+
       # Remove from allowlist
       assert :ok = Sandbox.remove_from_allowlist(new_path)
     end
@@ -219,7 +219,7 @@ defmodule Aiex.SandboxTest do
   describe "error handling" do
     test "handles non-existent files gracefully", %{test_dir: test_dir} do
       non_existent = Path.join(test_dir, "does_not_exist.txt")
-      
+
       assert {:error, :enoent} = Sandbox.read(non_existent)
     end
 
@@ -227,18 +227,20 @@ defmodule Aiex.SandboxTest do
       # Create a file and make it unreadable (if running with appropriate permissions)
       test_file = Path.join(test_dir, "no_permission.txt")
       File.write!(test_file, "content")
-      
+
       # This test might not work in all environments due to permission handling
       # but it demonstrates the error handling pattern
       case Sandbox.read(test_file) do
-        {:ok, _} -> :ok  # File was readable
-        {:error, _reason} -> :ok  # Permission error was handled
+        # File was readable
+        {:ok, _} -> :ok
+        # Permission error was handled
+        {:error, _reason} -> :ok
       end
     end
 
     test "handles dangerous characters in paths", %{test_dir: test_dir} do
       dangerous_path = Path.join(test_dir, "file|command.txt")
-      
+
       assert {:error, :dangerous_characters} = Sandbox.write(dangerous_path, "content")
     end
   end
@@ -246,14 +248,14 @@ defmodule Aiex.SandboxTest do
   describe "audit logging" do
     test "logs file operations", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "audit_test.txt")
-      
+
       # Perform some operations
       Sandbox.write(test_file, "content")
       Sandbox.read(test_file)
-      
+
       # Check that operations were logged
       recent_entries = AuditLogger.get_recent_entries(10)
-      
+
       # Should have logged the write and read operations
       operations = Enum.map(recent_entries, & &1.operation)
       assert :write in operations
@@ -262,17 +264,17 @@ defmodule Aiex.SandboxTest do
 
     test "logs security violations" do
       malicious_path = "/etc/passwd"
-      
+
       # This should trigger a security event
       Sandbox.read(malicious_path)
-      
+
       # Check for security events in the logs
       recent_entries = AuditLogger.get_recent_entries(10)
-      
+
       # Should have logged an access attempt with denial
       assert Enum.any?(recent_entries, fn entry ->
-        entry.path == malicious_path and entry.result == {:denied, :outside_sandbox}
-      end)
+               entry.path == malicious_path and entry.result == {:denied, :outside_sandbox}
+             end)
     end
   end
 
@@ -280,22 +282,24 @@ defmodule Aiex.SandboxTest do
     test "handles valid UTF-8 content", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "utf8_test.txt")
       unicode_content = "Hello 🌍 World! こんにちは"
-      
+
       assert :ok = Sandbox.write(test_file, unicode_content)
       assert {:ok, ^unicode_content} = Sandbox.read(test_file)
     end
 
     test "handles invalid UTF-8 gracefully", %{test_dir: test_dir} do
       test_file = Path.join(test_dir, "invalid_utf8.txt")
-      
+
       # Write binary data that's not valid UTF-8
       invalid_utf8 = <<255, 254, 253>>
       File.write!(test_file, invalid_utf8)
-      
+
       # Reading should handle the invalid encoding
       case Sandbox.read(test_file, encoding: :utf8) do
-        {:error, :invalid_encoding} -> :ok  # Expected behavior
-        {:ok, _} -> :ok  # Might be handled differently in some environments
+        # Expected behavior
+        {:error, :invalid_encoding} -> :ok
+        # Might be handled differently in some environments
+        {:ok, _} -> :ok
       end
     end
   end

@@ -1,7 +1,7 @@
 defmodule Aiex.Interfaces.CLIInterface do
   @moduledoc """
   CLI interface implementation using the InterfaceBehaviour.
-  
+
   This module provides the CLI interface with the distributed Aiex system,
   handling command routing and response formatting for terminal display.
   """
@@ -50,7 +50,7 @@ defmodule Aiex.Interfaces.CLIInterface do
           :request_failed,
           :progress_update
         ])
-        
+
         initial_state = %__MODULE__{
           interface_id: interface_id,
           config: config,
@@ -61,10 +61,10 @@ defmodule Aiex.Interfaces.CLIInterface do
             interactive: System.get_env("TERM") != nil
           ]
         }
-        
+
         Logger.info("CLI interface initialized: #{interface_id}")
         {:ok, initial_state}
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -76,9 +76,9 @@ defmodule Aiex.Interfaces.CLIInterface do
       {:ok, request_id} ->
         new_active_requests = Map.put(state.active_requests, request_id, request)
         new_state = %{state | active_requests: new_active_requests}
-        
+
         {:async, request_id, new_state}
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -90,7 +90,7 @@ defmodule Aiex.Interfaces.CLIInterface do
     case Map.get(state.active_requests, request_id) do
       nil ->
         {:error, :request_not_found}
-        
+
       request ->
         display_progress(request, partial_response, state.presenter_opts)
         {:continue, state}
@@ -102,13 +102,13 @@ defmodule Aiex.Interfaces.CLIInterface do
     case event_type do
       :request_completed ->
         handle_request_completion(event_data, state)
-        
+
       :request_failed ->
         handle_request_failure(event_data, state)
-        
+
       :progress_update ->
         handle_progress_update(event_data, state)
-        
+
       _ ->
         {:ok, state}
     end
@@ -119,7 +119,7 @@ defmodule Aiex.Interfaces.CLIInterface do
     if state.interface_id do
       InterfaceGateway.unregister_interface(state.interface_id)
     end
-    
+
     Logger.info("CLI interface terminated: #{inspect(reason)}")
     :ok
   end
@@ -144,7 +144,8 @@ defmodule Aiex.Interfaces.CLIInterface do
     config = %{
       type: :cli,
       session_id: generate_session_id(),
-      user_id: nil,  # CLI doesn't track users
+      # CLI doesn't track users
+      user_id: nil,
       capabilities: [:text_output, :colored_output, :progress_display],
       settings: %{
         color: Keyword.get(opts, :color, true),
@@ -152,18 +153,18 @@ defmodule Aiex.Interfaces.CLIInterface do
         interactive: Keyword.get(opts, :interactive, true)
       }
     }
-    
+
     init(config)
   end
 
   @impl true
   def handle_call({:execute_command, command, args, opts}, _from, state) do
     request = build_request_from_command(command, args, opts)
-    
+
     case handle_request(request, state) do
       {:async, request_id, new_state} ->
         {:reply, {:ok, request_id}, new_state}
-        
+
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
@@ -192,25 +193,26 @@ defmodule Aiex.Interfaces.CLIInterface do
 
   defp build_request_from_command(command, args, opts) do
     request_id = generate_request_id()
-    
-    {request_type, content} = case command do
-      :analyze ->
-        file_path = List.first(args)
-        {:analysis, file_path || ""}
-        
-      :create ->
-        module_name = List.first(args)
-        description = Enum.at(args, 1, "")
-        {:generation, "#{module_name}: #{description}"}
-        
-      :explain ->
-        file_path = List.first(args)
-        {:explanation, file_path || ""}
-        
-      _ ->
-        {:completion, Enum.join(args, " ")}
-    end
-    
+
+    {request_type, content} =
+      case command do
+        :analyze ->
+          file_path = List.first(args)
+          {:analysis, file_path || ""}
+
+        :create ->
+          module_name = List.first(args)
+          description = Enum.at(args, 1, "")
+          {:generation, "#{module_name}: #{description}"}
+
+        :explain ->
+          file_path = List.first(args)
+          {:explanation, file_path || ""}
+
+        _ ->
+          {:completion, Enum.join(args, " ")}
+      end
+
     %{
       id: request_id,
       type: request_type,
@@ -226,45 +228,45 @@ defmodule Aiex.Interfaces.CLIInterface do
 
   defp handle_request_completion(event_data, state) do
     %{request_id: request_id, response: response} = event_data
-    
+
     case Map.get(state.active_requests, request_id) do
       nil ->
         {:ok, state}
-        
+
       request ->
         display_completion(request, response, state.presenter_opts)
-        
+
         new_active_requests = Map.delete(state.active_requests, request_id)
         new_state = %{state | active_requests: new_active_requests}
-        
+
         {:ok, new_state}
     end
   end
 
   defp handle_request_failure(event_data, state) do
     %{request_id: request_id, reason: reason} = event_data
-    
+
     case Map.get(state.active_requests, request_id) do
       nil ->
         {:ok, state}
-        
+
       _request ->
         display_error(reason, state.presenter_opts)
-        
+
         new_active_requests = Map.delete(state.active_requests, request_id)
         new_state = %{state | active_requests: new_active_requests}
-        
+
         {:ok, new_state}
     end
   end
 
   defp handle_progress_update(event_data, state) do
     %{request_id: request_id} = event_data
-    
+
     case Map.get(state.active_requests, request_id) do
       nil ->
         {:ok, state}
-        
+
       request ->
         display_progress(request, event_data, state.presenter_opts)
         {:ok, state}
@@ -276,24 +278,25 @@ defmodule Aiex.Interfaces.CLIInterface do
       :success ->
         Presenter.success("Request completed", presenter_opts)
         Presenter.output(response.content, presenter_opts)
-        
+
         if response.metadata do
           display_metadata(response.metadata, presenter_opts)
         end
-        
+
       :error ->
         Presenter.error("Request failed: #{response.content}", presenter_opts)
     end
   end
 
   defp display_error(reason, presenter_opts) do
-    error_message = case reason do
-      :timeout -> "Request timed out"
-      :no_available_providers -> "No LLM providers available"
-      reason when is_binary(reason) -> reason
-      reason -> "Unknown error: #{inspect(reason)}"
-    end
-    
+    error_message =
+      case reason do
+        :timeout -> "Request timed out"
+        :no_available_providers -> "No LLM providers available"
+        reason when is_binary(reason) -> reason
+        reason -> "Unknown error: #{inspect(reason)}"
+      end
+
     Presenter.error(error_message, presenter_opts)
   end
 
@@ -301,7 +304,7 @@ defmodule Aiex.Interfaces.CLIInterface do
     if presenter_opts[:progress] do
       progress = Map.get(progress_data, :progress, 0)
       message = Map.get(progress_data, :message, "Processing...")
-      
+
       Presenter.progress(message, progress, presenter_opts)
     end
   end
@@ -309,7 +312,7 @@ defmodule Aiex.Interfaces.CLIInterface do
   defp display_metadata(metadata, presenter_opts) do
     if presenter_opts[:interactive] do
       Presenter.info("Metadata:", presenter_opts)
-      
+
       Enum.each(metadata, fn {key, value} ->
         Presenter.info("  #{key}: #{inspect(value)}", presenter_opts)
       end)

@@ -1,7 +1,7 @@
 defmodule Aiex.Context.Session do
   @moduledoc """
   Individual context session process that manages state for a specific user session.
-  
+
   Each session is a GenServer that maintains conversation context, handles
   AI interactions, and synchronizes state with the distributed context engine.
   """
@@ -76,35 +76,39 @@ defmodule Aiex.Context.Session do
   @impl true
   def init({session_id, user_id}) do
     # Try to load existing context from distributed storage
-    initial_state = case Aiex.Context.DistributedEngine.get_context(session_id) do
-      {:ok, stored_context} ->
-        Logger.info("Loaded existing context for session #{session_id}")
-        struct(__MODULE__, stored_context)
-      
-      {:error, :not_found} ->
-        Logger.info("Creating new context for session #{session_id}")
-        create_new_session_state(session_id, user_id)
-      
-      {:error, reason} ->
-        Logger.warning("Failed to load context for session #{session_id}: #{inspect(reason)}, creating new")
-        create_new_session_state(session_id, user_id)
-    end
+    initial_state =
+      case Aiex.Context.DistributedEngine.get_context(session_id) do
+        {:ok, stored_context} ->
+          Logger.info("Loaded existing context for session #{session_id}")
+          struct(__MODULE__, stored_context)
+
+        {:error, :not_found} ->
+          Logger.info("Creating new context for session #{session_id}")
+          create_new_session_state(session_id, user_id)
+
+        {:error, reason} ->
+          Logger.warning(
+            "Failed to load context for session #{session_id}: #{inspect(reason)}, creating new"
+          )
+
+          create_new_session_state(session_id, user_id)
+      end
 
     # Register this process in the session registry
     case Horde.Registry.register(
-      Aiex.Context.SessionRegistry,
-      {:session, session_id},
-      %{user_id: user_id, started_at: DateTime.utc_now()}
-    ) do
-      {:ok, _} -> 
+           Aiex.Context.SessionRegistry,
+           {:session, session_id},
+           %{user_id: user_id, started_at: DateTime.utc_now()}
+         ) do
+      {:ok, _} ->
         # Schedule periodic persistence
         schedule_persistence()
         {:ok, initial_state}
-        
+
       {:error, {:already_registered, _existing_pid}} ->
         # Another session with the same ID already exists, we should terminate
         {:stop, {:shutdown, :already_registered}}
-        
+
       error ->
         Logger.error("Failed to register session #{session_id}: #{inspect(error)}")
         {:stop, error}
@@ -126,16 +130,14 @@ defmodule Aiex.Context.Session do
 
   @impl true
   def handle_call({:add_message, message}, _from, state) do
-    new_message = Map.merge(message, %{
-      timestamp: DateTime.utc_now(),
-      id: generate_message_id()
-    })
+    new_message =
+      Map.merge(message, %{
+        timestamp: DateTime.utc_now(),
+        id: generate_message_id()
+      })
 
     new_history = [new_message | state.conversation_history]
-    new_state = %{state | 
-      conversation_history: new_history,
-      last_activity: DateTime.utc_now()
-    }
+    new_state = %{state | conversation_history: new_history, last_activity: DateTime.utc_now()}
 
     # Persist to distributed storage
     persist_state(new_state)
@@ -145,10 +147,7 @@ defmodule Aiex.Context.Session do
 
   @impl true
   def handle_call({:set_active_model, model}, _from, state) do
-    new_state = %{state | 
-      active_model: model,
-      last_activity: DateTime.utc_now()
-    }
+    new_state = %{state | active_model: model, last_activity: DateTime.utc_now()}
 
     persist_state(new_state)
     {:reply, :ok, new_state}
@@ -157,10 +156,7 @@ defmodule Aiex.Context.Session do
   @impl true
   def handle_call({:update_metadata, metadata}, _from, state) do
     new_metadata = Map.merge(state.metadata || %{}, metadata)
-    new_state = %{state | 
-      metadata: new_metadata,
-      last_activity: DateTime.utc_now()
-    }
+    new_state = %{state | metadata: new_metadata, last_activity: DateTime.utc_now()}
 
     persist_state(new_state)
     {:reply, :ok, new_state}
@@ -174,10 +170,7 @@ defmodule Aiex.Context.Session do
   @impl true
   def handle_call({:put_embedding, key, embedding}, _from, state) do
     new_embeddings = Map.put(state.embeddings, key, embedding)
-    new_state = %{state | 
-      embeddings: new_embeddings,
-      last_activity: DateTime.utc_now()
-    }
+    new_state = %{state | embeddings: new_embeddings, last_activity: DateTime.utc_now()}
 
     persist_state(new_state)
     {:reply, :ok, new_state}
@@ -202,7 +195,7 @@ defmodule Aiex.Context.Session do
       Logger.debug("Received external context update for session #{state.session_id}")
       # Could reload state from distributed storage if needed
     end
-    
+
     {:noreply, state}
   end
 
@@ -231,9 +224,11 @@ defmodule Aiex.Context.Session do
     case Aiex.Context.DistributedEngine.put_context(state.session_id, context_map) do
       {:atomic, :ok} ->
         Logger.debug("Persisted context for session #{state.session_id}")
-      
+
       {:aborted, reason} ->
-        Logger.error("Failed to persist context for session #{state.session_id}: #{inspect(reason)}")
+        Logger.error(
+          "Failed to persist context for session #{state.session_id}: #{inspect(reason)}"
+        )
     end
   end
 

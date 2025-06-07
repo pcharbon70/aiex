@@ -7,7 +7,7 @@ defmodule Aiex.Context.ManagerTest do
     # Just use the existing distributed components
     :ok
   end
-  
+
   # Special setup for tests that need clean Mnesia state
   def setup_clean_mnesia(_context) do
     :mnesia.stop()
@@ -31,27 +31,27 @@ defmodule Aiex.Context.ManagerTest do
 
       # Create session first time
       assert {:ok, pid1} = Manager.get_or_create_session(session_id, user_id)
-      
+
       # Get same session second time
       assert {:ok, pid2} = Manager.get_or_create_session(session_id, user_id)
-      
+
       assert pid1 == pid2
     end
 
     test "updates context for a session" do
       session_id = "update_session_#{:rand.uniform(10000)}"
-      
+
       # Create session
       assert {:ok, _pid} = Manager.get_or_create_session(session_id, "user123")
-      
+
       # Update context
       updates = %{
         active_model: "gpt-4",
         conversation_history: [%{role: "user", content: "Hello"}]
       }
-      
+
       assert {:atomic, :ok} = Manager.update_context(session_id, updates)
-      
+
       # Verify update
       assert {:ok, context} = Manager.get_context(session_id)
       assert context.active_model == "gpt-4"
@@ -60,16 +60,16 @@ defmodule Aiex.Context.ManagerTest do
 
     test "gets context for existing session" do
       session_id = "get_context_session_#{:rand.uniform(10000)}"
-      
+
       # Create context directly in distributed engine
       context = %{
         user_id: "user123",
         conversation_history: [%{role: "user", content: "Test"}],
         active_model: "gpt-4"
       }
-      
+
       DistributedEngine.put_context(session_id, context)
-      
+
       # Get context through manager
       assert {:ok, retrieved} = Manager.get_context(session_id)
       assert retrieved.user_id == "user123"
@@ -78,15 +78,15 @@ defmodule Aiex.Context.ManagerTest do
 
     test "creates context for non-existent session when updating" do
       session_id = "non_existent_#{:rand.uniform(10000)}"
-      
+
       updates = %{
         user_id: "user456",
         active_model: "claude-3"
       }
-      
+
       # Update should create new context
       assert {:atomic, :ok} = Manager.update_context(session_id, updates)
-      
+
       # Verify creation
       assert {:ok, context} = Manager.get_context(session_id)
       assert context.user_id == "user456"
@@ -97,14 +97,14 @@ defmodule Aiex.Context.ManagerTest do
     test "lists active sessions" do
       session1 = "list_session_1_#{:rand.uniform(10000)}"
       session2 = "list_session_2_#{:rand.uniform(10000)}"
-      
+
       # Create multiple sessions
       {:ok, _} = Manager.get_or_create_session(session1, "user1")
       {:ok, _} = Manager.get_or_create_session(session2, "user2")
-      
+
       # List sessions
       {:ok, sessions} = Manager.list_sessions()
-      
+
       assert is_list(sessions)
       assert session1 in sessions
       assert session2 in sessions
@@ -112,13 +112,13 @@ defmodule Aiex.Context.ManagerTest do
 
     test "archives session" do
       session_id = "archive_session_#{:rand.uniform(10000)}"
-      
+
       # Create session
       {:ok, _pid} = Manager.get_or_create_session(session_id, "user123")
-      
+
       # Archive session
       assert :ok = Manager.archive_session(session_id)
-      
+
       # Session should no longer be in local tracking
       {:ok, sessions} = Manager.list_sessions()
       refute session_id in sessions
