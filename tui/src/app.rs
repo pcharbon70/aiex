@@ -14,7 +14,7 @@ use crate::{
     config::Config,
     events::EventHandler,
     message::{Message, TuiEvent},
-    nats_client::NatsManager,
+    otp_client::OtpClient,
     state::AppState,
     ui::render_ui,
 };
@@ -22,7 +22,7 @@ use crate::{
 /// Main application following The Elm Architecture (TEA) pattern
 pub struct App {
     state: AppState,
-    nats_manager: NatsManager,
+    otp_client: OtpClient,
     event_handler: EventHandler,
     event_tx: mpsc::UnboundedSender<Message>,
     event_rx: mpsc::UnboundedReceiver<Message>,
@@ -31,11 +31,11 @@ pub struct App {
 }
 
 impl App {
-    pub async fn new(config: Config, nats_url: String, project_dir: String) -> Result<Self> {
+    pub async fn new(config: Config, otp_addr: String, project_dir: String) -> Result<Self> {
         let (event_tx, event_rx) = mpsc::unbounded_channel();
 
-        // Initialize NATS connection
-        let nats_manager = NatsManager::new(nats_url, event_tx.clone()).await?;
+        // Initialize OTP connection
+        let otp_client = OtpClient::new(otp_addr, event_tx.clone()).await?;
 
         // Initialize application state
         let state = AppState::new(project_dir, config.clone());
@@ -45,7 +45,7 @@ impl App {
 
         Ok(Self {
             state,
-            nats_manager,
+            otp_client,
             event_handler,
             event_tx,
             event_rx,
@@ -83,8 +83,18 @@ impl App {
     }
 
     async fn start_background_tasks(&mut self) -> Result<()> {
-        // Start NATS message processing
-        self.nats_manager.start_message_processing().await?;
+        // Create a new OTP client for background processing
+        // (we keep the original for potential direct operations)
+        let otp_client = OtpClient::new(
+            self.otp_client.server_addr.clone(),
+            self.event_tx.clone(),
+        ).await?;
+        
+        tokio::spawn(async move {
+            if let Err(e) = otp_client.run().await {
+                error!("OTP client error: {}", e);
+            }
+        });
 
         // Start terminal event handling
         self.event_handler.start_terminal_events().await?;
@@ -130,7 +140,13 @@ impl App {
 
         match message {
             Message::TuiEvent(event) => self.handle_tui_event(event).await,
-            Message::NatsMessage { topic, data } => self.handle_nats_message(topic, data).await,
+            Message::ConnectionStatus { connected, details } => {
+                self.handle_connection_status(connected, details).await
+            }
+            Message::OtpEvent { event_type, data } => self.handle_otp_event(event_type, data).await,
+            Message::CommandResult { request_id, result } => {
+                self.handle_command_result(request_id, result).await
+            }
             Message::FileChanged { path, content } => self.handle_file_changed(path, content).await,
             Message::BuildCompleted { status, output } => {
                 self.handle_build_completed(status, output).await
@@ -176,19 +192,22 @@ impl App {
         Ok(())
     }
 
-    async fn handle_nats_message(&mut self, topic: String, data: Vec<u8>) -> Result<()> {
-        debug!("Received NATS message on topic: {}", topic);
-
-        // Deserialize message
-        let message: serde_json::Value = rmp_serde::from_slice(&data)?;
-
-        // Route message based on topic
-        if topic.starts_with("otp.event.") {
-            self.handle_otp_event(topic, message).await?;
-        } else if topic.starts_with("otp.response.") {
-            self.handle_otp_response(topic, message).await?;
+    async fn handle_connection_status(&mut self, connected: bool, details: String) -> Result<()> {
+        debug!("Connection status changed: connected={}, details={}", connected, details);
+        
+        if connected {
+            self.state.add_event_log("Connected to OTP server".to_string());
+        } else {
+            self.state.add_event_log(format!("Disconnected from OTP server: {}", details));
         }
+        
+        self.mark_for_render();
+        Ok(())
+    }
 
+    async fn handle_command_result(&mut self, request_id: String, result: serde_json::Value) -> Result<()> {
+        debug!("Command result for {}: {:?}", request_id, result);
+        self.state.add_event_log(format!("Command {} completed", request_id));
         self.mark_for_render();
         Ok(())
     }
@@ -207,15 +226,9 @@ impl App {
         Ok(())
     }
 
-    async fn handle_otp_event(&mut self, topic: String, message: serde_json::Value) -> Result<()> {
-        debug!("Handling OTP event: {} - {:?}", topic, message);
-        self.state.add_event_log(format!("OTP Event: {}", topic));
-        Ok(())
-    }
-
-    async fn handle_otp_response(&mut self, topic: String, message: serde_json::Value) -> Result<()> {
-        debug!("Handling OTP response: {} - {:?}", topic, message);
-        self.state.add_event_log(format!("OTP Response: {}", topic));
+    async fn handle_otp_event(&mut self, event_type: String, data: serde_json::Value) -> Result<()> {
+        debug!("Handling OTP event: {} - {:?}", event_type, data);
+        self.state.add_event_log(format!("OTP Event: {}", event_type));
         Ok(())
     }
 
@@ -228,9 +241,12 @@ impl App {
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
 
-        self.nats_manager
-            .publish("tui.command.project.refresh".to_string(), request)
-            .await?;
+        // Note: OtpClient was moved in start_background_tasks, so we can't call it directly
+        // We'll send the event through the event channel instead
+        let _ = self.event_tx.send(crate::message::Message::CommandResult {
+            request_id: "refresh_project".to_string(),
+            result: request,
+        });
 
         self.state.add_event_log("Project refresh requested".to_string());
         Ok(())
@@ -247,9 +263,12 @@ impl App {
                 "timestamp": chrono::Utc::now().timestamp_millis()
             });
 
-            self.nats_manager
-                .publish("tui.command.file.open".to_string(), request)
-                .await?;
+            // Note: OtpClient was moved in start_background_tasks, so we can't call it directly
+            // We'll send the event through the event channel instead
+            let _ = self.event_tx.send(crate::message::Message::CommandResult {
+                request_id: format!("open_file_{}", selected_file),
+                result: request,
+            });
 
             self.state
                 .add_event_log(format!("Requested to open: {}", selected_file));

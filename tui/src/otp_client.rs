@@ -67,7 +67,7 @@ pub enum ServerMessage {
 /// OTP TCP client for communication with Elixir application
 pub struct OtpClient {
     stream: Option<TcpStream>,
-    server_addr: String,
+    pub server_addr: String,
     event_tx: mpsc::UnboundedSender<Message>,
     client_id: Option<u64>,
 }
