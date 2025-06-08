@@ -9,7 +9,7 @@ defmodule Aiex.CLI.Commands do
   - aiex version
   """
 
-  alias Aiex.CLI.Commands.{Create, Analyze, Help, Version}
+  alias Aiex.CLI.Commands.{Create, Analyze, Help, Version, AI, Shell, Pipeline}
 
   @doc """
   Returns the main Optimus specification with all commands and subcommands.
@@ -26,6 +26,9 @@ defmodule Aiex.CLI.Commands do
       subcommands: [
         create: create_command_spec(),
         analyze: analyze_command_spec(),
+        ai: ai_command_spec(),
+        shell: shell_command_spec(),
+        pipeline: pipeline_command_spec(),
         help: help_command_spec(),
         version: version_command_spec()
       ]
@@ -39,6 +42,9 @@ defmodule Aiex.CLI.Commands do
     case result do
       {[:create], %Optimus.ParseResult{}} -> {:ok, Create}
       {[:analyze], %Optimus.ParseResult{}} -> {:ok, Analyze}
+      {[:ai], %Optimus.ParseResult{}} -> {:ok, AI}
+      {[:shell], %Optimus.ParseResult{}} -> {:ok, Shell}
+      {[:pipeline], %Optimus.ParseResult{}} -> {:ok, Pipeline}
       {[:help], %Optimus.ParseResult{}} -> {:ok, Help}
       {[:version], %Optimus.ParseResult{}} -> {:ok, Version}
       # Default to help when no args
@@ -179,6 +185,297 @@ defmodule Aiex.CLI.Commands do
           help: "Command to show help for",
           required: false,
           parser: :string
+        ]
+      ]
+    ]
+  end
+
+  defp ai_command_spec do
+    [
+      name: "ai",
+      about: "AI-powered coding assistance commands",
+      subcommands: [
+        analyze: [
+          name: "analyze",
+          about: "Analyze code with AI for quality insights",
+          args: [],
+          options: [
+            file: [
+              value_name: "FILE",
+              help: "File to analyze",
+              required: true,
+              parser: :string
+            ],
+            type: [
+              value_name: "TYPE",
+              help: "Analysis type (quality, performance, security)",
+              required: false,
+              parser: :string,
+              default: "quality"
+            ],
+            output: [
+              value_name: "FORMAT",
+              help: "Output format (text, json, markdown)",
+              required: false,
+              parser: :string,
+              default: "text"
+            ]
+          ]
+        ],
+        generate: [
+          name: "generate",
+          about: "Generate code using AI",
+          args: [],
+          options: [
+            type: [
+              value_name: "TYPE",
+              help: "Generation type (module, function, test)",
+              required: true,
+              parser: :string
+            ],
+            requirements: [
+              value_name: "TEXT",
+              help: "Requirements description",
+              required: true,
+              parser: :string
+            ],
+            context: [
+              value_name: "FILE",
+              help: "Context file for generation",
+              required: false,
+              parser: :string
+            ],
+            output: [
+              value_name: "FILE",
+              help: "Output file (default: stdout)",
+              required: false,
+              parser: :string
+            ]
+          ]
+        ],
+        explain: [
+          name: "explain",
+          about: "Get AI explanations of code",
+          args: [],
+          options: [
+            file: [
+              value_name: "FILE", 
+              help: "File to explain",
+              required: true,
+              parser: :string
+            ],
+            level: [
+              value_name: "LEVEL",
+              help: "Detail level (basic, intermediate, advanced)",
+              required: false,
+              parser: :string,
+              default: "intermediate"
+            ],
+            focus: [
+              value_name: "FOCUS",
+              help: "Focus area (comprehensive, patterns, architecture)",
+              required: false,
+              parser: :string,
+              default: "comprehensive"
+            ]
+          ]
+        ],
+        refactor: [
+          name: "refactor",
+          about: "Get AI refactoring suggestions",
+          args: [],
+          options: [
+            file: [
+              value_name: "FILE",
+              help: "File to refactor",
+              required: true,
+              parser: :string
+            ],
+            type: [
+              value_name: "TYPE",
+              help: "Refactoring type (all, performance, readability)",
+              required: false,
+              parser: :string,
+              default: "all"
+            ]
+          ],
+          flags: [
+            apply: [
+              help: "Apply refactoring changes to file"
+            ],
+            preview: [
+              help: "Show refactoring preview"
+            ]
+          ]
+        ],
+        workflow: [
+          name: "workflow",
+          about: "Execute AI workflow templates",
+          args: [],
+          options: [
+            template: [
+              value_name: "TEMPLATE",
+              help: "Workflow template name",
+              required: true,
+              parser: :string
+            ],
+            context: [
+              value_name: "FILE",
+              help: "Context file for workflow",
+              required: false,
+              parser: :string
+            ],
+            description: [
+              value_name: "TEXT",
+              help: "Workflow description",
+              required: false,
+              parser: :string
+            ],
+            mode: [
+              value_name: "MODE", 
+              help: "Execution mode (sequential, parallel)",
+              required: false,
+              parser: :string,
+              default: "sequential"
+            ]
+          ]
+        ],
+        chat: [
+          name: "chat",
+          about: "Start interactive AI chat session",
+          args: [],
+          options: [
+            conversation_type: [
+              value_name: "TYPE",
+              help: "Conversation type (coding, general, debug)",
+              required: false,
+              parser: :string,
+              default: "coding"
+            ],
+            context: [
+              value_name: "DIR",
+              help: "Project context directory",
+              required: false,
+              parser: :string,
+              default: "."
+            ]
+          ]
+        ]
+      ]
+    ]
+  end
+
+  defp shell_command_spec do
+    [
+      name: "shell",
+      about: "Start interactive AI shell with enhanced features",
+      args: [],
+      options: [
+        project_dir: [
+          value_name: "DIR",
+          help: "Project directory for context",
+          required: false,
+          parser: :string
+        ],
+        mode: [
+          value_name: "MODE",
+          help: "Shell mode (interactive, command, chat)",
+          required: false,
+          parser: :string,
+          default: "interactive"
+        ],
+        save_session: [
+          value_name: "FILE",
+          help: "Auto-save session to file",
+          required: false,
+          parser: :string
+        ]
+      ],
+      flags: [
+        no_auto_save: [
+          help: "Disable automatic session saving"
+        ],
+        verbose: [
+          help: "Enable verbose output"
+        ]
+      ]
+    ]
+  end
+
+  defp pipeline_command_spec do
+    [
+      name: "pipeline",
+      about: "Chain AI operations together for complex workflows",
+      subcommands: [
+        validate: [
+          name: "validate",
+          about: "Validate a pipeline specification",
+          args: [
+            spec: [
+              value_name: "PIPELINE_SPEC",
+              help: "Pipeline specification string",
+              required: true,
+              parser: :string
+            ]
+          ]
+        ],
+        list: [
+          name: "list",
+          about: "List available pipeline operations"
+        ],
+        examples: [
+          name: "examples",
+          about: "Show pipeline usage examples"
+        ]
+      ],
+      options: [
+        spec: [
+          value_name: "PIPELINE_SPEC",
+          short: "-s",
+          long: "--spec",
+          help: "Pipeline specification string (e.g., 'analyze | refactor | test_generate')",
+          parser: :string,
+          required: false
+        ],
+        input: [
+          value_name: "FILE",
+          short: "-i",
+          long: "--input",
+          help: "Input file for pipeline",
+          parser: :string,
+          required: false
+        ],
+        output: [
+          value_name: "FILE",
+          short: "-o",
+          long: "--output",
+          help: "Output file for results",
+          parser: :string,
+          required: false
+        ],
+        mode: [
+          value_name: "MODE",
+          short: "-m",
+          long: "--mode",
+          help: "Execution mode (sequential, parallel, conditional, streaming)",
+          parser: :string,
+          default: "sequential"
+        ]
+      ],
+      flags: [
+        validate: [
+          short: "-v",
+          long: "--validate",
+          help: "Validate pipeline only, don't execute"
+        ],
+        continue_on_error: [
+          short: "-c",
+          long: "--continue-on-error",
+          help: "Continue pipeline execution even if a step fails"
+        ],
+        verbose: [
+          long: "--verbose",
+          help: "Enable verbose output"
         ]
       ]
     ]
