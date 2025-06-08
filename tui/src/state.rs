@@ -1,5 +1,8 @@
 use std::collections::{HashMap, VecDeque};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 
 use crate::config::Config;
 
@@ -37,6 +40,26 @@ pub enum Pane {
 const MAX_MESSAGES: usize = 1000;
 
 #[derive(Debug, Clone)]
+pub enum ExportFormat {
+    Json,
+    Markdown,
+    PlainText,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConversationStats {
+    pub total_messages: usize,
+    pub user_messages: usize,
+    pub ai_messages: usize,
+    pub system_messages: usize,
+    pub error_messages: usize,
+    pub total_tokens: u32,
+    pub ai_tokens: u32,
+    pub conversation_duration: Option<chrono::Duration>,
+    pub conversation_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageType {
     User,
     Assistant,
@@ -44,12 +67,14 @@ pub enum MessageType {
     Error,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub content: String,
     pub message_type: MessageType,
     pub timestamp: DateTime<Utc>,
     pub tokens_used: Option<u32>,
+    pub conversation_id: Option<String>,
+    pub message_id: String,
 }
 
 impl ChatMessage {
@@ -59,12 +84,30 @@ impl ChatMessage {
             message_type,
             timestamp: Utc::now(),
             tokens_used: None,
+            conversation_id: None,
+            message_id: uuid::Uuid::new_v4().to_string(),
         }
     }
 
     pub fn with_tokens(mut self, tokens: u32) -> Self {
         self.tokens_used = Some(tokens);
         self
+    }
+
+    pub fn with_conversation_id(mut self, conversation_id: String) -> Self {
+        self.conversation_id = Some(conversation_id);
+        self
+    }
+
+    pub fn new_with_id(content: String, message_type: MessageType, conversation_id: Option<String>) -> Self {
+        Self {
+            content,
+            message_type,
+            timestamp: Utc::now(),
+            tokens_used: None,
+            conversation_id,
+            message_id: uuid::Uuid::new_v4().to_string(),
+        }
     }
 }
 
@@ -130,6 +173,10 @@ pub struct ChatState {
     pub is_processing: bool,
     pub session_tokens: u32,
     pub current_conversation_id: Option<String>,
+    pub search_query: String,
+    pub filtered_messages: Option<Vec<usize>>, // Indices of filtered messages
+    pub persistence_enabled: bool,
+    pub persistence_path: Option<String>,
 }
 
 impl ChatState {
@@ -142,7 +189,20 @@ impl ChatState {
             is_processing: false,
             session_tokens: 0,
             current_conversation_id: None,
+            search_query: String::new(),
+            filtered_messages: None,
+            persistence_enabled: true,
+            persistence_path: None,
         }
+    }
+
+    pub fn new_with_persistence(persistence_path: String) -> Self {
+        let mut state = Self::new();
+        state.persistence_path = Some(persistence_path.clone());
+        state.load_conversation_history(&persistence_path).unwrap_or_else(|e| {
+            eprintln!("Failed to load conversation history: {}", e);
+        });
+        state
     }
 
     pub fn add_message(&mut self, message: ChatMessage) {
@@ -193,6 +253,243 @@ impl ChatState {
     pub fn scroll_to_top(&mut self) {
         self.scroll_position = 0;
         self.auto_scroll = false;
+    }
+
+    /// Search messages by content or message type
+    pub fn search_messages(&mut self, query: &str) {
+        self.search_query = query.to_string();
+        
+        if query.is_empty() {
+            self.filtered_messages = None;
+            return;
+        }
+        
+        let query_lower = query.to_lowercase();
+        let mut filtered_indices = Vec::new();
+        
+        for (index, message) in self.messages.iter().enumerate() {
+            let matches_content = message.content.to_lowercase().contains(&query_lower);
+            let matches_type = format!("{:?}", message.message_type).to_lowercase().contains(&query_lower);
+            
+            if matches_content || matches_type {
+                filtered_indices.push(index);
+            }
+        }
+        
+        self.filtered_messages = if filtered_indices.is_empty() {
+            None
+        } else {
+            Some(filtered_indices)
+        };
+    }
+
+    /// Clear search filter
+    pub fn clear_search(&mut self) {
+        self.search_query.clear();
+        self.filtered_messages = None;
+    }
+
+    /// Get filtered messages for display
+    pub fn get_visible_messages(&self) -> Vec<&ChatMessage> {
+        match &self.filtered_messages {
+            Some(indices) => indices.iter()
+                .filter_map(|&i| self.messages.get(i))
+                .collect(),
+            None => self.messages.iter().collect(),
+        }
+    }
+
+    /// Start a new conversation
+    pub fn start_new_conversation(&mut self) -> String {
+        let conversation_id = uuid::Uuid::new_v4().to_string();
+        self.current_conversation_id = Some(conversation_id.clone());
+        
+        // Archive current conversation if persistence is enabled
+        if self.persistence_enabled {
+            if let Err(e) = self.save_conversation_history() {
+                eprintln!("Failed to save conversation: {}", e);
+            }
+        }
+        
+        // Clear current messages for new conversation
+        self.messages.clear();
+        self.session_tokens = 0;
+        self.scroll_position = 0;
+        self.auto_scroll = true;
+        
+        conversation_id
+    }
+
+    /// Save conversation history to file
+    pub fn save_conversation_history(&self) -> Result<(), Box<dyn std::error::Error>> {
+        if !self.persistence_enabled {
+            return Ok(());
+        }
+        
+        let path = match &self.persistence_path {
+            Some(p) => p,
+            None => return Err("No persistence path configured".into()),
+        };
+        
+        // Create directory if it doesn't exist
+        if let Some(parent) = Path::new(path).parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        let messages: Vec<&ChatMessage> = self.messages.iter().collect();
+        let json = serde_json::to_string_pretty(&messages)?;
+        fs::write(path, json)?;
+        
+        Ok(())
+    }
+
+    /// Load conversation history from file
+    pub fn load_conversation_history(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        if !Path::new(path).exists() {
+            return Ok(()); // No existing conversation to load
+        }
+        
+        let content = fs::read_to_string(path)?;
+        let messages: Vec<ChatMessage> = serde_json::from_str(&content)?;
+        
+        // Clear current messages and load from file
+        self.messages.clear();
+        
+        for message in messages {
+            self.messages.push_back(message);
+        }
+        
+        // Update session tokens
+        self.session_tokens = self.messages.iter()
+            .filter_map(|m| m.tokens_used)
+            .sum();
+        
+        // Set scroll to bottom
+        self.scroll_to_bottom();
+        
+        Ok(())
+    }
+
+    /// Export conversation to various formats
+    pub fn export_conversation(&self, format: ExportFormat, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // Create directory if it doesn't exist
+        if let Some(parent) = Path::new(output_path).parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        match format {
+            ExportFormat::Json => {
+                let messages: Vec<&ChatMessage> = self.messages.iter().collect();
+                let json = serde_json::to_string_pretty(&messages)?;
+                fs::write(output_path, json)?;
+            }
+            ExportFormat::Markdown => {
+                let mut markdown = String::new();
+                markdown.push_str("# AI Coding Assistant Conversation\n\n");
+                markdown.push_str(&format!("Exported: {}\n", Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+                markdown.push_str(&format!("Total Messages: {}\n", self.messages.len()));
+                markdown.push_str(&format!("Total Tokens: {}\n\n", self.session_tokens));
+                
+                for message in &self.messages {
+                    let role = match message.message_type {
+                        MessageType::User => "🧑 **User**",
+                        MessageType::Assistant => "🤖 **AI Assistant**",
+                        MessageType::System => "⚙️ **System**",
+                        MessageType::Error => "❌ **Error**",
+                    };
+                    
+                    markdown.push_str(&format!("## {} - {}\n\n", role, message.timestamp.format("%H:%M:%S")));
+                    markdown.push_str(&message.content);
+                    markdown.push_str("\n\n");
+                    
+                    if let Some(tokens) = message.tokens_used {
+                        markdown.push_str(&format!("*Tokens used: {}*\n\n", tokens));
+                    }
+                    
+                    markdown.push_str("---\n\n");
+                }
+                
+                fs::write(output_path, markdown)?;
+            }
+            ExportFormat::PlainText => {
+                let mut text = String::new();
+                text.push_str("AI Coding Assistant Conversation\n");
+                text.push_str("================================\n\n");
+                text.push_str(&format!("Exported: {}\n", Utc::now().format("%Y-%m-%d %H:%M:%S UTC")));
+                text.push_str(&format!("Total Messages: {}\n", self.messages.len()));
+                text.push_str(&format!("Total Tokens: {}\n\n", self.session_tokens));
+                
+                for message in &self.messages {
+                    let role = match message.message_type {
+                        MessageType::User => "USER",
+                        MessageType::Assistant => "AI",
+                        MessageType::System => "SYSTEM",
+                        MessageType::Error => "ERROR",
+                    };
+                    
+                    text.push_str(&format!("[{}] {} - {}\n", 
+                        message.timestamp.format("%H:%M:%S"), 
+                        role, 
+                        message.content.replace('\n', "\n    ")
+                    ));
+                    
+                    if let Some(tokens) = message.tokens_used {
+                        text.push_str(&format!("    (Tokens: {})\n", tokens));
+                    }
+                    
+                    text.push('\n');
+                }
+                
+                fs::write(output_path, text)?;
+            }
+        }
+        
+        Ok(())
+    }
+
+    /// Import conversation from JSON file
+    pub fn import_conversation(&mut self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let content = fs::read_to_string(file_path)?;
+        let imported_messages: Vec<ChatMessage> = serde_json::from_str(&content)?;
+        
+        // Add imported messages to current conversation
+        for message in imported_messages {
+            self.add_message(message);
+        }
+        
+        Ok(())
+    }
+
+    /// Get conversation statistics
+    pub fn get_conversation_stats(&self) -> ConversationStats {
+        let user_messages = self.messages.iter().filter(|m| matches!(m.message_type, MessageType::User)).count();
+        let ai_messages = self.messages.iter().filter(|m| matches!(m.message_type, MessageType::Assistant)).count();
+        let system_messages = self.messages.iter().filter(|m| matches!(m.message_type, MessageType::System)).count();
+        let error_messages = self.messages.iter().filter(|m| matches!(m.message_type, MessageType::Error)).count();
+        
+        let total_tokens = self.session_tokens;
+        let ai_tokens: u32 = self.messages.iter()
+            .filter(|m| matches!(m.message_type, MessageType::Assistant))
+            .filter_map(|m| m.tokens_used)
+            .sum();
+        
+        let first_message_time = self.messages.front().map(|m| m.timestamp);
+        let last_message_time = self.messages.back().map(|m| m.timestamp);
+        
+        ConversationStats {
+            total_messages: self.messages.len(),
+            user_messages,
+            ai_messages,
+            system_messages,
+            error_messages,
+            total_tokens,
+            ai_tokens,
+            conversation_duration: match (first_message_time, last_message_time) {
+                (Some(start), Some(end)) => Some(end - start),
+                _ => None,
+            },
+            conversation_id: self.current_conversation_id.clone(),
+        }
     }
 }
 
@@ -371,13 +668,31 @@ pub enum ConnectionStatus {
 
 impl AppState {
     pub fn new(project_dir: String, config: Config) -> Self {
-        let mut chat_state = ChatState::new();
+        // Create persistence path for conversations
+        let persistence_dir = dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".aiex")
+            .join("conversations");
         
-        // Add a welcome message
-        chat_state.add_message(ChatMessage::new(
-            "Welcome to Aiex AI Coding Assistant! How can I help you today?".to_string(),
-            MessageType::Assistant,
-        ));
+        let persistence_path = persistence_dir
+            .join("current_conversation.json")
+            .to_string_lossy()
+            .to_string();
+        
+        let mut chat_state = ChatState::new_with_persistence(persistence_path);
+        
+        // Start a new conversation if none exists
+        if chat_state.messages.is_empty() {
+            let conversation_id = uuid::Uuid::new_v4().to_string();
+            chat_state.current_conversation_id = Some(conversation_id.clone());
+            
+            // Add a welcome message
+            chat_state.add_message(ChatMessage::new_with_id(
+                "Welcome to Aiex AI Coding Assistant! How can I help you today?".to_string(),
+                MessageType::Assistant,
+                Some(conversation_id),
+            ));
+        }
 
         Self {
             project_dir,
@@ -462,7 +777,8 @@ impl AppState {
     // Chat methods
     pub fn send_message(&mut self, content: String) {
         if !content.trim().is_empty() {
-            let message = ChatMessage::new(content, MessageType::User);
+            let conversation_id = self.chat_state.current_conversation_id.clone();
+            let message = ChatMessage::new_with_id(content, MessageType::User, conversation_id);
             self.chat_state.add_message(message);
             self.chat_state.clear_input();
             self.chat_state.is_processing = true;
@@ -470,7 +786,8 @@ impl AppState {
     }
 
     pub fn add_ai_response(&mut self, content: String, tokens: Option<u32>) {
-        let mut message = ChatMessage::new(content, MessageType::Assistant);
+        let conversation_id = self.chat_state.current_conversation_id.clone();
+        let mut message = ChatMessage::new_with_id(content, MessageType::Assistant, conversation_id);
         if let Some(t) = tokens {
             message = message.with_tokens(t);
         }
@@ -479,14 +796,45 @@ impl AppState {
     }
 
     pub fn add_system_message(&mut self, content: String) {
-        let message = ChatMessage::new(content, MessageType::System);
+        let conversation_id = self.chat_state.current_conversation_id.clone();
+        let message = ChatMessage::new_with_id(content, MessageType::System, conversation_id);
         self.chat_state.add_message(message);
     }
 
     pub fn add_error_message(&mut self, content: String) {
-        let message = ChatMessage::new(content, MessageType::Error);
+        let conversation_id = self.chat_state.current_conversation_id.clone();
+        let message = ChatMessage::new_with_id(content, MessageType::Error, conversation_id);
         self.chat_state.add_message(message);
         self.chat_state.is_processing = false;
+    }
+
+    // New conversation management methods
+    pub fn start_new_conversation(&mut self) -> String {
+        self.chat_state.start_new_conversation()
+    }
+
+    pub fn save_conversation(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.chat_state.save_conversation_history()
+    }
+
+    pub fn export_conversation(&self, format: ExportFormat, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        self.chat_state.export_conversation(format, path)
+    }
+
+    pub fn import_conversation(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        self.chat_state.import_conversation(path)
+    }
+
+    pub fn search_messages(&mut self, query: &str) {
+        self.chat_state.search_messages(query);
+    }
+
+    pub fn clear_message_search(&mut self) {
+        self.chat_state.clear_search();
+    }
+
+    pub fn get_conversation_stats(&self) -> ConversationStats {
+        self.chat_state.get_conversation_stats()
     }
 
     pub fn execute_quick_action(&mut self, action: &QuickAction) -> String {

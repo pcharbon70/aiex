@@ -205,6 +205,10 @@ impl App {
                 self.handle_build_completed(status, output).await
             }
             Message::Quit => {
+                // Save conversation before quitting
+                if let Err(e) = self.state.save_conversation() {
+                    error!("Failed to save conversation on quit: {}", e);
+                }
                 self.should_quit = true;
                 Ok(())
             }

@@ -119,9 +119,8 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
         Style::default().fg(Color::Blue)
     };
 
-    let messages: Vec<ListItem> = state
-        .chat_state
-        .messages
+    let visible_messages = state.chat_state.get_visible_messages();
+    let messages: Vec<ListItem> = visible_messages
         .iter()
         .map(|msg| {
             let timestamp = msg.timestamp.format("%H:%M:%S");
@@ -154,11 +153,18 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
         })
         .collect();
 
+    // Add search indicator to title if search is active
+    let title = if !state.chat_state.search_query.is_empty() {
+        format!("Conversation History (Search: \"{}\")", state.chat_state.search_query)
+    } else {
+        "Conversation History".to_string()
+    };
+
     let messages_list = List::new(messages)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Conversation History")
+                .title(title)
                 .border_style(border_style),
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
@@ -353,11 +359,13 @@ fn render_input_area(frame: &mut Frame, area: Rect, state: &AppState) {
 }
 
 fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
+    let stats = state.get_conversation_stats();
     let status_text = format!(
-        " Status: {:?} | Project: {} | Tokens: {} | Focus: {:?} | {}",
+        " Status: {:?} | Project: {} | Messages: {} | Tokens: {} | Focus: {:?} | {}",
         state.connection_status,
-        state.project_dir,
-        state.chat_state.session_tokens,
+        state.project_dir.split('/').last().unwrap_or("Unknown"),
+        stats.total_messages,
+        stats.total_tokens,
         state.current_pane,
         if state.chat_state.is_processing { "⏳ Processing" } else { "✅ Ready" }
     );

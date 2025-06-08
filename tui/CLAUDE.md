@@ -17,7 +17,7 @@ This is a Rust Terminal User Interface (TUI) for the Aiex AI-powered Elixir codi
 
 ### Testing
 - `cargo test` - Run unit tests
-- `cargo test --features integration` - Run integration tests (requires NATS server)
+- `cargo test --features integration` - Run integration tests (requires OTP server)
 - `cargo tarpaulin --out Html` - Run with test coverage
 
 ### Code Quality
@@ -40,10 +40,11 @@ The application follows **The Elm Architecture (TEA)** pattern:
 
 1. **App (`src/app.rs`)**: Main application orchestrator with async event loop
 2. **AppState (`src/state.rs`)**: Immutable state management with structured updates
-3. **OtpClient (`src/otp_client.rs`)**: Communication layer with Elixir OTP application
+3. **OtpClient (`src/otp_client.rs`)**: TCP communication layer with Elixir OTP application
 4. **TerminalManager (`src/terminal.rs`)**: Terminal initialization and capability detection
 5. **EventHandler (`src/events.rs`)**: Keyboard and terminal event processing
 6. **Config (`src/config.rs`)**: TOML-based configuration management
+7. **ChatUI (`src/chat_ui.rs`)**: Specialized rendering for conversational interfaces
 
 ### Communication Architecture
 
@@ -117,4 +118,5 @@ Multi-pane interface with:
 - Language detection is basic file extension matching in `state.rs:detect_language()`
 - Event log retention is limited to 1000 entries with automatic cleanup
 - Frame rate is capped at 60 FPS to prevent excessive CPU usage
-- Legacy NATS configuration exists in code but is unused (architecture changed to direct TCP)
+- Architecture migrated from NATS messaging to direct TCP with MessagePack for better performance
+- Chat UI module (`src/chat_ui.rs`) provides specialized rendering for conversational interfaces
