@@ -71,6 +71,20 @@ defmodule Aiex.Context.Session do
     GenServer.call(pid, :get_embeddings)
   end
 
+  @doc """
+  Restores session state from external source.
+  """
+  def restore_state(pid, new_state) do
+    GenServer.call(pid, {:restore_state, new_state})
+  end
+
+  @doc """
+  Performs rollback to a specific point in time or version.
+  """
+  def rollback(pid, target) do
+    GenServer.call(pid, {:rollback, target})
+  end
+
   ## Server Callbacks
 
   @impl true
@@ -182,6 +196,27 @@ defmodule Aiex.Context.Session do
   end
 
   @impl true
+  def handle_call({:restore_state, new_state}, _from, _current_state) do
+    # Restore state from migration or recovery
+    restored_state = struct(__MODULE__, new_state)
+    persist_state(restored_state)
+    {:reply, :ok, restored_state}
+  end
+
+  @impl true
+  def handle_call({:rollback, target}, _from, state) do
+    # Perform rollback based on target (timestamp, version, or event_id)
+    case perform_rollback(state, target) do
+      {:ok, rolled_back_state} ->
+        persist_state(rolled_back_state)
+        {:reply, :ok, rolled_back_state}
+      
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  @impl true
   def handle_info(:persist_state, state) do
     persist_state(state)
     schedule_persistence()
@@ -196,6 +231,12 @@ defmodule Aiex.Context.Session do
       # Could reload state from distributed storage if needed
     end
 
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast({:handoff_complete, new_pid}, state) do
+    Logger.info("Session #{state.session_id} handed off to #{inspect(new_pid)}")
     {:noreply, state}
   end
 
@@ -239,5 +280,49 @@ defmodule Aiex.Context.Session do
 
   defp generate_message_id do
     :crypto.strong_rand_bytes(8) |> Base.encode64(padding: false)
+  end
+
+  defp perform_rollback(state, target) do
+    # Simplified rollback implementation
+    case target do
+      %DateTime{} = timestamp ->
+        # Rollback to specific timestamp
+        filtered_history = Enum.filter(state.conversation_history, fn msg ->
+          msg.timestamp && DateTime.compare(msg.timestamp, timestamp) == :lt
+        end)
+        
+        rolled_back_state = %{state | 
+          conversation_history: filtered_history,
+          last_activity: DateTime.utc_now()
+        }
+        
+        {:ok, rolled_back_state}
+      
+      event_id when is_binary(event_id) ->
+        # Rollback to specific event
+        case Enum.find_index(state.conversation_history, &(&1.id == event_id)) do
+          nil -> {:error, :event_not_found}
+          index ->
+            # Keep messages up to and including the target event
+            rolled_back_history = Enum.take(state.conversation_history, index + 1)
+            rolled_back_state = %{state | 
+              conversation_history: rolled_back_history,
+              last_activity: DateTime.utc_now()
+            }
+            {:ok, rolled_back_state}
+        end
+      
+      version when is_integer(version) ->
+        # Rollback to specific version (message count)
+        rolled_back_history = Enum.take(state.conversation_history, version)
+        rolled_back_state = %{state | 
+          conversation_history: rolled_back_history,
+          last_activity: DateTime.utc_now()
+        }
+        {:ok, rolled_back_state}
+      
+      _ ->
+        {:error, :invalid_rollback_target}
+    end
   end
 end
