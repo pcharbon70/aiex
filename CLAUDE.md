@@ -192,12 +192,18 @@ The project follows a 32-week roadmap (see `planning/detailed_implementation_pla
 
 ## Git Commit Guidelines
 
-**IMPORTANT**: Do not include any references to coding LLMs or AI assistants in commit messages or merge messages. This includes but is not limited to:
-- "Generated with Claude Code" or similar attribution
-- "Co-Authored-By: Claude" or AI assistant credits
-- Any mention of AI assistance in commit descriptions
+**CRITICAL REQUIREMENT**: NEVER allow any AI tool to take authorship or co-authorship in commit messages or merge messages. This is a strict project policy.
 
-Keep commit messages focused on the technical changes and their purpose, without referencing the tools or assistants used to create them.
+**PROHIBITED in ALL commits and merges**:
+- "Generated with Claude Code" or any AI tool attribution
+- "Co-Authored-By: Claude" or any AI assistant credits  
+- "🤖 Generated with [AI Tool]" or similar AI attribution
+- Any mention of AI assistance, AI tools, or AI collaboration in commit descriptions
+- Any form of AI authorship claim or credit
+
+**REQUIRED**: All commits and merges must reflect human authorship only. Keep commit messages focused on the technical changes and their purpose, without referencing any tools or assistants used to create them.
+
+**Why this matters**: This project maintains human authorship integrity and avoids any implication that AI tools are co-authors or contributors to the codebase.
 
 ## README.md Implementation Progress Formatting
 
