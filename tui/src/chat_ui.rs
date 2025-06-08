@@ -34,9 +34,17 @@ pub fn render_chat_ui(frame: &mut Frame, state: &AppState) {
     render_status_bar(frame, main_layout[3], state);
 }
 
-fn render_header(frame: &mut Frame, area: Rect, _state: &AppState) {
+fn render_header(frame: &mut Frame, area: Rect, state: &AppState) {
     let title = "AI Coding Assistant - Chat Mode";
-    let help_text = "F1: Context | F2: Actions | Tab: Focus | Ctrl+Q: Quit | Ctrl+Enter: Send";
+    
+    // Dynamic help text based on current focus
+    let help_text = match state.current_pane {
+        Pane::MessageInput => "Ctrl+Enter: Send | Shift+Enter: New Line | Tab/Shift+Tab: Navigate | Ctrl+Arrows: Quick Focus",
+        Pane::ConversationHistory => "↑↓: Scroll | Home/End: Top/Bottom | PgUp/PgDown: Fast Scroll | Enter: Focus Input | /: Search | n: New Chat",
+        Pane::Context => "↑↓: Navigate | Enter/Space: Select | Home/End: Top/Bottom | Ctrl+Arrows: Quick Focus",
+        Pane::QuickActions => "↑↓: Navigate | Enter/Space: Execute | Letter Keys: Quick Execute | Ctrl+Arrows: Quick Focus",
+        Pane::CurrentStatus => "Arrow Keys: Navigate to Other Panels | Enter: Focus Input",
+    };
     
     let header_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -53,9 +61,18 @@ fn render_header(frame: &mut Frame, area: Rect, _state: &AppState) {
         .alignment(Alignment::Center);
     frame.render_widget(help_paragraph, header_layout[1]);
 
+    // Enhanced border color based on focus state
+    let border_color = match state.current_pane {
+        Pane::MessageInput => Color::Green,
+        Pane::ConversationHistory => Color::Cyan,
+        Pane::Context => Color::Magenta,
+        Pane::QuickActions => Color::Yellow,
+        Pane::CurrentStatus => Color::Blue,
+    };
+
     let header_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Blue));
+        .border_style(Style::default().fg(border_color));
     frame.render_widget(header_block, area);
 }
 
@@ -114,7 +131,7 @@ fn render_chat_area(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) {
     let is_focused = matches!(state.current_pane, Pane::ConversationHistory);
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Blue)
     };
@@ -193,7 +210,7 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
 fn render_current_status(frame: &mut Frame, area: Rect, state: &AppState) {
     let is_focused = matches!(state.current_pane, Pane::CurrentStatus);
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Blue)
     };
@@ -220,7 +237,7 @@ fn render_current_status(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_context_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     let is_focused = matches!(state.current_pane, Pane::Context);
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Blue)
     };
@@ -280,7 +297,7 @@ fn render_context_panel(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_quick_actions_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     let is_focused = matches!(state.current_pane, Pane::QuickActions);
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Blue)
     };
@@ -319,7 +336,7 @@ fn render_quick_actions_panel(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_input_area(frame: &mut Frame, area: Rect, state: &AppState) {
     let is_focused = matches!(state.current_pane, Pane::MessageInput);
     let border_style = if is_focused {
-        Style::default().fg(Color::Yellow)
+        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::Blue)
     };
@@ -360,19 +377,35 @@ fn render_input_area(frame: &mut Frame, area: Rect, state: &AppState) {
 
 fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
     let stats = state.get_conversation_stats();
-    let status_text = format!(
-        " Status: {:?} | Project: {} | Messages: {} | Tokens: {} | Focus: {:?} | {}",
+    
+    // Create comprehensive status with navigation hints
+    let left_status = format!(
+        " Status: {:?} | Project: {} | Messages: {} | Tokens: {}",
         state.connection_status,
         state.project_dir.split('/').last().unwrap_or("Unknown"),
         stats.total_messages,
         stats.total_tokens,
+    );
+    
+    let right_status = format!(
+        "Focus: {:?} | {} | F1: Context | F2: Actions | Alt+1-4: Quick Focus | Ctrl+Q: Quit ",
         state.current_pane,
         if state.chat_state.is_processing { "⏳ Processing" } else { "✅ Ready" }
     );
 
-    let status_paragraph = Paragraph::new(status_text)
+    // Split the status bar into left and right sections
+    let status_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(area);
+
+    let left_paragraph = Paragraph::new(left_status)
         .style(Style::default().bg(Color::Blue).fg(Color::White))
         .alignment(Alignment::Left);
+    frame.render_widget(left_paragraph, status_layout[0]);
 
-    frame.render_widget(status_paragraph, area);
+    let right_paragraph = Paragraph::new(right_status)
+        .style(Style::default().bg(Color::Blue).fg(Color::White))
+        .alignment(Alignment::Right);
+    frame.render_widget(right_paragraph, status_layout[1]);
 }

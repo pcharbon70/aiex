@@ -742,6 +742,10 @@ impl AppState {
     }
 
     pub fn switch_pane(&mut self) {
+        self.switch_pane_forward();
+    }
+
+    pub fn switch_pane_forward(&mut self) {
         self.current_pane = match self.current_pane {
             Pane::MessageInput => {
                 if self.layout_state.show_context_panel {
@@ -763,6 +767,50 @@ impl AppState {
             Pane::ConversationHistory => Pane::CurrentStatus,
             Pane::CurrentStatus => Pane::MessageInput,
         };
+    }
+
+    pub fn switch_pane_backward(&mut self) {
+        self.current_pane = match self.current_pane {
+            Pane::MessageInput => Pane::CurrentStatus,
+            Pane::CurrentStatus => Pane::ConversationHistory,
+            Pane::ConversationHistory => {
+                if self.layout_state.show_quick_actions {
+                    Pane::QuickActions
+                } else if self.layout_state.show_context_panel {
+                    Pane::Context
+                } else {
+                    Pane::MessageInput
+                }
+            }
+            Pane::QuickActions => {
+                if self.layout_state.show_context_panel {
+                    Pane::Context
+                } else {
+                    Pane::MessageInput
+                }
+            }
+            Pane::Context => Pane::MessageInput,
+        };
+    }
+
+    pub fn focus_message_input(&mut self) {
+        self.current_pane = Pane::MessageInput;
+    }
+
+    pub fn focus_conversation_history(&mut self) {
+        self.current_pane = Pane::ConversationHistory;
+    }
+
+    pub fn focus_context_panel(&mut self) {
+        if self.layout_state.show_context_panel {
+            self.current_pane = Pane::Context;
+        }
+    }
+
+    pub fn focus_quick_actions(&mut self) {
+        if self.layout_state.show_quick_actions {
+            self.current_pane = Pane::QuickActions;
+        }
     }
 
     // Panel management methods

@@ -235,8 +235,53 @@ impl App {
                         self.mark_for_render();
                         return Ok(());
                     }
+                    (KeyCode::F(3), _) => {
+                        // Focus on conversation history
+                        self.state.focus_conversation_history();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    (KeyCode::F(4), _) => {
+                        // Focus on message input
+                        self.state.focus_message_input();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    // Tab navigation (forward and backward)
+                    (KeyCode::Tab, crossterm::event::KeyModifiers::SHIFT) => {
+                        self.state.switch_pane_backward();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
                     (KeyCode::Tab, _) => {
-                        self.state.switch_pane();
+                        self.state.switch_pane_forward();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    (KeyCode::BackTab, _) => {
+                        // Alternative for Shift+Tab on some terminals
+                        self.state.switch_pane_backward();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    // Quick focus shortcuts
+                    (KeyCode::Char('1'), crossterm::event::KeyModifiers::ALT) => {
+                        self.state.focus_message_input();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    (KeyCode::Char('2'), crossterm::event::KeyModifiers::ALT) => {
+                        self.state.focus_conversation_history();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    (KeyCode::Char('3'), crossterm::event::KeyModifiers::ALT) => {
+                        self.state.focus_context_panel();
+                        self.mark_for_render();
+                        return Ok(());
+                    }
+                    (KeyCode::Char('4'), crossterm::event::KeyModifiers::ALT) => {
+                        self.state.focus_quick_actions();
                         self.mark_for_render();
                         return Ok(());
                     }
@@ -247,57 +292,203 @@ impl App {
                 match self.state.current_pane {
                     crate::state::Pane::MessageInput => {
                         match (key.code, key.modifiers) {
+                            // Message sending
                             (KeyCode::Enter, crossterm::event::KeyModifiers::CONTROL) => {
                                 let content = self.state.chat_state.current_input.clone();
                                 if !content.trim().is_empty() {
                                     self.send_user_message(content).await?;
                                 }
                             }
-                            (KeyCode::Char(c), _) => {
+                            (KeyCode::Enter, crossterm::event::KeyModifiers::SHIFT) => {
+                                // Shift+Enter adds a newline
+                                self.state.chat_state.current_input.push('\n');
+                            }
+                            // Text input
+                            (KeyCode::Char(c), crossterm::event::KeyModifiers::NONE) => {
                                 self.state.chat_state.current_input.push(c);
                             }
+                            (KeyCode::Char(c), crossterm::event::KeyModifiers::SHIFT) => {
+                                self.state.chat_state.current_input.push(c);
+                            }
+                            // Text navigation and editing
                             (KeyCode::Backspace, _) => {
+                                self.state.chat_state.current_input.pop();
+                            }
+                            (KeyCode::Delete, _) => {
+                                // For now, same as backspace
                                 self.state.chat_state.current_input.pop();
                             }
                             (KeyCode::Esc, _) => {
                                 self.state.chat_state.current_input.clear();
                             }
+                            // Quick shortcuts from input
+                            (KeyCode::Up, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_conversation_history();
+                            }
+                            (KeyCode::Left, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_context_panel();
+                            }
+                            (KeyCode::Right, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_quick_actions();
+                            }
                             _ => {}
                         }
                     }
                     crate::state::Pane::ConversationHistory => {
-                        match key.code {
-                            KeyCode::Up => self.state.navigate_up(),
-                            KeyCode::Down => self.state.navigate_down(),
-                            KeyCode::Home => self.state.chat_state.scroll_to_top(),
-                            KeyCode::End => self.state.chat_state.scroll_to_bottom(),
+                        match (key.code, key.modifiers) {
+                            // Navigation
+                            (KeyCode::Up, _) => {
+                                self.state.navigate_up();
+                            }
+                            (KeyCode::Down, _) => {
+                                self.state.navigate_down();
+                            }
+                            (KeyCode::Home, _) => {
+                                self.state.chat_state.scroll_to_top();
+                            }
+                            (KeyCode::End, _) => {
+                                self.state.chat_state.scroll_to_bottom();
+                            }
+                            (KeyCode::PageUp, _) => {
+                                // Scroll up by 5 messages
+                                for _ in 0..5 {
+                                    self.state.navigate_up();
+                                }
+                            }
+                            (KeyCode::PageDown, _) => {
+                                // Scroll down by 5 messages
+                                for _ in 0..5 {
+                                    self.state.navigate_down();
+                                }
+                            }
+                            // Quick actions
+                            (KeyCode::Enter, _) => {
+                                // Focus back to input for response
+                                self.state.focus_message_input();
+                            }
+                            (KeyCode::Char('/'), _) => {
+                                // Start search mode (placeholder - would need search input handling)
+                                info!("Search mode activated");
+                            }
+                            (KeyCode::Char('n'), _) => {
+                                // New conversation
+                                let conversation_id = self.state.start_new_conversation();
+                                info!("Started new conversation: {}", conversation_id);
+                            }
+                            (KeyCode::Char('s'), crossterm::event::KeyModifiers::CONTROL) => {
+                                // Save conversation
+                                if let Err(e) = self.state.save_conversation() {
+                                    error!("Failed to save conversation: {}", e);
+                                } else {
+                                    info!("Conversation saved successfully");
+                                }
+                            }
+                            // Quick focus shortcuts from conversation
+                            (KeyCode::Down, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_message_input();
+                            }
+                            (KeyCode::Left, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_context_panel();
+                            }
+                            (KeyCode::Right, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_quick_actions();
+                            }
                             _ => {}
                         }
                     }
                     crate::state::Pane::Context => {
-                        match key.code {
-                            KeyCode::Up => self.state.navigate_up(),
-                            KeyCode::Down => self.state.navigate_down(),
-                            KeyCode::Enter => {
+                        match (key.code, key.modifiers) {
+                            // Navigation
+                            (KeyCode::Up, _) => {
+                                self.state.navigate_up();
+                            }
+                            (KeyCode::Down, _) => {
+                                self.state.navigate_down();
+                            }
+                            (KeyCode::Home, _) => {
+                                self.state.layout_state.context_scroll = 0;
+                            }
+                            (KeyCode::End, _) => {
+                                self.state.layout_state.context_scroll = 
+                                    self.state.layout_state.context_items.len().saturating_sub(1);
+                            }
+                            (KeyCode::PageUp, _) => {
+                                for _ in 0..3 {
+                                    self.state.navigate_up();
+                                }
+                            }
+                            (KeyCode::PageDown, _) => {
+                                for _ in 0..3 {
+                                    self.state.navigate_down();
+                                }
+                            }
+                            // Actions
+                            (KeyCode::Enter, _) => {
                                 if let Some(item) = self.state.layout_state.get_selected_context_item() {
                                     self.handle_context_selection(item).await?;
                                 }
+                            }
+                            (KeyCode::Space, _) => {
+                                // Alternative selection
+                                if let Some(item) = self.state.layout_state.get_selected_context_item() {
+                                    self.handle_context_selection(item).await?;
+                                }
+                            }
+                            // Quick focus shortcuts from context
+                            (KeyCode::Right, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_quick_actions();
+                            }
+                            (KeyCode::Up, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_conversation_history();
+                            }
+                            (KeyCode::Down, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_message_input();
                             }
                             _ => {}
                         }
                     }
                     crate::state::Pane::QuickActions => {
-                        match key.code {
-                            KeyCode::Up => self.state.navigate_up(),
-                            KeyCode::Down => self.state.navigate_down(),
-                            KeyCode::Enter => {
+                        match (key.code, key.modifiers) {
+                            // Navigation
+                            (KeyCode::Up, _) => {
+                                self.state.navigate_up();
+                            }
+                            (KeyCode::Down, _) => {
+                                self.state.navigate_down();
+                            }
+                            (KeyCode::Home, _) => {
+                                self.state.layout_state.actions_scroll = 0;
+                            }
+                            (KeyCode::End, _) => {
+                                self.state.layout_state.actions_scroll = 
+                                    self.state.layout_state.quick_actions.len().saturating_sub(1);
+                            }
+                            (KeyCode::PageUp, _) => {
+                                for _ in 0..3 {
+                                    self.state.navigate_up();
+                                }
+                            }
+                            (KeyCode::PageDown, _) => {
+                                for _ in 0..3 {
+                                    self.state.navigate_down();
+                                }
+                            }
+                            // Actions
+                            (KeyCode::Enter, _) => {
                                 if let Some(action) = self.state.layout_state.get_selected_quick_action() {
                                     let action_clone = action.clone();
                                     self.execute_quick_action(&action_clone).await?;
                                 }
                             }
-                            // Quick key shortcuts
-                            KeyCode::Char(c) => {
+                            (KeyCode::Space, _) => {
+                                // Alternative execution
+                                if let Some(action) = self.state.layout_state.get_selected_quick_action() {
+                                    let action_clone = action.clone();
+                                    self.execute_quick_action(&action_clone).await?;
+                                }
+                            }
+                            // Quick key shortcuts (letter keys)
+                            (KeyCode::Char(c), crossterm::event::KeyModifiers::NONE) => {
                                 for action in &self.state.layout_state.quick_actions {
                                     if action.key() == &c.to_string() {
                                         let action_clone = action.clone();
@@ -306,13 +497,51 @@ impl App {
                                     }
                                 }
                             }
+                            // Quick focus shortcuts from actions
+                            (KeyCode::Left, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_context_panel();
+                            }
+                            (KeyCode::Up, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_conversation_history();
+                            }
+                            (KeyCode::Down, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_message_input();
+                            }
                             _ => {}
                         }
                     }
                     crate::state::Pane::CurrentStatus => {
-                        // Status panel doesn't have specific interactions yet
-                        match key.code {
-                            KeyCode::Up | KeyCode::Down => self.state.navigate_up(),
+                        match (key.code, key.modifiers) {
+                            // Navigation away from status panel
+                            (KeyCode::Up, _) => {
+                                self.state.focus_conversation_history();
+                            }
+                            (KeyCode::Down, _) => {
+                                self.state.focus_message_input();
+                            }
+                            (KeyCode::Left, _) => {
+                                self.state.focus_context_panel();
+                            }
+                            (KeyCode::Right, _) => {
+                                self.state.focus_quick_actions();
+                            }
+                            (KeyCode::Enter, _) => {
+                                // Focus back to input
+                                self.state.focus_message_input();
+                            }
+                            // Quick focus shortcuts from status
+                            (KeyCode::Up, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_conversation_history();
+                            }
+                            (KeyCode::Down, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_message_input();
+                            }
+                            (KeyCode::Left, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_context_panel();
+                            }
+                            (KeyCode::Right, crossterm::event::KeyModifiers::CONTROL) => {
+                                self.state.focus_quick_actions();
+                            }
                             _ => {}
                         }
                     }
