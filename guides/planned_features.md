@@ -1,6 +1,8 @@
-# Aiex User Guide
+# Aiex Planned Features Guide
 
-**Version 1.0** - Complete guide to configuring and using the Aiex distributed AI-powered Elixir coding assistant.
+**Version 1.0** - Complete specification of planned features for the Aiex distributed AI-powered Elixir coding assistant.
+
+> **⚠️ IMPORTANT**: This document describes planned features and the target architecture. For currently working features, see `guides/current_features.md`.
 
 ## Table of Contents
 
@@ -21,16 +23,16 @@
 
 ## Introduction
 
-Aiex is a sophisticated distributed AI-powered coding assistant built with Elixir/OTP. It leverages multiple AI providers and offers various interfaces including CLI, interactive shell, IEx integration, and TUI for an enhanced development experience.
+Aiex is planned to be a sophisticated distributed AI-powered coding assistant built with Elixir/OTP. When fully implemented, it will leverage multiple AI providers and offer various interfaces including CLI, interactive shell, IEx integration, and TUI for an enhanced development experience.
 
-### Key Features
+### Planned Key Features
 
-- **Multi-Provider AI Support**: OpenAI, Anthropic, Ollama, LM Studio
-- **Multiple Interfaces**: CLI commands, interactive shell, IEx integration, TUI
-- **Distributed Architecture**: Horizontal scaling across cluster nodes
-- **AI Operations**: Code analysis, generation, explanation, refactoring, workflows
-- **Pipeline System**: Chain multiple AI operations together
-- **Real-time Progress**: Visual feedback for long-running operations
+- **Multi-Provider AI Support**: OpenAI, Anthropic, Ollama, LM Studio (adapters exist, integration in progress)
+- **Multiple Interfaces**: CLI commands, interactive shell, IEx integration, TUI (framework implemented, AI integration needed)
+- **Distributed Architecture**: Horizontal scaling across cluster nodes (infrastructure implemented)
+- **AI Operations**: Code analysis, generation, explanation, refactoring, workflows (coordinators implemented, command integration needed)
+- **Pipeline System**: Chain multiple AI operations together (framework exists, execution engine needed)
+- **Real-time Progress**: Visual feedback for long-running operations (progress reporters implemented)
 
 ---
 
