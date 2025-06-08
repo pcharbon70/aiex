@@ -9,7 +9,7 @@ defmodule Aiex.CLI.Commands do
   - aiex version
   """
 
-  alias Aiex.CLI.Commands.{Create, Analyze, Help, Version}
+  alias Aiex.CLI.Commands.{Create, Analyze, Help, Version, AI}
 
   @doc """
   Returns the main Optimus specification with all commands and subcommands.
@@ -26,6 +26,7 @@ defmodule Aiex.CLI.Commands do
       subcommands: [
         create: create_command_spec(),
         analyze: analyze_command_spec(),
+        ai: ai_command_spec(),
         help: help_command_spec(),
         version: version_command_spec()
       ]
@@ -39,6 +40,7 @@ defmodule Aiex.CLI.Commands do
     case result do
       {[:create], %Optimus.ParseResult{}} -> {:ok, Create}
       {[:analyze], %Optimus.ParseResult{}} -> {:ok, Analyze}
+      {[:ai], %Optimus.ParseResult{}} -> {:ok, AI}
       {[:help], %Optimus.ParseResult{}} -> {:ok, Help}
       {[:version], %Optimus.ParseResult{}} -> {:ok, Version}
       # Default to help when no args
@@ -188,6 +190,203 @@ defmodule Aiex.CLI.Commands do
     [
       name: "version",
       about: "Show version information"
+    ]
+  end
+
+  defp ai_command_spec do
+    [
+      name: "ai",
+      about: "AI-powered coding assistance and workflow orchestration",
+      subcommands: [
+        analyze: [
+          name: "analyze",
+          about: "Analyze code using AI engines for insights and improvements",
+          options: [
+            file: [
+              value_name: "FILE_PATH",
+              short: "-f",
+              long: "--file",
+              help: "Path to the file to analyze",
+              parser: :string
+            ],
+            type: [
+              value_name: "ANALYSIS_TYPE",
+              short: "-t",
+              long: "--type",
+              help: "Type of analysis (structure, quality, performance, all)",
+              parser: :string,
+              default: "quality"
+            ],
+            output: [
+              value_name: "OUTPUT_FORMAT",
+              short: "-o",
+              long: "--output",
+              help: "Output format (text, json, markdown)",
+              parser: :string,
+              default: "text"
+            ]
+          ]
+        ],
+        generate: [
+          name: "generate",
+          about: "Generate code using AI with intelligent suggestions",
+          options: [
+            type: [
+              value_name: "GENERATION_TYPE",
+              short: "-t",
+              long: "--type",
+              help: "Type of generation (function, module, test, documentation)",
+              parser: :string,
+              required: true
+            ],
+            context: [
+              value_name: "CONTEXT_FILE",
+              short: "-c",
+              long: "--context",
+              help: "Context file to base generation on",
+              parser: :string
+            ],
+            requirements: [
+              value_name: "REQUIREMENTS",
+              short: "-r",
+              long: "--requirements",
+              help: "Requirements or description for generation",
+              parser: :string,
+              required: true
+            ],
+            output: [
+              value_name: "OUTPUT_FILE",
+              short: "-o",
+              long: "--output",
+              help: "Output file path (default: stdout)",
+              parser: :string
+            ]
+          ]
+        ],
+        explain: [
+          name: "explain",
+          about: "Get AI explanations of code functionality and patterns",
+          options: [
+            file: [
+              value_name: "FILE_PATH",
+              short: "-f",
+              long: "--file",
+              help: "Path to the file to explain",
+              parser: :string,
+              required: true
+            ],
+            level: [
+              value_name: "DETAIL_LEVEL",
+              short: "-l",
+              long: "--level",
+              help: "Explanation detail level (beginner, intermediate, advanced)",
+              parser: :string,
+              default: "intermediate"
+            ],
+            focus: [
+              value_name: "FOCUS_AREA",
+              short: "-F",
+              long: "--focus",
+              help: "Focus area (architecture, patterns, logic, performance)",
+              parser: :string,
+              default: "comprehensive"
+            ]
+          ]
+        ],
+        refactor: [
+          name: "refactor",
+          about: "AI-powered code refactoring with suggestions and automation",
+          options: [
+            file: [
+              value_name: "FILE_PATH",
+              short: "-f",
+              long: "--file",
+              help: "Path to the file to refactor",
+              parser: :string,
+              required: true
+            ],
+            type: [
+              value_name: "REFACTOR_TYPE",
+              short: "-t",
+              long: "--type",
+              help: "Refactoring type (extract_function, simplify_logic, optimize_performance, all)",
+              parser: :string,
+              default: "all"
+            ],
+            apply: [
+              short: "-a",
+              long: "--apply",
+              help: "Apply refactoring suggestions automatically",
+              multiple: false
+            ],
+            preview: [
+              short: "-p",
+              long: "--preview",
+              help: "Show preview of changes without applying",
+              multiple: false
+            ]
+          ]
+        ],
+        workflow: [
+          name: "workflow",
+          about: "Execute AI-orchestrated workflows for complex tasks",
+          options: [
+            template: [
+              value_name: "TEMPLATE_NAME",
+              short: "-t",
+              long: "--template",
+              help: "Workflow template (feature_implementation, bug_fix_workflow, code_review_workflow)",
+              parser: :string,
+              required: true
+            ],
+            context: [
+              value_name: "CONTEXT_FILE",
+              short: "-c",
+              long: "--context",
+              help: "Context file for workflow execution",
+              parser: :string
+            ],
+            description: [
+              value_name: "DESCRIPTION",
+              short: "-d",
+              long: "--description",
+              help: "Description of the task or feature to implement",
+              parser: :string,
+              required: true
+            ],
+            mode: [
+              value_name: "EXECUTION_MODE",
+              short: "-m",
+              long: "--mode",
+              help: "Execution mode (sequential, parallel, pipeline)",
+              parser: :string,
+              default: "sequential"
+            ]
+          ]
+        ],
+        chat: [
+          name: "chat",
+          about: "Start an interactive AI chat session for coding assistance",
+          options: [
+            conversation_type: [
+              value_name: "CONVERSATION_TYPE",
+              short: "-t",
+              long: "--type",
+              help: "Conversation type (coding, general, project, debugging)",
+              parser: :string,
+              default: "coding"
+            ],
+            context: [
+              value_name: "CONTEXT_DIR",
+              short: "-c",
+              long: "--context",
+              help: "Project directory for context",
+              parser: :string,
+              default: "."
+            ]
+          ]
+        ]
+      ]
     ]
   end
 end
