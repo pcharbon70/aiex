@@ -1,14 +1,6 @@
 defmodule Aiex.CLI.Commands.AI do
   @moduledoc """
   AI command handler for comprehensive AI-powered coding assistance.
-  
-  Provides six main AI operations:
-  - analyze: AI code analysis and quality insights
-  - generate: AI-powered code generation
-  - explain: AI explanations of code concepts
-  - refactor: AI refactoring suggestions and implementation
-  - workflow: AI workflow template execution
-  - chat: Interactive AI chat sessions
   """
   
   @behaviour Aiex.CLI.Commands.CommandBehaviour
@@ -52,45 +44,7 @@ defmodule Aiex.CLI.Commands.AI do
         {:error, "File not found: #{file_path}"}
       
       true ->
-        ProgressReporter.start_analysis(analysis_type, Path.basename(file_path))
-        
-        try do
-          # Read file content
-          ProgressReporter.update_analysis("Reading file")
-          {:ok, content} = File.read(file_path)
-          
-          # Prepare analysis request
-          ProgressReporter.update_analysis("Preparing analysis")
-          request = %{
-            intent: :code_review,
-            description: "CLI analysis: #{analysis_type}",
-            code: content,
-            file_path: file_path,
-            analysis_type: String.to_atom(analysis_type),
-            context: %{
-              cli_context: true,
-              output_format: output_format
-            }
-          }
-          
-          # Execute analysis
-          ProgressReporter.update_analysis("Running AI analysis")
-          case CodingAssistant.handle_coding_request(request) do
-            {:ok, response} ->
-              ProgressReporter.complete("Analysis completed successfully!")
-              formatted_output = OutputFormatter.format_analysis_result(response, output_format)
-              {:ok, {:ai_analysis, formatted_output, %{file: file_path, type: analysis_type}}}
-              
-            {:error, reason} ->
-              ProgressReporter.error("Analysis failed: #{reason}")
-              {:error, "AI analysis failed: #{reason}"}
-          end
-          
-        rescue
-          error ->
-            ProgressReporter.error("Analysis error: #{Exception.message(error)}")
-            {:error, "Analysis failed: #{Exception.message(error)}"}
-        end
+        execute_analysis(file_path, analysis_type, output_format)
     end
   end
   
@@ -109,10 +63,114 @@ defmodule Aiex.CLI.Commands.AI do
         {:error, "Requirements description is required. Use --requirements option."}
         
       true ->
-        ProgressReporter.start_generation(generation_type)
+        execute_generation(generation_type, requirements, context_file, output_file)
+    end
+  end
+  
+  # AI Explain - Code explanations with AI
+  defp ai_explain(%Optimus.ParseResult{args: %{explain: _}, options: options}) do
+    file_path = Map.get(options, :file)
+    level = Map.get(options, :level, "intermediate")
+    focus = Map.get(options, :focus, "comprehensive")
+    
+    cond do
+      !file_path ->
+        {:error, "File path is required for explanation. Use --file option."}
+      
+      !File.exists?(file_path) ->
+        {:error, "File not found: #{file_path}"}
+      
+      true ->
+        execute_explanation(file_path, level, focus)
+    end
+  end
+  
+  # AI Refactor - Refactoring suggestions and implementation
+  defp ai_refactor(%Optimus.ParseResult{args: %{refactor: _}, options: options, flags: flags}) do
+    file_path = Map.get(options, :file)
+    refactor_type = Map.get(options, :type, "all")
+    apply_changes = Map.get(flags, :apply, false)
+    show_preview = Map.get(flags, :preview, false)
+    
+    cond do
+      !file_path ->
+        {:error, "File path is required for refactoring. Use --file option."}
+      
+      !File.exists?(file_path) ->
+        {:error, "File not found: #{file_path}"}
+      
+      true ->
+        execute_refactoring(file_path, refactor_type, apply_changes, show_preview)
+    end
+  end
+  
+  # AI Workflow - Execute AI workflow templates
+  defp ai_workflow(%Optimus.ParseResult{args: %{workflow: _}, options: options}) do
+    template = Map.get(options, :template)
+    context_file = Map.get(options, :context)
+    description = Map.get(options, :description)
+    mode = Map.get(options, :mode, "sequential")
+    
+    if !template do
+      {:error, "Workflow template is required. Use --template option."}
+    else
+      execute_workflow(template, context_file, description, mode)
+    end
+  end
+  
+  # AI Chat - Interactive AI chat sessions
+  defp ai_chat(%Optimus.ParseResult{args: %{chat: _}, options: options}) do
+    conversation_type = Map.get(options, :conversation_type, "coding")
+    context_dir = Map.get(options, :context, ".")
+    
+    execute_chat(conversation_type, context_dir)
+  end
+  
+  # Helper function implementations
+  
+  defp execute_analysis(file_path, analysis_type, output_format) do
+    ProgressReporter.start_analysis(analysis_type, Path.basename(file_path))
     
     try do
-      # Read context if provided
+      ProgressReporter.update_analysis("Reading file")
+      {:ok, content} = File.read(file_path)
+      
+      ProgressReporter.update_analysis("Preparing analysis")
+      request = %{
+        intent: :code_review,
+        description: "CLI analysis: #{analysis_type}",
+        code: content,
+        file_path: file_path,
+        analysis_type: String.to_atom(analysis_type),
+        context: %{
+          cli_context: true,
+          output_format: output_format
+        }
+      }
+      
+      ProgressReporter.update_analysis("Running AI analysis")
+      case CodingAssistant.handle_coding_request(request) do
+        {:ok, response} ->
+          ProgressReporter.complete("Analysis completed successfully!")
+          formatted_output = OutputFormatter.format_analysis_result(response, output_format)
+          {:ok, {:ai_analysis, formatted_output, %{file: file_path, type: analysis_type}}}
+          
+        {:error, reason} ->
+          ProgressReporter.error("Analysis failed: #{reason}")
+          {:error, "AI analysis failed: #{reason}"}
+      end
+      
+    rescue
+      error ->
+        ProgressReporter.error("Analysis error: #{Exception.message(error)}")
+        {:error, "Analysis failed: #{Exception.message(error)}"}
+    end
+  end
+  
+  defp execute_generation(generation_type, requirements, context_file, output_file) do
+    ProgressReporter.start_generation(generation_type)
+    
+    try do
       context_code = if context_file && File.exists?(context_file) do
         ProgressReporter.update_generation_stage(:planning, 0.3)
         {:ok, content} = File.read(context_file)
@@ -121,7 +179,6 @@ defmodule Aiex.CLI.Commands.AI do
         nil
       end
       
-      # Prepare generation request
       ProgressReporter.update_generation_stage(:planning, 0.7)
       request = %{
         intent: :implement_feature,
@@ -134,13 +191,10 @@ defmodule Aiex.CLI.Commands.AI do
         }
       }
       
-      # Execute generation
       ProgressReporter.update_generation_stage(:generation, 0.2)
       case CodingAssistant.handle_coding_request(request) do
         {:ok, response} ->
           ProgressReporter.update_generation_stage(:validation, 0.8)
-          
-          # Handle output
           formatted_output = OutputFormatter.format_generation_result(response, generation_type)
           
           case write_generated_output(formatted_output, output_file) do
@@ -173,28 +227,13 @@ defmodule Aiex.CLI.Commands.AI do
     end
   end
   
-  # AI Explain - Code explanations with AI
-  defp ai_explain(%Optimus.ParseResult{args: %{explain: _}, options: options}) do
-    file_path = Map.get(options, :file)
-    level = Map.get(options, :level, "intermediate")
-    focus = Map.get(options, :focus, "comprehensive")
-    
-    cond do
-      !file_path ->
-        {:error, "File path is required for explanation. Use --file option."}
-      
-      !File.exists?(file_path) ->
-        {:error, "File not found: #{file_path}"}
-      
-      true ->
-        ProgressReporter.start("Generating AI explanation...", show_timer: true)
+  defp execute_explanation(file_path, level, focus) do
+    ProgressReporter.start("Generating AI explanation...", show_timer: true)
     
     try do
-      # Read file content
       ProgressReporter.update("Reading file content")
       {:ok, content} = File.read(file_path)
       
-      # Prepare explanation request
       ProgressReporter.update("Preparing explanation request")
       request = %{
         intent: :explain_codebase,
@@ -208,7 +247,6 @@ defmodule Aiex.CLI.Commands.AI do
         }
       }
       
-      # Execute explanation
       ProgressReporter.update("Generating AI explanation")
       case CodingAssistant.handle_coding_request(request) do
         {:ok, response} ->
@@ -228,22 +266,8 @@ defmodule Aiex.CLI.Commands.AI do
     end
   end
   
-  # AI Refactor - Refactoring suggestions and implementation
-  defp ai_refactor(%Optimus.ParseResult{args: %{refactor: _}, options: options, flags: flags}) do
-    file_path = Map.get(options, :file)
-    refactor_type = Map.get(options, :type, "all")
-    apply_changes = Map.get(flags, :apply, false)
-    show_preview = Map.get(flags, :preview, false)
-    
-    cond do
-      !file_path ->
-        {:error, "File path is required for refactoring. Use --file option."}
-      
-      !File.exists?(file_path) ->
-        {:error, "File not found: #{file_path}"}
-      
-      true ->
-        action = cond do
+  defp execute_refactoring(file_path, refactor_type, apply_changes, show_preview) do
+    action = cond do
       apply_changes -> "Applying refactoring"
       show_preview -> "Generating refactoring preview"
       true -> "Analyzing refactoring opportunities"
@@ -252,11 +276,9 @@ defmodule Aiex.CLI.Commands.AI do
     ProgressReporter.start(action, show_timer: true)
     
     try do
-      # Read file content
       ProgressReporter.update("Reading file content")
       {:ok, original_content} = File.read(file_path)
       
-      # Prepare refactoring request
       ProgressReporter.update("Analyzing code for refactoring")
       request = %{
         intent: :refactor_code,
@@ -271,7 +293,6 @@ defmodule Aiex.CLI.Commands.AI do
         }
       }
       
-      # Execute refactoring
       ProgressReporter.update("Generating refactoring suggestions")
       case CodingAssistant.handle_coding_request(request) do
         {:ok, response} ->
@@ -304,21 +325,10 @@ defmodule Aiex.CLI.Commands.AI do
     end
   end
   
-  # AI Workflow - Execute AI workflow templates
-  defp ai_workflow(%Optimus.ParseResult{args: %{workflow: _}, options: options}) do
-    template = Map.get(options, :template)
-    context_file = Map.get(options, :context)
-    description = Map.get(options, :description)
-    mode = Map.get(options, :mode, "sequential")
-    
-    if !template do
-      {:error, "Workflow template is required. Use --template option."}
-    else
-    
+  defp execute_workflow(template, context_file, description, mode) do
     ProgressReporter.start("Executing AI workflow: #{template}", show_timer: true)
     
     try do
-      # Read context if provided
       context_code = if context_file && File.exists?(context_file) do
         ProgressReporter.update("Loading workflow context")
         {:ok, content} = File.read(context_file)
@@ -327,7 +337,6 @@ defmodule Aiex.CLI.Commands.AI do
         nil
       end
       
-      # Prepare workflow context
       ProgressReporter.update("Preparing workflow execution")
       workflow_context = %{
         template: template,
@@ -337,7 +346,6 @@ defmodule Aiex.CLI.Commands.AI do
         cli_context: true
       }
       
-      # Execute workflow
       ProgressReporter.update("Executing workflow template")
       case WorkflowOrchestrator.execute_template(template, workflow_context) do
         {:ok, workflow_id, workflow_state} ->
@@ -357,15 +365,10 @@ defmodule Aiex.CLI.Commands.AI do
     end
   end
   
-  # AI Chat - Interactive AI chat sessions
-  defp ai_chat(%Optimus.ParseResult{args: %{chat: _}, options: options}) do
-    conversation_type = Map.get(options, :conversation_type, "coding")
-    context_dir = Map.get(options, :context, ".")
-    
+  defp execute_chat(conversation_type, context_dir) do
     ProgressReporter.start("Starting AI chat session...", show_timer: false)
     
     try do
-      # Initialize conversation
       ProgressReporter.update("Initializing conversation context")
       conversation_context = %{
         type: String.to_atom(conversation_type),
@@ -374,14 +377,11 @@ defmodule Aiex.CLI.Commands.AI do
         session_start: DateTime.utc_now()
       }
       
-      # Start conversation
       ProgressReporter.update("Starting conversation manager")
       case ConversationManager.start_conversation(conversation_context) do
         {:ok, conversation_id} ->
           ProgressReporter.complete("Chat session started!")
           
-          # Note: In a real implementation, this would launch an interactive chat interface
-          # For now, we'll a success message with instructions
           chat_info = """
           🤖 AI Chat Session Started!
           
@@ -413,7 +413,6 @@ defmodule Aiex.CLI.Commands.AI do
   # Helper functions
   
   defp write_generated_output(content, nil) do
-    # Output to stdout
     IO.puts(content)
     :ok
   end
@@ -425,8 +424,6 @@ defmodule Aiex.CLI.Commands.AI do
   end
   
   defp apply_refactoring_changes(file_path, _original_content, response) do
-    # In a real implementation, this would carefully apply the refactoring changes
-    # For now, we'll simulate this by checking if the response contains refactored code
     case extract_refactored_code(response) do
       {:ok, refactored_code} ->
         File.write(file_path, refactored_code)

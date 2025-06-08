@@ -47,6 +47,7 @@ defmodule Aiex.CLI.Commands.Pipeline do
       {:error, reason} ->
         {:error, "Failed to parse pipeline: #{reason}"}
     end
+    end
   end
 
   @impl true
