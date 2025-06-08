@@ -91,6 +91,13 @@ defmodule Aiex.Context.DistributedEngine do
   end
 
   @doc """
+  Compress context data while preserving important information.
+  """
+  def compress_context(context, opts \\ []) do
+    GenServer.call(__MODULE__, {:compress_context, context, opts})
+  end
+
+  @doc """
   Gets distributed context statistics.
   """
   def stats do
@@ -282,6 +289,16 @@ defmodule Aiex.Context.DistributedEngine do
     }
     
     {:reply, {:ok, related_context}, state}
+  end
+
+  def handle_call({:compress_context, context, opts}, _from, state) do
+    # Compress context while preserving critical information
+    target_size = Keyword.get(opts, :target_size, 1000)
+    preserve_critical = Keyword.get(opts, :preserve_critical, true)
+    
+    compressed_context = compress_context_data(context, target_size, preserve_critical)
+    
+    {:reply, {:ok, compressed_context}, state}
   end
 
   def handle_call(:stats, _from, state) do
@@ -515,6 +532,139 @@ defmodule Aiex.Context.DistributedEngine do
   defp find_local_usages(_code_element) do
     # Simplified local usage finding
     []
+  end
+
+  defp compress_context_data(context, target_size, preserve_critical) do
+    original_size = :erlang.external_size(context)
+    
+    if original_size <= target_size do
+      # Already small enough
+      context
+    else
+      # Perform compression
+      compressed = case preserve_critical do
+        true -> preserve_critical_context(context, target_size)
+        false -> simple_compression(context, target_size)
+      end
+      
+      Map.put(compressed, :compression_info, %{
+        original_size: original_size,
+        compressed_size: :erlang.external_size(compressed),
+        compression_ratio: original_size / :erlang.external_size(compressed),
+        preserved_critical: preserve_critical
+      })
+    end
+  end
+
+  defp preserve_critical_context(context, target_size) do
+    # Preserve the most important parts of the context
+    critical_keys = [:modules, :functions, :dependencies, :complexity, :patterns]
+    
+    critical_context = Map.take(context, critical_keys)
+    remaining_budget = target_size - :erlang.external_size(critical_context)
+    
+    if remaining_budget > 0 do
+      # Add non-critical data if budget allows
+      non_critical = Map.drop(context, critical_keys)
+      additional_data = compress_non_critical(non_critical, remaining_budget)
+      Map.merge(critical_context, additional_data)
+    else
+      # Create summary if critical data is too large
+      %{
+        summary: summarize_context(context),
+        critical_data: compress_critical_data(critical_context, target_size * 0.8)
+      }
+    end
+  end
+
+  defp simple_compression(context, target_size) do
+    # Simple compression by truncating less important data
+    sorted_keys = context
+    |> Map.keys()
+    |> Enum.sort_by(fn key -> importance_score(key) end, :desc)
+    
+    Enum.reduce_while(sorted_keys, %{}, fn key, acc ->
+      new_acc = Map.put(acc, key, context[key])
+      
+      if :erlang.external_size(new_acc) <= target_size do
+        {:cont, new_acc}
+      else
+        {:halt, acc}
+      end
+    end)
+  end
+
+  defp importance_score(key) do
+    # Assign importance scores to different context keys
+    case key do
+      :modules -> 10
+      :functions -> 9
+      :dependencies -> 8
+      :complexity -> 7
+      :patterns -> 6
+      :metadata -> 5
+      :code_analysis -> 8
+      _ -> 1
+    end
+  end
+
+  defp compress_non_critical(data, budget) do
+    # Compress non-critical data to fit budget
+    if :erlang.external_size(data) <= budget do
+      data
+    else
+      # Summarize or truncate non-critical data
+      %{summary: "Non-critical data compressed due to size constraints"}
+    end
+  end
+
+  defp compress_critical_data(data, budget) do
+    # Compress critical data while preserving essential information
+    if :erlang.external_size(data) <= budget do
+      data
+    else
+      # Create abbreviated version of critical data
+      abbreviated = Enum.reduce(data, %{}, fn {key, value}, acc ->
+        case key do
+          :modules when is_list(value) ->
+            # Keep only module names
+            abbreviated_modules = Enum.map(value, fn
+              %{name: name} -> name
+              module when is_binary(module) -> module
+              _ -> "unknown"
+            end)
+            Map.put(acc, key, abbreviated_modules)
+            
+          :functions when is_list(value) ->
+            # Keep only function names and arities
+            abbreviated_functions = Enum.map(value, fn
+              %{name: name, arity: arity} -> "#{name}/#{arity}"
+              func when is_binary(func) -> func
+              _ -> "unknown"
+            end)
+            Map.put(acc, key, abbreviated_functions)
+            
+          _ ->
+            Map.put(acc, key, value)
+        end
+      end)
+      
+      abbreviated
+    end
+  end
+
+  defp summarize_context(context) do
+    module_count = case context[:modules] do
+      modules when is_list(modules) -> length(modules)
+      _ -> 0
+    end
+    
+    function_count = case context[:functions] do
+      functions when is_list(functions) -> length(functions)
+      _ -> 0
+    end
+    
+    "Context summary: #{module_count} modules, #{function_count} functions"
   end
 
   defp generate_interaction_id do
