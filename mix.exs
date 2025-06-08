@@ -41,6 +41,17 @@ defmodule Aiex.MixProject do
       {:hammer, "~> 6.1"},
       {:jason, "~> 1.4"},
 
+      # Phoenix LiveView Web Interface
+      {:phoenix, "~> 1.7.14"},
+      {:phoenix_live_view, "~> 0.20.17"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:plug_cowboy, "~> 2.7"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.1"},
+      {:gettext, "~> 0.24"},
+      {:floki, ">= 0.30.0", only: :test},
+
       # Distributed OTP
       {:horde, "~> 0.9.0"},
       {:libcluster, "~> 3.3", optional: true},

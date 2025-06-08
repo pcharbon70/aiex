@@ -12,6 +12,7 @@ mod ui;
 mod message;
 mod terminal;
 mod chat_ui;
+mod rich_text;
 
 use app::App;
 use config::Config;

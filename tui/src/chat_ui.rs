@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::state::{AppState, Pane, MessageType, ContextItem, QuickAction};
+use crate::rich_text::{RichTextRenderer, extract_code_blocks, looks_like_code, looks_like_diff};
 
 /// Main chat-focused UI rendering function
 pub fn render_chat_ui(frame: &mut Frame, state: &AppState) {
@@ -136,6 +137,9 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
         Style::default().fg(Color::Blue)
     };
 
+    // Create rich text renderer for syntax highlighting
+    let rich_text_renderer = RichTextRenderer::new();
+
     let visible_messages = state.chat_state.get_visible_messages();
     let messages: Vec<ListItem> = visible_messages
         .iter()
@@ -152,10 +156,9 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
             let header = format!("[{}] {}", timestamp, prefix);
             let mut lines = vec![Line::from(Span::styled(header, style))];
             
-            // Add message content with wrapping
-            for line in msg.content.lines() {
-                lines.push(Line::from(line));
-            }
+            // Enhanced message content rendering with rich text support
+            let rendered_content = render_message_content(&msg.content, &rich_text_renderer);
+            lines.extend(rendered_content.lines);
 
             // Add token usage if available
             if let Some(tokens) = msg.tokens_used {
@@ -188,21 +191,14 @@ fn render_conversation_history(frame: &mut Frame, area: Rect, state: &AppState) 
 
     frame.render_widget(messages_list, area);
 
-    // Render scrollbar if needed
+    // Enhanced scrollbar with progress indicator
     if state.chat_state.messages.len() > 1 {
-        let scrollbar = Scrollbar::default()
-            .orientation(ScrollbarOrientation::VerticalRight)
-            .begin_symbol(Some("↑"))
-            .end_symbol(Some("↓"));
-        
-        let mut scrollbar_state = ScrollbarState::default()
-            .content_length(state.chat_state.messages.len())
-            .position(state.chat_state.scroll_position);
-        
-        frame.render_stateful_widget(
-            scrollbar,
-            area.inner(Margin { vertical: 1, horizontal: 0 }),
-            &mut scrollbar_state,
+        render_enhanced_scrollbar(
+            frame,
+            area,
+            state.chat_state.messages.len(),
+            state.chat_state.scroll_position,
+            Some(ScrollbarStyle::Messages),
         );
     }
 }
@@ -292,6 +288,17 @@ fn render_context_panel(frame: &mut Frame, area: Rect, state: &AppState) {
         .highlight_symbol("► ");
 
     frame.render_widget(context_list, area);
+
+    // Add scrollbar for context panel if needed
+    if state.layout_state.context_items.len() > 5 {
+        render_enhanced_scrollbar(
+            frame,
+            area,
+            state.layout_state.context_items.len(),
+            state.layout_state.context_scroll,
+            Some(ScrollbarStyle::Context),
+        );
+    }
 }
 
 fn render_quick_actions_panel(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -331,6 +338,17 @@ fn render_quick_actions_panel(frame: &mut Frame, area: Rect, state: &AppState) {
         .highlight_symbol("► ");
 
     frame.render_widget(actions_list, area);
+
+    // Add scrollbar for quick actions if needed
+    if state.layout_state.quick_actions.len() > 5 {
+        render_enhanced_scrollbar(
+            frame,
+            area,
+            state.layout_state.quick_actions.len(),
+            state.layout_state.actions_scroll,
+            Some(ScrollbarStyle::Actions),
+        );
+    }
 }
 
 fn render_input_area(frame: &mut Frame, area: Rect, state: &AppState) {
@@ -408,4 +426,219 @@ fn render_status_bar(frame: &mut Frame, area: Rect, state: &AppState) {
         .style(Style::default().bg(Color::Blue).fg(Color::White))
         .alignment(Alignment::Right);
     frame.render_widget(right_paragraph, status_layout[1]);
+}
+
+/// Render message content with rich text support including syntax highlighting and markdown
+fn render_message_content(content: &str, renderer: &RichTextRenderer) -> Text {
+    // First, check if the content has code blocks
+    let code_blocks = extract_code_blocks(content);
+    
+    if !code_blocks.is_empty() {
+        // Content has fenced code blocks - render with mixed markdown and code
+        return render_mixed_content(content, renderer);
+    }
+    
+    // Check if content is a diff
+    if looks_like_diff(content) {
+        // Detect language from diff context and render as diff
+        let language = renderer.detect_language(content, None);
+        return renderer.render_diff(content, language.as_deref());
+    }
+    
+    // Check if the entire content looks like code
+    if looks_like_code(content) {
+        // Detect language and render as code
+        let language = renderer.detect_language(content, None);
+        return renderer.render_code_block(content, language.as_deref());
+    }
+    
+    // Default to markdown rendering for natural text
+    renderer.render_markdown(content)
+}
+
+/// Render content that has both markdown and code blocks
+fn render_mixed_content(content: &str, renderer: &RichTextRenderer) -> Text {
+    let mut lines = Vec::new();
+    let mut current_pos = 0;
+    let content_lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    
+    while i < content_lines.len() {
+        let line = content_lines[i];
+        
+        // Check for fenced code blocks
+        if line.starts_with("```") {
+            // Process any markdown content before the code block
+            if i > current_pos {
+                let markdown_text = content_lines[current_pos..i].join("\n");
+                let markdown_rendered = renderer.render_markdown(&markdown_text);
+                lines.extend(markdown_rendered.lines);
+            }
+            
+            // Extract language from code fence
+            let language = if line.len() > 3 {
+                Some(line[3..].trim())
+            } else {
+                None
+            };
+            
+            // Find the end of the code block
+            i += 1;
+            let code_start = i;
+            while i < content_lines.len() && !content_lines[i].starts_with("```") {
+                i += 1;
+            }
+            
+            // Render the code block
+            if i > code_start {
+                let code_content = content_lines[code_start..i].join("\n");
+                let code_rendered = renderer.render_code_block(&code_content, language);
+                
+                // Add a visual separator for code blocks
+                lines.push(Line::from(Span::styled(
+                    "┌─ Code Block ─┐",
+                    Style::default().fg(Color::DarkGray)
+                )));
+                lines.extend(code_rendered.lines);
+                lines.push(Line::from(Span::styled(
+                    "└──────────────┘",
+                    Style::default().fg(Color::DarkGray)
+                )));
+            }
+            
+            current_pos = i + 1;
+        }
+        
+        i += 1;
+    }
+    
+    // Process any remaining markdown content
+    if current_pos < content_lines.len() {
+        let markdown_text = content_lines[current_pos..].join("\n");
+        let markdown_rendered = renderer.render_markdown(&markdown_text);
+        lines.extend(markdown_rendered.lines);
+    }
+    
+    Text::from(lines)
+}
+
+/// Scrollbar styles for different UI components
+#[derive(Debug, Clone)]
+enum ScrollbarStyle {
+    Messages,
+    Context,
+    Actions,
+}
+
+impl ScrollbarStyle {
+    fn get_symbols(&self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            ScrollbarStyle::Messages => ("▲", "▼", "█"),
+            ScrollbarStyle::Context => ("↑", "↓", "■"),
+            ScrollbarStyle::Actions => ("▲", "▼", "●"),
+        }
+    }
+
+    fn get_track_color(&self) -> Color {
+        match self {
+            ScrollbarStyle::Messages => Color::DarkGray,
+            ScrollbarStyle::Context => Color::Blue,
+            ScrollbarStyle::Actions => Color::Yellow,
+        }
+    }
+
+    fn get_thumb_color(&self) -> Color {
+        match self {
+            ScrollbarStyle::Messages => Color::Cyan,
+            ScrollbarStyle::Context => Color::Magenta,
+            ScrollbarStyle::Actions => Color::Yellow,
+        }
+    }
+}
+
+/// Render an enhanced scrollbar with progress indicator and styling
+fn render_enhanced_scrollbar(
+    frame: &mut Frame,
+    area: Rect,
+    content_length: usize,
+    position: usize,
+    style: Option<ScrollbarStyle>,
+) {
+    let scrollbar_style = style.unwrap_or(ScrollbarStyle::Messages);
+    let (begin_symbol, end_symbol, _track_symbol) = scrollbar_style.get_symbols();
+    
+    let scrollbar = Scrollbar::default()
+        .orientation(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some(begin_symbol))
+        .end_symbol(Some(end_symbol))
+        .track_symbol(Some("│"))
+        .thumb_symbol("█")
+        .style(Style::default().fg(scrollbar_style.get_track_color()))
+        .thumb_style(Style::default().fg(scrollbar_style.get_thumb_color()));
+    
+    let mut scrollbar_state = ScrollbarState::default()
+        .content_length(content_length)
+        .position(position);
+    
+    // Render scrollbar with margin to avoid border overlap
+    let scrollbar_area = area.inner(Margin { vertical: 1, horizontal: 0 });
+    frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
+    
+    // Add progress indicator in the top-right corner
+    if content_length > 0 {
+        let progress_percent = ((position + 1) * 100) / content_length;
+        let progress_text = format!("{}%", progress_percent);
+        
+        // Calculate position for progress indicator
+        let progress_area = Rect {
+            x: area.x + area.width.saturating_sub(progress_text.len() as u16 + 2),
+            y: area.y,
+            width: progress_text.len() as u16 + 1,
+            height: 1,
+        };
+        
+        // Only render if there's space
+        if progress_area.x > area.x && progress_area.y < area.y + area.height {
+            let progress_paragraph = Paragraph::new(progress_text)
+                .style(Style::default()
+                    .fg(scrollbar_style.get_thumb_color())
+                    .add_modifier(Modifier::BOLD))
+                .alignment(Alignment::Right);
+            
+            frame.render_widget(Clear, progress_area);
+            frame.render_widget(progress_paragraph, progress_area);
+        }
+    }
+}
+
+/// Enhanced scrollbar for text content with line-based scrolling
+fn render_text_scrollbar(
+    frame: &mut Frame,
+    area: Rect,
+    total_lines: usize,
+    visible_lines: usize,
+    scroll_offset: usize,
+) {
+    if total_lines <= visible_lines {
+        return; // No need for scrollbar
+    }
+    
+    let scrollbar = Scrollbar::default()
+        .orientation(ScrollbarOrientation::VerticalRight)
+        .begin_symbol(Some("▲"))
+        .end_symbol(Some("▼"))
+        .track_symbol(Some("│"))
+        .thumb_symbol("█")
+        .style(Style::default().fg(Color::DarkGray))
+        .thumb_style(Style::default().fg(Color::White));
+    
+    let mut scrollbar_state = ScrollbarState::default()
+        .content_length(total_lines.saturating_sub(visible_lines))
+        .position(scroll_offset);
+    
+    frame.render_stateful_widget(
+        scrollbar,
+        area.inner(Margin { vertical: 1, horizontal: 0 }),
+        &mut scrollbar_state,
+    );
 }

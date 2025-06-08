@@ -236,18 +236,23 @@ impl OtpClient {
     }
 
     async fn setup_subscriptions(&mut self) -> Result<()> {
-        // Subscribe to default topics
+        // Subscribe to default topics for context awareness
         let topics = vec![
             "otp.event.pg.context_updates.join",
-            "otp.event.pg.context_updates.leave",
+            "otp.event.pg.context_updates.leave", 
             "otp.event.pg.model_responses.join",
             "otp.event.pg.interface_events.join",
+            "otp.event.file.changed",
+            "otp.event.build.started",
+            "otp.event.build.completed", 
+            "otp.event.error.detected",
         ];
 
         for topic in topics {
             self.subscribe(topic).await?;
         }
 
+        info!("Subscribed to {} context awareness topics", topics.len());
         Ok(())
     }
 

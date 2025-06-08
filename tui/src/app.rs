@@ -87,6 +87,10 @@ impl App {
         self.start_background_tasks().await
             .context("Failed to start background tasks")?;
 
+        // Request initial context updates from OTP backend
+        self.request_initial_context().await
+            .context("Failed to request initial context")?;
+
         // Main event loop with comprehensive error handling
         let result = self.run_event_loop().await;
 
@@ -623,7 +627,411 @@ impl App {
 
     async fn handle_otp_event(&mut self, event_type: String, data: serde_json::Value) -> Result<()> {
         debug!("Handling OTP event: {} - {:?}", event_type, data);
-        self.state.add_event_log(format!("OTP Event: {}", event_type));
+        
+        // Route events based on type to update context awareness
+        match event_type.as_str() {
+            // File system events
+            "otp.event.file.changed" => {
+                if let (Some(path), Some(change_type)) = (
+                    data.get("file_path").and_then(|v| v.as_str()),
+                    data.get("change_type").and_then(|v| v.as_str()),
+                ) {
+                    self.handle_file_system_event(path.to_string(), change_type.to_string(), data).await?;
+                }
+            }
+            
+            // Build events
+            "otp.event.build.started" => {
+                if let Some(project) = data.get("project").and_then(|v| v.as_str()) {
+                    self.state.start_build();
+                    self.state.add_system_message(format!("Build started for project: {}", project));
+                }
+            }
+            "otp.event.build.completed" => {
+                if let (Some(status), Some(output)) = (
+                    data.get("status").and_then(|v| v.as_str()),
+                    data.get("output").and_then(|v| v.as_str()),
+                ) {
+                    self.handle_build_completed(status.to_string(), output.to_string()).await?;
+                }
+            }
+            
+            // Error detection events
+            "otp.event.error.detected" => {
+                if let (Some(message), Some(file), line) = (
+                    data.get("message").and_then(|v| v.as_str()),
+                    data.get("file").and_then(|v| v.as_str()),
+                    data.get("line").and_then(|v| v.as_u64()),
+                ) {
+                    self.handle_error_detected(message.to_string(), file.to_string(), line.map(|l| l as u32)).await?;
+                }
+            }
+            
+            // Context updates from Elixir backend
+            "otp.event.pg.context_updates.join" => {
+                self.handle_context_update(data).await?;
+            }
+            
+            // LLM responses
+            "otp.event.pg.model_responses.join" => {
+                self.handle_llm_response(data).await?;
+            }
+            
+            // Interface events
+            "otp.event.pg.interface_events.join" => {
+                self.handle_interface_event(data).await?;
+            }
+            
+            _ => {
+                debug!("Unhandled OTP event type: {}", event_type);
+                self.state.add_event_log(format!("OTP Event: {}", event_type));
+            }
+        }
+        
+        self.mark_for_render();
+        Ok(())
+    }
+
+    async fn handle_file_system_event(&mut self, path: String, change_type: String, data: serde_json::Value) -> Result<()> {
+        info!("File system event: {} - {}", path, change_type);
+        
+        // Update context items based on file changes
+        let status = match change_type.as_str() {
+            "Created" => "new",
+            "Modified" => "modified",
+            "Deleted" => "deleted",
+            "Renamed" => "renamed",
+            _ => "changed",
+        };
+        
+        // Add or update context item
+        let context_item = crate::state::ContextItem::File {
+            path: path.clone(),
+            status: status.to_string(),
+        };
+        
+        // Find and update existing item or add new one
+        let context_items = &mut self.state.layout_state.context_items;
+        if let Some(pos) = context_items.iter().position(|item| {
+            matches!(item, crate::state::ContextItem::File { path: p, .. } if p == &path)
+        }) {
+            context_items[pos] = context_item;
+        } else {
+            context_items.push(context_item);
+        }
+        
+        // If file has content, update it
+        if let Some(content) = data.get("content").and_then(|v| v.as_str()) {
+            self.state.update_file_content(path.clone(), content.to_string());
+        }
+        
+        self.state.add_system_message(format!("File {}: {}", change_type.to_lowercase(), path));
+        Ok(())
+    }
+
+    async fn handle_error_detected(&mut self, message: String, file: String, line: Option<u32>) -> Result<()> {
+        info!("Error detected: {} in {} at line {:?}", message, file, line);
+        
+        // Add error to context items
+        let error_item = crate::state::ContextItem::Error {
+            message: message.clone(),
+            file: file.clone(),
+            line,
+        };
+        
+        // Add to context (limit to last 10 errors)
+        let context_items = &mut self.state.layout_state.context_items;
+        context_items.push(error_item);
+        
+        // Keep only recent errors
+        let error_count = context_items.iter().filter(|item| matches!(item, crate::state::ContextItem::Error { .. })).count();
+        if error_count > 10 {
+            if let Some(pos) = context_items.iter().position(|item| matches!(item, crate::state::ContextItem::Error { .. })) {
+                context_items.remove(pos);
+            }
+        }
+        
+        self.state.add_error_message(format!("Error in {}: {}", file, message));
+        Ok(())
+    }
+
+    async fn handle_context_update(&mut self, data: serde_json::Value) -> Result<()> {
+        debug!("Context update received: {:?}", data);
+        
+        // Handle different types of context updates
+        if let Some(update_type) = data.get("type").and_then(|v| v.as_str()) {
+            match update_type {
+                "file_structure" => {
+                    if let Some(files) = data.get("files").and_then(|v| v.as_array()) {
+                        self.update_file_structure(files).await?;
+                    }
+                }
+                "function_list" => {
+                    if let Some(functions) = data.get("functions").and_then(|v| v.as_array()) {
+                        self.update_function_list(functions).await?;
+                    }
+                }
+                "project_info" => {
+                    if let Some(info) = data.get("info") {
+                        self.update_project_info(info).await?;
+                    }
+                }
+                _ => {
+                    debug!("Unknown context update type: {}", update_type);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn handle_llm_response(&mut self, data: serde_json::Value) -> Result<()> {
+        debug!("LLM response received: {:?}", data);
+        
+        if let (Some(response), Some(request_id)) = (
+            data.get("response").and_then(|v| v.as_str()),
+            data.get("request_id").and_then(|v| v.as_str()),
+        ) {
+            let tokens = data.get("tokens_used").and_then(|v| v.as_u64()).map(|t| t as u32);
+            self.state.add_ai_response(response.to_string(), tokens);
+            
+            if let Some(model) = data.get("model").and_then(|v| v.as_str()) {
+                self.state.add_event_log(format!("Response from {} (tokens: {:?})", model, tokens));
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn handle_interface_event(&mut self, data: serde_json::Value) -> Result<()> {
+        debug!("Interface event received: {:?}", data);
+        
+        if let Some(event) = data.get("event").and_then(|v| v.as_str()) {
+            match event {
+                "focus_file" => {
+                    if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
+                        // Update context to highlight the focused file
+                        self.focus_file_in_context(path.to_string()).await?;
+                    }
+                }
+                "build_status_update" => {
+                    if let (Some(status), Some(timestamp)) = (
+                        data.get("status").and_then(|v| v.as_str()),
+                        data.get("timestamp").and_then(|v| v.as_u64()),
+                    ) {
+                        let build_item = crate::state::ContextItem::BuildStatus {
+                            status: status.to_string(),
+                            timestamp: chrono::DateTime::from_timestamp(timestamp as i64 / 1000, 0)
+                                .unwrap_or_else(|| chrono::Utc::now()),
+                        };
+                        
+                        // Update or add build status in context
+                        let context_items = &mut self.state.layout_state.context_items;
+                        if let Some(pos) = context_items.iter().position(|item| {
+                            matches!(item, crate::state::ContextItem::BuildStatus { .. })
+                        }) {
+                            context_items[pos] = build_item;
+                        } else {
+                            context_items.push(build_item);
+                        }
+                    }
+                }
+                _ => {
+                    debug!("Unknown interface event: {}", event);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn update_file_structure(&mut self, files: &[serde_json::Value]) -> Result<()> {
+        debug!("Updating file structure with {} files", files.len());
+        
+        for file_data in files {
+            if let Some(path) = file_data.get("path").and_then(|v| v.as_str()) {
+                let status = file_data.get("status").and_then(|v| v.as_str()).unwrap_or("tracked");
+                
+                let context_item = crate::state::ContextItem::File {
+                    path: path.to_string(),
+                    status: status.to_string(),
+                };
+                
+                // Update or add file in context
+                let context_items = &mut self.state.layout_state.context_items;
+                if let Some(pos) = context_items.iter().position(|item| {
+                    matches!(item, crate::state::ContextItem::File { path: p, .. } if p == path)
+                }) {
+                    context_items[pos] = context_item;
+                } else {
+                    context_items.push(context_item);
+                }
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn update_function_list(&mut self, functions: &[serde_json::Value]) -> Result<()> {
+        debug!("Updating function list with {} functions", functions.len());
+        
+        // Remove old function entries
+        self.state.layout_state.context_items.retain(|item| {
+            !matches!(item, crate::state::ContextItem::Function { .. })
+        });
+        
+        for func_data in functions {
+            if let (Some(name), Some(file)) = (
+                func_data.get("name").and_then(|v| v.as_str()),
+                func_data.get("file").and_then(|v| v.as_str()),
+            ) {
+                let line = func_data.get("line").and_then(|v| v.as_u64()).map(|l| l as u32);
+                
+                let context_item = crate::state::ContextItem::Function {
+                    name: name.to_string(),
+                    file: file.to_string(),
+                    line,
+                };
+                
+                self.state.layout_state.context_items.push(context_item);
+            }
+        }
+        
+        Ok(())
+    }
+
+    async fn update_project_info(&mut self, info: &serde_json::Value) -> Result<()> {
+        debug!("Updating project info: {:?}", info);
+        
+        if let Some(name) = info.get("name").and_then(|v| v.as_str()) {
+            self.state.add_event_log(format!("Project: {}", name));
+        }
+        
+        if let Some(version) = info.get("version").and_then(|v| v.as_str()) {
+            self.state.add_event_log(format!("Version: {}", version));
+        }
+        
+        Ok(())
+    }
+
+    async fn focus_file_in_context(&mut self, path: String) -> Result<()> {
+        debug!("Focusing file in context: {}", path);
+        
+        // Find the file in context and move to top or highlight
+        let context_items = &mut self.state.layout_state.context_items;
+        if let Some(pos) = context_items.iter().position(|item| {
+            matches!(item, crate::state::ContextItem::File { path: p, .. } if p == &path)
+        }) {
+            // Move file to top of context for visibility
+            let item = context_items.remove(pos);
+            context_items.insert(0, item);
+            
+            // Reset scroll to show the focused file
+            self.state.layout_state.context_scroll = 0;
+            
+            self.state.add_system_message(format!("Focused on file: {}", path));
+        }
+        
+        Ok(())
+    }
+
+    async fn request_initial_context(&mut self) -> Result<()> {
+        info!("Requesting initial context from OTP backend");
+        
+        // Request file system monitoring
+        self.request_file_system_monitoring().await?;
+        
+        // Request project structure
+        self.request_project_context().await?;
+        
+        // Request current build status
+        self.request_build_status().await?;
+        
+        Ok(())
+    }
+
+    async fn request_file_system_monitoring(&mut self) -> Result<()> {
+        debug!("Requesting file system monitoring");
+        
+        let request = serde_json::json!({
+            "action": "start_file_monitoring",
+            "path": self.state.project_dir,
+            "patterns": ["*.ex", "*.exs", "*.rs", "*.toml", "*.md", "*.json"],
+            "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+
+        // Send request to OTP backend via TUI server
+        self.send_otp_request("start_file_monitoring".to_string(), "file.monitor".to_string(), request).await?;
+
+        self.state.add_event_log("File system monitoring requested".to_string());
+        Ok(())
+    }
+
+    async fn request_project_context(&mut self) -> Result<()> {
+        debug!("Requesting project context");
+        
+        let request = serde_json::json!({
+            "action": "get_project_context",
+            "path": self.state.project_dir,
+            "include_functions": true,
+            "include_errors": true,
+            "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+
+        self.send_otp_request("get_project_context".to_string(), "project.context".to_string(), request).await?;
+
+        self.state.add_event_log("Project context requested".to_string());
+        Ok(())
+    }
+
+    async fn request_build_status(&mut self) -> Result<()> {
+        debug!("Requesting build status");
+        
+        let request = serde_json::json!({
+            "action": "get_build_status",
+            "path": self.state.project_dir,
+            "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+
+        self.send_otp_request("get_build_status".to_string(), "build.status".to_string(), request).await?;
+
+        self.state.add_event_log("Build status requested".to_string());
+        Ok(())
+    }
+
+    async fn send_otp_request(&mut self, request_id: String, command: String, params: serde_json::Value) -> Result<()> {
+        debug!("Sending OTP request: {} - {}", command, request_id);
+        
+        // Convert serde_json::Value to HashMap<String, serde_json::Value>
+        let params_map = match params {
+            serde_json::Value::Object(map) => map.into_iter().collect(),
+            _ => {
+                let mut map = std::collections::HashMap::new();
+                map.insert("data".to_string(), params);
+                map
+            }
+        };
+
+        // Create a separate OTP client just for this request
+        // (since the main client is moved to background task)
+        match OtpClient::new(self.otp_client.server_addr.clone(), self.event_tx.clone()).await {
+            Ok(mut client) => {
+                tokio::spawn(async move {
+                    if let Err(e) = client.send_request(request_id, command, params_map).await {
+                        error!("Failed to send OTP request: {}", e);
+                    }
+                });
+            }
+            Err(e) => {
+                warn!("Failed to create OTP client for request: {}", e);
+                // Fall back to sending via event channel
+                let _ = self.event_tx.send(crate::message::Message::CommandResult {
+                    request_id: format!("fallback_{}", chrono::Utc::now().timestamp_millis()),
+                    result: params,
+                });
+            }
+        }
+        
         Ok(())
     }
 
@@ -633,15 +1041,11 @@ impl App {
         // Send request to OTP application for project refresh
         let request = serde_json::json!({
             "action": "refresh_project",
+            "path": self.state.project_dir,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
 
-        // Note: OtpClient was moved in start_background_tasks, so we can't call it directly
-        // We'll send the event through the event channel instead
-        let _ = self.event_tx.send(crate::message::Message::CommandResult {
-            request_id: "refresh_project".to_string(),
-            result: request,
-        });
+        self.send_otp_request("refresh_project".to_string(), "project.refresh".to_string(), request).await?;
 
         self.state.add_event_log("Project refresh requested".to_string());
         Ok(())
@@ -658,18 +1062,68 @@ impl App {
                 "timestamp": chrono::Utc::now().timestamp_millis()
             });
 
-            // Note: OtpClient was moved in start_background_tasks, so we can't call it directly
-            // We'll send the event through the event channel instead
-            let _ = self.event_tx.send(crate::message::Message::CommandResult {
-                request_id: format!("open_file_{}", selected_file),
-                result: request,
-            });
+            self.send_otp_request(
+                format!("open_file_{}", selected_file),
+                "file.open".to_string(),
+                request
+            ).await?;
 
             self.state
                 .add_event_log(format!("Requested to open: {}", selected_file));
         }
 
         Ok(())
+    }
+
+    fn get_current_context(&self) -> serde_json::Value {
+        let context_items: Vec<serde_json::Value> = self.state.layout_state.context_items
+            .iter()
+            .map(|item| {
+                match item {
+                    crate::state::ContextItem::File { path, status } => {
+                        serde_json::json!({
+                            "type": "file",
+                            "path": path,
+                            "status": status
+                        })
+                    }
+                    crate::state::ContextItem::Function { name, file, line } => {
+                        serde_json::json!({
+                            "type": "function", 
+                            "name": name,
+                            "file": file,
+                            "line": line
+                        })
+                    }
+                    crate::state::ContextItem::Error { message, file, line } => {
+                        serde_json::json!({
+                            "type": "error",
+                            "message": message,
+                            "file": file,
+                            "line": line
+                        })
+                    }
+                    crate::state::ContextItem::BuildStatus { status, timestamp } => {
+                        serde_json::json!({
+                            "type": "build_status",
+                            "status": status,
+                            "timestamp": timestamp.timestamp()
+                        })
+                    }
+                }
+            })
+            .collect();
+
+        serde_json::json!({
+            "project_dir": self.state.project_dir,
+            "current_file": self.state.current_file.as_ref().map(|f| &f.path),
+            "context_items": context_items,
+            "build_status": {
+                "is_building": self.state.build_status.is_building,
+                "last_status": self.state.build_status.last_status,
+                "last_build_time": self.state.build_status.last_build_time.map(|t| t.timestamp())
+            }
+        })
     }
 
     fn should_render(&self) -> bool {
@@ -691,14 +1145,12 @@ impl App {
         let request = serde_json::json!({
             "action": "chat_message",
             "content": content,
+            "context": self.get_current_context(),
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
 
-        // Send via event channel (since OtpClient was moved to background task)
-        let _ = self.event_tx.send(crate::message::Message::CommandResult {
-            request_id: format!("chat_message_{}", chrono::Utc::now().timestamp_millis()),
-            result: request,
-        });
+        let request_id = format!("chat_message_{}", chrono::Utc::now().timestamp_millis());
+        self.send_otp_request(request_id, "llm.chat".to_string(), request).await?;
 
         self.mark_for_render();
         Ok(())
@@ -709,18 +1161,18 @@ impl App {
 
         let message_content = self.state.execute_quick_action(action);
 
-        // Send to OTP application for processing
+        // Send to OTP application for processing with full context
         let request = serde_json::json!({
             "action": "quick_action",
             "action_type": action.label(),
+            "action_key": action.key(),
             "content": message_content,
+            "context": self.get_current_context(),
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
 
-        let _ = self.event_tx.send(crate::message::Message::CommandResult {
-            request_id: format!("quick_action_{}_{}", action.key(), chrono::Utc::now().timestamp_millis()),
-            result: request,
-        });
+        let request_id = format!("quick_action_{}_{}", action.key(), chrono::Utc::now().timestamp_millis());
+        self.send_otp_request(request_id, "llm.quick_action".to_string(), request).await?;
 
         self.mark_for_render();
         Ok(())
