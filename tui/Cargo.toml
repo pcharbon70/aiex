@@ -10,6 +10,7 @@ license = "Apache-2.0"
 # TUI framework with all widget features
 ratatui = { version = "0.28", features = ["all-widgets"] }
 crossterm = "0.28"
+tui-textarea = "0.6"
 
 # Async runtime
 tokio = { version = "1.37", features = ["full"] }

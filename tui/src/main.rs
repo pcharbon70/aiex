@@ -10,6 +10,7 @@ mod state;
 mod events;
 mod ui;
 mod message;
+mod terminal;
 
 use app::App;
 use config::Config;
