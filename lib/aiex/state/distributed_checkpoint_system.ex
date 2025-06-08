@@ -1230,7 +1230,7 @@ defmodule Aiex.State.DistributedCheckpointSystem do
     conditions = case options[:created_before] do
       nil -> conditions
       datetime -> 
-        [{:=<, {:element, 5, :"$_"}, datetime} | conditions]
+        [{:<=, {:element, 5, :"$_"}, datetime} | conditions]
     end
     
     final_condition = case conditions do
