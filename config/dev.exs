@@ -8,7 +8,7 @@ config :libcluster,
 config :aiex,
   # Disable clustering for development - single node mode
   cluster_enabled: false,
-  # TUI server configuration
+  # TUI server configuration - using Mock TUI in development
   tui: [
     enabled: true,
     port: 9487

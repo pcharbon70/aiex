@@ -61,6 +61,9 @@ defmodule Aiex.MixProject do
       {:gnat, "~> 1.8"},
       {:msgpax, "~> 2.4"},
 
+      # Terminal UI
+      {:ratatouille, "~> 0.5.1"},
+
       # Documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
     ]
