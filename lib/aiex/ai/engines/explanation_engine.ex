@@ -174,7 +174,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
     
     Logger.info("ExplanationEngine started with session_id: #{session_id}")
     
-    EventBus.emit("ai.engine.explanation_engine.started", %{
+    EventBus.publish("ai.engine.explanation_engine.started", %{
       session_id: session_id,
       timestamp: DateTime.utc_now()
     })
@@ -218,7 +218,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   def handle_call(:cleanup, _from, state) do
     :ets.delete(state.explanation_cache)
     
-    EventBus.emit("ai.engine.explanation_engine.stopped", %{
+    EventBus.publish("ai.engine.explanation_engine.stopped", %{
       session_id: state.session_id,
       timestamp: DateTime.utc_now()
     })
@@ -284,7 +284,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         # Post-process and structure the explanation
         case post_process_explanation(llm_response, context, state) do
@@ -676,7 +676,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   
   defp get_enhanced_project_context(context, state) do
     # Get base project context
-    base_context = case ContextManager.get_current_context() do
+    base_context = case ContextManager.get_context("default") do
       {:ok, ctx} -> ctx
       {:error, _} -> %{}
     end
@@ -707,7 +707,8 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   defp load_tutorial_explanation_templates, do: %{}
   
   defp prepare_explanation_engine(options, state) do
-    case ModelCoordinator.health_check() do
+    case ModelCoordinator.force_health_check() do
+      :ok -> {:ok, "healthy"}
       :ok ->
         # Load any custom templates or preferences
         updated_state = if Keyword.get(options, :reload_templates, false) do
@@ -748,7 +749,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   end
   
   defp record_explanation_metrics(context, duration_ms, code_size_bytes) do
-    EventBus.emit("ai.engine.explanation_engine.metrics", %{
+    EventBus.publish("ai.engine.explanation_engine.metrics", %{
       explanation_type: Map.get(context, :explanation_type),
       detail_level: Map.get(context, :detail_level),
       audience: Map.get(context, :audience),

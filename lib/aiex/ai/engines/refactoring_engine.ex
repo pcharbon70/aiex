@@ -289,7 +289,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         # Process and structure the refactoring suggestions
         case post_process_refactoring_suggestions(llm_response, refactoring_type, code_metrics) do
@@ -382,7 +382,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, refactored_code} ->
         # Validate the refactoring maintains correctness
         case validate_refactoring_result(code_content, refactored_code, refactoring_suggestion) do
@@ -416,7 +416,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, validation_result} ->
         structured_validation = structure_validation_result(validation_result)
         {:ok, structured_validation}
@@ -912,7 +912,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   
   defp get_enhanced_project_context(options, _state) do
     # Get base project context
-    base_context = case ContextManager.get_current_context() do
+    base_context = case ContextManager.get_context("default") do
       {:ok, ctx} -> ctx
       {:error, _} -> %{}
     end
@@ -954,7 +954,8 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   defp load_performance_templates, do: %{}
   
   defp prepare_refactoring_engine(options, state) do
-    case ModelCoordinator.health_check() do
+    case ModelCoordinator.force_health_check() do
+      :ok -> {:ok, "healthy"}
       :ok ->
         updated_state = if Keyword.get(options, :reload_templates, false) do
           %{state | refactoring_templates: initialize_refactoring_templates()}

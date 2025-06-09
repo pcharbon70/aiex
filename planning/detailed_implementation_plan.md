@@ -200,139 +200,139 @@ Creating essential Mix tasks that integrate AI capabilities into existing Elixir
 - [ ] Multi-node cluster formation tests
 - [ ] Interface abstraction layer validation
 
-## Phase 2: Rust TUI with NATS Integration
+## Phase 2: Elixir Ratatouille Terminal Interface
 
-This phase implements a sophisticated Rust-based Terminal User Interface (TUI) using Ratatui that communicates with the Elixir OTP application through NATS messaging. The architecture follows a hub-and-spoke pattern with NATS as the central messaging backbone, enabling real-time bidirectional communication while maintaining clean separation between the OTP core logic and TUI interface.
+This phase implements a sophisticated Elixir-based Terminal User Interface using Ratatouille that integrates directly with the distributed OTP application. The architecture leverages The Elm Architecture (TEA) pattern within the Elixir ecosystem, providing fault-tolerant terminal UI with hot code reloading, automatic crash recovery, and seamless integration with existing business logic through pg process groups and supervision trees.
 
-### Section 2.1: NATS Infrastructure Setup
+### Section 2.1: Ratatouille OTP Integration
 - [ ] **Completed**
 
-Establishing NATS cluster integration with the Elixir OTP application for production-ready messaging infrastructure.
+Establishing Ratatouille runtime integration with the Elixir OTP application supervision tree and distributed coordination using pg process groups.
 
 **Tasks:**
-- [ ] Add NATS server embedding in Aiex application supervision tree
-- [ ] Implement NATSSupervisor with connection management
-- [ ] Create NATSConnectionManager for robust connection handling
-- [ ] Setup NATS subject naming conventions (tui.command.*, otp.event.*)
-- [ ] Implement PGNATSBridge for automatic pg-to-NATS event bridging
-- [ ] Add NATS consumer supervisor for message processing
-- [ ] Configure NATS clustering for high availability
-- [ ] Implement NATS JetStream for guaranteed delivery
+- [ ] Add Ratatouille dependency (`~> 0.5.1`) to mix.exs
+- [ ] Integrate Ratatouille.Runtime.Supervisor with main application supervision tree
+- [ ] Setup TUI application using Ratatouille.App behaviour
+- [ ] Configure ex_termbox for low-level terminal operations
+- [ ] Implement pg process group integration for event distribution
+- [ ] Create TUIEventBridge for automatic pg-to-TUI event forwarding
+- [ ] Add TUI process supervision with automatic restart strategies
+- [ ] Configure terminal capability detection and graceful fallbacks
 
 **Tests Required:**
-- [ ] NATS server startup and shutdown tests
-- [ ] Connection resilience and reconnection tests
-- [ ] Message routing and subject pattern tests
-- [ ] PG-to-NATS bridge functionality tests
-- [ ] NATS cluster formation tests
-- [ ] Message persistence with JetStream tests
-- [ ] Network partition handling tests
+- [ ] Ratatouille runtime startup and supervision tests
+- [ ] TUI application lifecycle tests
+- [ ] pg process group integration tests
+- [ ] Event bridge functionality tests
+- [ ] Terminal capability detection tests
+- [ ] Supervision and restart behavior tests
+- [ ] Cross-platform compatibility tests
 
-### Section 2.2: Rust TUI Foundation
+### Section 2.2: TEA Architecture Foundation  
 - [ ] **Completed**
 
-Building the Rust TUI application using Ratatui with async architecture and proper state management.
+Building the foundational TUI architecture using The Elm Architecture (TEA) pattern with Ratatouille's Model-Update-View cycle integrated with OTP patterns.
 
 **Tasks:**
-- [ ] Create Rust workspace under tui/ directory
-- [ ] Setup Ratatui with crossterm backend for multi-platform support
-- [ ] Implement The Elm Architecture (TEA) pattern for state management
-- [ ] Create async event loop with tokio runtime
-- [ ] Add terminal capability detection and fallback
-- [ ] Implement multi-pane layout system (file tree, code view, diff view)
-- [ ] Create keyboard input handling and navigation
-- [ ] Add real-time update processing with controlled frame rate
+- [ ] Implement TUI application module with init/1, update/2, render/1 callbacks
+- [ ] Create comprehensive state model with chat history, context, and UI state
+- [ ] Add subscription system using Subscription.interval/2 for periodic updates
+- [ ] Implement command system for asynchronous operations
+- [ ] Create event handling with keyboard input and terminal events
+- [ ] Add state persistence for session recovery
+- [ ] Implement view composition with reusable components
+- [ ] Create controlled rendering with efficient re-draw strategies
 
 **Tests Required:**
-- [ ] TUI component rendering tests
-- [ ] Keyboard input handling tests
-- [ ] Layout system responsiveness tests
-- [ ] Async event processing tests
-- [ ] Terminal compatibility tests
-- [ ] Multi-pane navigation tests
-- [ ] Frame rate limiting tests
+- [ ] TEA callback implementation tests
+- [ ] State model functionality tests
+- [ ] Subscription system tests
+- [ ] Command execution tests
+- [ ] Event handling accuracy tests
+- [ ] State persistence tests
+- [ ] View rendering performance tests
 
-### Section 2.3: NATS Client Integration
+### Section 2.3: Direct OTP Communication
 - [ ] **Completed**
 
-Integrating async-nats client with robust connection management and message processing.
+Implementing direct communication with OTP business logic using native Elixir process messaging and pg process groups for distributed coordination.
 
 **Tasks:**
-- [ ] Add async-nats dependency with connection pooling
-- [ ] Implement NatsManager with reconnection logic
-- [ ] Create bidirectional message handling (commands, events, queries)
-- [ ] Add MessagePack serialization for efficient data transfer
-- [ ] Implement circuit breakers for external communications
-- [ ] Create message batching for performance optimization
-- [ ] Add subscription filtering with precise subject patterns
-- [ ] Implement command queuing for offline capability
+- [ ] Create TUICoordinator GenServer for business logic communication
+- [ ] Implement direct calls to existing InterfaceGateway
+- [ ] Add pg group subscriptions for real-time updates
+- [ ] Create message routing for commands, queries, and events
+- [ ] Implement distributed request handling across cluster nodes
+- [ ] Add circuit breaker integration with existing LLM coordination
+- [ ] Create session management using existing distributed sessions
+- [ ] Implement context synchronization with Context.Manager
 
 **Tests Required:**
-- [ ] NATS client connection tests
-- [ ] Message serialization/deserialization tests
-- [ ] Bidirectional communication tests
-- [ ] Circuit breaker functionality tests
-- [ ] Message batching efficiency tests
-- [ ] Offline command queuing tests
-- [ ] Reconnection resilience tests
+- [ ] Direct OTP communication tests
+- [ ] InterfaceGateway integration tests
+- [ ] pg group subscription tests
+- [ ] Message routing accuracy tests
+- [ ] Distributed request handling tests
+- [ ] Circuit breaker integration tests
+- [ ] Session management tests
 
-### Section 2.4: Protocol Implementation
+### Section 2.4: Process Communication Patterns
 - [ ] **Completed**
 
-Implementing the communication protocol between Rust TUI and Elixir OTP using MessagePack over NATS.
+Implementing structured communication patterns using native Elixir messaging with proper error handling and timeout management.
 
 **Tasks:**
-- [ ] Define message schema for commands, events, and queries
-- [ ] Implement command/response pattern (TUI → OTP)
-- [ ] Create event streaming pattern (OTP → TUI)
-- [ ] Add state query pattern with caching
-- [ ] Implement request correlation and timeout handling
+- [ ] Define message schemas for TUI commands and responses
+- [ ] Implement synchronous request/response patterns using GenServer.call
+- [ ] Create asynchronous event streaming using pg broadcasts
+- [ ] Add message correlation and conversation tracking
+- [ ] Implement timeout handling and deadlock prevention
 - [ ] Create error handling with graceful degradation
-- [ ] Add message versioning for protocol evolution
-- [ ] Implement distributed tracing for debugging
+- [ ] Add distributed tracing integration with existing telemetry
+- [ ] Implement message validation and security
 
 **Tests Required:**
 - [ ] Message schema validation tests
-- [ ] Command/response pattern tests
-- [ ] Event streaming functionality tests
-- [ ] State synchronization tests
-- [ ] Request correlation tests
-- [ ] Error handling and fallback tests
-- [ ] Protocol versioning tests
+- [ ] Synchronous communication tests
+- [ ] Asynchronous event streaming tests
+- [ ] Message correlation tests
+- [ ] Timeout and error handling tests
+- [ ] Security validation tests
+- [ ] Distributed tracing tests
 
-### Section 2.5: State Synchronization
+### Section 2.5: Native State Management
 - [ ] **Completed**
 
-Implementing efficient state synchronization between TUI and OTP with local caching and real-time updates.
+Implementing efficient state management using native OTP patterns with ETS caching and real-time synchronization with distributed business logic.
 
 **Tasks:**
-- [ ] Create StateSync layer with local cache management
-- [ ] Implement cache invalidation strategies
-- [ ] Add real-time state update subscriptions
-- [ ] Create distributed state queries with timeout
-- [ ] Implement optimistic UI updates
-- [ ] Add conflict resolution for concurrent updates
-- [ ] Create state persistence for TUI session recovery
-- [ ] Implement background state preloading
+- [ ] Create local state management with ETS caching for performance
+- [ ] Implement real-time state updates via pg group events
+- [ ] Add state reconciliation with distributed context
+- [ ] Create optimistic UI updates with rollback capability
+- [ ] Implement conflict resolution for concurrent updates
+- [ ] Add background state synchronization
+- [ ] Create state checkpointing for crash recovery
+- [ ] Implement memory management and cleanup strategies
 
 **Tests Required:**
-- [ ] Local cache functionality tests
-- [ ] State synchronization accuracy tests
+- [ ] Local state management tests
 - [ ] Real-time update processing tests
-- [ ] Cache invalidation tests
-- [ ] Optimistic update tests
+- [ ] State reconciliation accuracy tests
+- [ ] Optimistic update behavior tests
 - [ ] Conflict resolution tests
-- [ ] Session recovery tests
+- [ ] Background synchronization tests
+- [ ] Memory management tests
 
 **Phase 2 Integration Tests:**
-- [ ] End-to-end TUI to OTP command execution
-- [ ] Real-time file change notifications
-- [ ] Distributed state consistency verification
-- [ ] Network failure recovery scenarios
-- [ ] Multi-user TUI session coordination
-- [ ] Performance under concurrent load
-- [ ] NATS cluster failover handling
-- [ ] Message ordering and delivery guarantees
+- [ ] End-to-end TUI to OTP business logic execution
+- [ ] Real-time event propagation from distributed system
+- [ ] State consistency across TUI and distributed backend
+- [ ] TUI crash recovery and supervision behavior
+- [ ] Multi-user TUI coordination via distributed events
+- [ ] Performance under concurrent distributed load
+- [ ] Integration with existing distributed infrastructure
+- [ ] Hot code reloading while TUI is running
 
 ## Phase 3: Distributed Language Processing ✅ 100% Complete
 
@@ -699,352 +699,322 @@ Building a distributed checkpoint system with Mnesia storage and cross-node sync
 
 ## Phase 5: Advanced Chat-Focused TUI Interface
 
-This phase implements a sophisticated chat-focused Terminal User Interface (TUI) using Ratatui that provides an immersive AI coding assistant experience. The interface features multi-panel layouts, real-time collaboration capabilities, context awareness, and rich interactive elements designed specifically for AI-powered development workflows.
+This phase enhances the Elixir Ratatouille Terminal User Interface with sophisticated chat-focused features that provide an immersive AI coding assistant experience. Building on Phase 2's foundation, this phase implements multi-panel layouts using Ratatouille's grid system, real-time collaboration via pg events, context awareness through distributed state, and rich interactive elements optimized for AI-powered development workflows.
 
-### Section 5.1: Ratatui Foundation with TEA Architecture
+### Section 5.1: Enhanced Ratatouille UI Components
 - [ ] **Completed**
 
-Building the foundational TUI architecture using The Elm Architecture (TEA) pattern with Ratatui for maximum responsiveness and maintainability.
+Building advanced UI components using Ratatouille's declarative view system with Bootstrap-inspired 12-column grid layout for sophisticated chat interfaces.
 
 **Tasks:**
-- [ ] Setup Ratatui with crossterm backend for multi-platform support
-- [ ] Implement The Elm Architecture (TEA) pattern for state management
-- [ ] Create async event loop with tokio runtime integration
-- [ ] Add terminal capability detection and graceful fallbacks
-- [ ] Implement controlled frame rate rendering (30-60 FPS)
-- [ ] Create event stream handling for keyboard and terminal events
-- [ ] Add comprehensive error handling with graceful degradation
-- [ ] Setup application lifecycle management and cleanup
+- [ ] Implement advanced layout components using Ratatouille's grid system
+- [ ] Create reusable UI components (ChatPanel, ContextPanel, StatusPanel)
+- [ ] Add enhanced terminal capability detection for features like mouse support
+- [ ] Implement efficient re-rendering strategies for large chat histories
+- [ ] Create component composition patterns for maintainable views
+- [ ] Add scrollable region handling with viewport management
+- [ ] Implement focus management across multiple UI components
+- [ ] Create animation and transition effects using Ratatouille's rendering cycle
 
 **Tests Required:**
-- [ ] TEA pattern state management tests
-- [ ] Event loop performance tests
-- [ ] Terminal compatibility tests across platforms
-- [ ] Frame rate limiting validation tests
-- [ ] Error handling and recovery tests
-- [ ] Application lifecycle tests
-- [ ] Memory usage and leak tests
+- [ ] Grid layout system functionality tests
+- [ ] Component composition and reusability tests
+- [ ] Terminal capability feature detection tests
+- [ ] Re-rendering performance optimization tests
+- [ ] Scrollable region behavior tests
+- [ ] Focus management coordination tests
+- [ ] Animation and transition smoothness tests
 
 ### Section 5.2: Multi-Panel Chat Interface Layout
 - [ ] **Completed**
 
-Implementing a sophisticated multi-panel layout optimized for AI coding assistance with dynamic panel management and responsive design.
+Implementing a sophisticated multi-panel layout using Ratatouille's Bootstrap-inspired 12-column grid system optimized for AI coding assistance with dynamic panel management and responsive design.
 
 **Tasks:**
-- [ ] Create flexible constraint-based layout system
-- [ ] Implement conversation history panel (70% of main area)
-- [ ] Add current status panel (30% of main area)
-- [ ] Create collapsible context panel (left side, 25 columns)
-- [ ] Build quick actions panel (right side, 20 columns)
-- [ ] Implement dynamic panel visibility with F1/F2 toggles
-- [ ] Add responsive layout adaptation when panels are hidden
-- [ ] Create visual panel focus indicators with color coding
+- [ ] Create flexible constraint-based layout using Ratatouille's row/column system
+- [ ] Implement conversation history panel using panel element (70% of main area)
+- [ ] Add current status panel with real-time updates (30% of main area)
+- [ ] Create collapsible context panel using tree element (left side, 25 columns)
+- [ ] Build quick actions panel with interactive elements (right side, 20 columns)
+- [ ] Implement dynamic panel visibility with keyboard shortcuts (F1/F2 toggles)
+- [ ] Add responsive layout adaptation using Ratatouille's constraint system
+- [ ] Create visual panel focus indicators using Ratatouille's styling system
 
 **Tests Required:**
-- [ ] Layout constraint calculation tests
-- [ ] Panel visibility toggle tests
+- [ ] Ratatouille grid system constraint tests
+- [ ] Panel element rendering and behavior tests
+- [ ] Tree element functionality for context display tests
 - [ ] Responsive design adaptation tests
-- [ ] Focus indicator behavior tests
+- [ ] Focus indicator styling and behavior tests
 - [ ] Multi-panel rendering performance tests
 - [ ] Layout edge case handling tests
-- [ ] Panel state persistence tests
+- [ ] Panel state persistence using TEA model tests
 
 ### Section 5.3: Interactive Chat System with Message Management
 - [ ] **Completed**
 
-Building a comprehensive chat system with message history, different message types, token tracking, and conversation persistence.
+Building a comprehensive chat system using Elixir's concurrent primitives with message history, different message types, token tracking, and conversation persistence integrated with distributed event sourcing.
 
 **Tasks:**
-- [ ] Implement message history with VecDeque for efficient storage
-- [ ] Create multiple message types (User, Assistant, System, Error)
-- [ ] Add timestamp display and formatting for messages
-- [ ] Implement token usage tracking per message and session
-- [ ] Create auto-scrolling with manual scroll controls
-- [ ] Add conversation persistence up to 1000 messages
-- [ ] Implement message search and filtering capabilities
-- [ ] Create message export and import functionality
+- [ ] Implement message history using Elixir's efficient data structures
+- [ ] Create multiple message types (User, Assistant, System, Error) with struct patterns
+- [ ] Add timestamp display and formatting using Elixir's DateTime functions
+- [ ] Implement token usage tracking per message integrated with LLM.ModelCoordinator
+- [ ] Create auto-scrolling with manual scroll controls using Ratatouille's viewport
+- [ ] Add conversation persistence using existing event sourcing system
+- [ ] Implement message search and filtering using Elixir's Enum functions
+- [ ] Create message export functionality integrated with existing file operations
 
 **Tests Required:**
-- [ ] Message storage and retrieval tests
-- [ ] Message type rendering tests
-- [ ] Scroll behavior validation tests
-- [ ] Token tracking accuracy tests
-- [ ] Conversation persistence tests
-- [ ] Message search functionality tests
-- [ ] Performance tests with large message histories
+- [ ] Message data structure efficiency tests
+- [ ] Message type pattern matching tests
+- [ ] Timestamp formatting and display tests
+- [ ] Token tracking integration with LLM coordinator tests
+- [ ] Ratatouille viewport scrolling behavior tests
+- [ ] Event sourcing persistence integration tests
+- [ ] Message search and filtering accuracy tests
+- [ ] Performance tests with large message histories in Elixir
 
 ### Section 5.4: Focus Management and Navigation System
 - [ ] **Completed**
 
-Implementing sophisticated focus management with keyboard navigation, visual indicators, and panel-specific shortcuts.
+Implementing sophisticated focus management using Ratatouille's event system with keyboard navigation, visual indicators, and panel-specific shortcuts integrated with TEA state management.
 
 **Tasks:**
-- [ ] Create Tab/Shift+Tab navigation between panels
-- [ ] Implement visual focus indicators with yellow borders
-- [ ] Add panel-specific keyboard shortcuts and behaviors
-- [ ] Create input area with Ctrl+Enter message sending
-- [ ] Implement chat navigation with arrow keys, Home/End
-- [ ] Add context panel browsing with Up/Down navigation
-- [ ] Create quick actions selection with Enter execution
-- [ ] Implement global shortcuts (Ctrl+Q quit, F1/F2 toggles)
+- [ ] Create Tab/Shift+Tab navigation using Ratatouille's event handling
+- [ ] Implement visual focus indicators using Ratatouille's styling attributes
+- [ ] Add panel-specific keyboard shortcuts using pattern matching in update/2
+- [ ] Create input area with Ctrl+Enter message sending via command dispatch
+- [ ] Implement chat navigation with arrow keys using Ratatouille's key events
+- [ ] Add context panel browsing using tree element navigation
+- [ ] Create quick actions selection with Enter execution via TEA commands
+- [ ] Implement global shortcuts (Ctrl+Q quit, F1/F2 toggles) in event handler
 
 **Tests Required:**
-- [ ] Focus navigation flow tests
-- [ ] Keyboard shortcut handling tests
-- [ ] Panel-specific behavior tests
-- [ ] Visual indicator rendering tests
-- [ ] Global shortcut integration tests
-- [ ] Focus state persistence tests
-- [ ] Accessibility compliance tests
+- [ ] Ratatouille event handling navigation tests
+- [ ] Styling attribute focus indicator tests
+- [ ] Pattern matching keyboard shortcut tests
+- [ ] TEA command dispatch tests for input handling
+- [ ] Tree element navigation behavior tests
+- [ ] Command execution via TEA architecture tests
+- [ ] Global shortcut event processing tests
+- [ ] Focus state management in TEA model tests
 
 ### Section 5.5: Context Awareness and Quick Actions
 - [ ] **Completed**
 
-Building intelligent context awareness with file status tracking, function references, error detection, and pre-defined quick actions for common coding tasks.
+Building intelligent context awareness using distributed state management with file status tracking, function references, error detection, and pre-defined quick actions integrated with existing Context.Manager and semantic analysis.
 
 **Tasks:**
-- [ ] Implement file status tracking (modified, new, error states)
-- [ ] Create function references with file locations and line numbers
-- [ ] Add error message integration with precise location tracking
-- [ ] Implement visual icons for different context types
-- [ ] Create pre-defined quick actions (Explain, Fix, Test, Refactor)
-- [ ] Add keyboard shortcuts for rapid action access
-- [ ] Implement one-click execution with automatic message generation
-- [ ] Create context-aware action suggestions based on current state
+- [ ] Implement file status tracking using existing distributed context system
+- [ ] Create function references using semantic chunker integration
+- [ ] Add error message integration with existing audit logging
+- [ ] Implement visual icons using Ratatouille's text styling and Unicode
+- [ ] Create pre-defined quick actions integrated with InterfaceGateway
+- [ ] Add keyboard shortcuts for rapid action access via TEA event handling
+- [ ] Implement one-click execution using existing AI coordinator integration
+- [ ] Create context-aware action suggestions using distributed intelligence
 
 **Tests Required:**
-- [ ] File status tracking accuracy tests
-- [ ] Function reference parsing tests
-- [ ] Error detection and location tests
-- [ ] Context icon rendering tests
-- [ ] Quick action execution tests
-- [ ] Context-aware suggestion tests
-- [ ] Integration with file system monitoring tests
+- [ ] Distributed context integration accuracy tests
+- [ ] Semantic chunker function reference tests
+- [ ] Audit logging error integration tests
+- [ ] Ratatouille text styling and Unicode icon tests
+- [ ] InterfaceGateway quick action integration tests
+- [ ] TEA event handling shortcut tests
+- [ ] AI coordinator execution integration tests
+- [ ] Distributed intelligence suggestion tests
 
 ### Section 5.6: Rich Text Support and Syntax Highlighting
 - [ ] **Completed**
 
-Implementing rich text rendering capabilities with syntax highlighting preparation, code block formatting, and enhanced visual presentation.
+Implementing rich text rendering using Ratatouille's styling system with syntax highlighting, code block formatting, and enhanced visual presentation integrated with existing semantic analysis.
 
 **Tasks:**
-- [ ] Create syntax highlighting framework for code blocks
-- [ ] Implement proper text wrapping with word boundary respect
-- [ ] Add scrollbar indicators for long content areas
-- [ ] Create status indicators and emoji support
-- [ ] Implement markdown-style formatting for messages
-- [ ] Add code block detection and special formatting
-- [ ] Create diff visualization for code changes
-- [ ] Implement customizable color themes and schemes
+- [ ] Create syntax highlighting using Ratatouille's styling attributes and terminal colors
+- [ ] Implement proper text wrapping using Ratatouille's text flow and word boundaries
+- [ ] Add scrollbar indicators using Ratatouille's scrollable regions
+- [ ] Create status indicators using Unicode symbols and color coding
+- [ ] Implement markdown-style formatting using Ratatouille's text styling
+- [ ] Add code block detection using existing semantic chunker
+- [ ] Create diff visualization using Ratatouille's styling for change indicators
+- [ ] Implement customizable color themes using terminal color capabilities
 
 **Tests Required:**
-- [ ] Syntax highlighting accuracy tests
-- [ ] Text wrapping behavior tests
-- [ ] Scrollbar functionality tests
-- [ ] Markdown formatting tests
-- [ ] Code block detection tests
-- [ ] Diff visualization tests
-- [ ] Theme switching tests
+- [ ] Ratatouille styling syntax highlighting tests
+- [ ] Text wrapping and flow behavior tests
+- [ ] Scrollable region functionality tests
+- [ ] Unicode and color status indicator tests
+- [ ] Markdown-style text formatting tests
+- [ ] Semantic chunker code block detection tests
+- [ ] Diff visualization styling tests
+- [ ] Terminal color theme switching tests
 
 **Phase 5 Integration Tests:**
-- [ ] End-to-end chat workflow tests
-- [ ] Multi-panel interaction scenarios
-- [ ] Performance under heavy message load
-- [ ] Context awareness integration
-- [ ] Quick action execution workflows
-- [ ] Real-time collaboration simulation
-- [ ] Error handling across all panels
-- [ ] Accessibility and usability validation
+- [ ] End-to-end chat workflow with Elixir OTP backend
+- [ ] Multi-panel interaction using Ratatouille grid system
+- [ ] Performance under heavy message load with Elixir concurrency
+- [ ] Context awareness integration with distributed state
+- [ ] Quick action execution via InterfaceGateway workflows
+- [ ] Real-time collaboration using pg event distribution
+- [ ] Error handling across all panels with supervisor recovery
+- [ ] TEA architecture state consistency and UI responsiveness
 
-## Phase 6: Phoenix LiveView Web Interface
+## Phase 6: Core AI Assistant Application Logic (Weeks 18-20) ⏳
 
-This phase implements a sophisticated Phoenix LiveView web interface that provides a modern, real-time chat and AI coding assistant experience. Building on the existing OTP business logic, this phase creates a responsive web application with streaming AI responses, real-time collaboration, multi-panel layouts, and production-grade performance optimizations.
+This phase implements the core AI assistant engines that provide actual coding assistance capabilities. Building on the comprehensive distributed infrastructure from Phases 1-5, this phase creates the application logic that users interact with: code analysis, generation, explanation, refactoring, and test creation. The focus is on intelligent prompt templates, seamless integration with existing LLM coordination, and sophisticated AI workflows that leverage the distributed context management and event sourcing systems.
 
-### Section 6.1: LiveView Foundation and Architecture
+### Section 6.1: Core AI Assistant Engines (CodeAnalyzer, GenerationEngine, ExplanationEngine)
 - [ ] **Completed**
 
-Building the foundational Phoenix LiveView architecture with Phoenix 1.7+ patterns, leveraging the existing OTP business logic through the InterfaceGateway. This section establishes the core web application structure with proper supervision, routing, and integration with the distributed Aiex system.
+Building the foundational AI assistant engines that provide core coding assistance capabilities, leveraging the existing distributed LLM coordination, context management, and event sourcing infrastructure.
 
 **Tasks:**
-- [ ] Setup Phoenix LiveView in existing Aiex application with Phoenix 1.7+ patterns
-- [ ] Create LiveView supervisor and integrate with main application supervision tree
-- [ ] Implement LiveView socket authentication using existing distributed session management
-- [ ] Create base LiveView templates with Phoenix.Component system and CoreComponents
-- [ ] Integrate with existing InterfaceGateway for business logic communication
-- [ ] Setup LiveView routing with proper mount hooks for authentication
-- [ ] Configure WebSocket endpoints with compression and timeout optimization
-- [ ] Create LiveView error boundaries and graceful degradation patterns
-- [ ] Implement LiveView process hibernation for memory optimization
-- [ ] Add comprehensive logging integration with existing tracing system
+- [ ] Implement CodeAnalyzer GenServer with semantic code analysis capabilities
+- [ ] Create GenerationEngine for AI-powered code generation with context awareness
+- [ ] Build ExplanationEngine for intelligent code explanation and documentation
+- [ ] Integrate engines with existing LLM.ModelCoordinator for distributed AI processing
+- [ ] Add semantic chunker integration for intelligent code understanding
+- [ ] Implement context compression for large codebase analysis
+- [ ] Create event sourcing integration for AI interaction tracking
+- [ ] Add comprehensive error handling and graceful degradation
+- [ ] Implement distributed coordination using pg process groups
+- [ ] Add performance monitoring and metrics collection
 
 **Tests Required:**
-- [ ] LiveView mount and authentication tests
-- [ ] Socket connection and lifecycle tests
-- [ ] InterfaceGateway integration tests
-- [ ] Authentication hook tests
-- [ ] Error boundary and recovery tests
-- [ ] WebSocket configuration tests
-- [ ] Memory usage and hibernation tests
+- [ ] CodeAnalyzer semantic analysis accuracy tests
+- [ ] GenerationEngine code quality and correctness tests
+- [ ] ExplanationEngine clarity and comprehensiveness tests
+- [ ] LLM coordinator integration tests
+- [ ] Semantic chunker integration tests
+- [ ] Context compression effectiveness tests
+- [ ] Event sourcing AI interaction tests
+- [ ] Distributed coordination functionality tests
 
-### Section 6.2: Real-time Chat Interface with Streams
+### Section 6.2: Advanced AI Engines (RefactoringEngine, TestGenerator)
 - [ ] **Completed**
 
-Implementing a sophisticated chat interface using LiveView Streams for efficient message handling, real-time updates via Phoenix PubSub, and integration with the existing LLM coordination system. This section creates the core chat experience with streaming AI responses and conversation management.
+Implementing sophisticated AI engines for code refactoring and test generation, providing advanced coding assistance capabilities with intelligent analysis and automated improvements.
 
 **Tasks:**
-- [ ] Implement LiveView Streams for efficient message list rendering with 50-message limit
-- [ ] Create real-time message broadcasting using existing pg-based event system
-- [ ] Integrate with existing DistributedModelCoordinator for AI message processing
-- [ ] Implement streaming AI responses with chunked updates and token tracking
-- [ ] Create message component with role-based styling (user, assistant, system, error)
-- [ ] Add timestamp formatting and message metadata display
-- [ ] Implement conversation persistence using existing event sourcing system
-- [ ] Create typing indicators using Phoenix Presence integration
-- [ ] Add auto-scroll functionality with JavaScript hooks preserving scroll position
-- [ ] Implement message search and filtering capabilities
-- [ ] Create conversation history pagination with efficient loading
-- [ ] Add message reaction and threading capabilities
+- [ ] Implement RefactoringEngine with pattern detection and code improvement suggestions
+- [ ] Create TestGenerator for automated test creation with multiple testing strategies
+- [ ] Add code smell detection and refactoring recommendations
+- [ ] Implement test pattern analysis and generation based on existing codebase patterns
+- [ ] Create dependency analysis for safe refactoring operations
+- [ ] Add test coverage analysis and missing test identification
+- [ ] Implement refactoring safety checks and impact analysis
+- [ ] Create property-based test generation using StreamData integration
+- [ ] Add integration with existing DistributedTestGenerator for coordination
+- [ ] Implement quality scoring for generated refactorings and tests
 
 **Tests Required:**
-- [ ] LiveView Streams functionality tests
-- [ ] Real-time message broadcasting tests
-- [ ] AI response streaming tests
-- [ ] Message component rendering tests
-- [ ] Conversation persistence tests
-- [ ] Typing indicator tests
-- [ ] Auto-scroll behavior tests
-- [ ] Message search and filtering tests
-- [ ] Pagination efficiency tests
+- [ ] RefactoringEngine pattern detection accuracy tests
+- [ ] TestGenerator test quality and coverage tests
+- [ ] Code smell detection precision tests
+- [ ] Test pattern analysis effectiveness tests
+- [ ] Dependency analysis safety tests
+- [ ] Coverage analysis accuracy tests
+- [ ] Refactoring impact assessment tests
+- [ ] Property-based test generation tests
+- [ ] Quality scoring algorithm tests
 
-### Section 6.3: Multi-panel Layout and Navigation
+### Section 6.3: AI Assistant Coordinators (CodingAssistant, ConversationManager)
 - [ ] **Completed**
 
-Creating a responsive multi-panel layout with dynamic panel management, file explorer integration, and context-aware navigation. This section builds a sophisticated UI that rivals desktop applications while maintaining web responsiveness.
+Creating high-level coordinator modules that orchestrate AI assistant workflows, manage conversation flow, and coordinate between different AI engines for comprehensive coding assistance.
 
 **Tasks:**
-- [ ] Implement CSS Grid-based responsive layout with collapsible panels
-- [ ] Create sidebar navigation with conversation list and file explorer
-- [ ] Integrate file tree with existing Sandbox.PathValidator for secure file operations
-- [ ] Implement main chat panel with resizable layout using CSS custom properties
-- [ ] Create context panel showing current project state and AI context
-- [ ] Add code editor panel with syntax highlighting using Prism.js hooks
-- [ ] Implement diff view panel for code changes with line-by-line comparison
-- [ ] Create status panel with build output and system information
-- [ ] Add keyboard navigation and shortcuts (Ctrl+K command palette)
-- [ ] Implement dark/light theme switching with CSS custom properties
-- [ ] Create mobile-responsive layout with panel stacking
-- [ ] Add panel state persistence using LiveView session storage
+- [ ] Implement CodingAssistant coordinator for orchestrating multi-engine workflows
+- [ ] Create ConversationManager for maintaining context across AI interactions
+- [ ] Add workflow orchestration for complex coding tasks (analyze → generate → test → refactor)
+- [ ] Implement conversation state management with context preservation
+- [ ] Create intelligent engine selection based on task type and complexity
+- [ ] Add result aggregation and synthesis from multiple AI engines
+- [ ] Implement conversation branching and context switching
+- [ ] Create session management with conversation persistence
+- [ ] Add distributed coordination using pg process groups
+- [ ] Implement performance optimization with caching and batching
 
 **Tests Required:**
-- [ ] CSS Grid layout responsiveness tests
-- [ ] Panel collapse and expand functionality tests
-- [ ] File explorer security integration tests
-- [ ] Keyboard navigation tests
-- [ ] Theme switching tests
-- [ ] Mobile layout tests
-- [ ] Panel state persistence tests
+- [ ] CodingAssistant workflow orchestration tests
+- [ ] ConversationManager context preservation tests
+- [ ] Multi-engine coordination accuracy tests
+- [ ] Conversation state management tests
+- [ ] Engine selection algorithm tests
+- [ ] Result aggregation quality tests
+- [ ] Conversation branching functionality tests
+- [ ] Session persistence tests
+- [ ] Distributed coordination tests
 
-### Section 6.4: Code Integration and Syntax Highlighting
+### Section 6.4: Enhanced CLI Integration with AI Commands
 - [ ] **Completed**
 
-Integrating sophisticated code editing, syntax highlighting, and file management capabilities with the existing distributed file operations and LLM processing. This section creates a comprehensive coding environment within the web interface.
+Enhancing the existing CLI interface with comprehensive AI assistant commands that leverage the new AI engines, providing a powerful command-line experience for AI-powered development workflows.
 
 **Tasks:**
-- [ ] Implement code editor component with Monaco Editor or CodeMirror integration
-- [ ] Create syntax highlighting for Elixir, Rust, JavaScript, and other languages
-- [ ] Integrate with existing file operation system through Sandbox module
-- [ ] Implement real-time file change notifications using file watchers
-- [ ] Create code diff visualization with line-by-line comparison and highlighting
-- [ ] Add code completion suggestions using existing semantic chunking system
-- [ ] Implement code folding and minimap features
-- [ ] Create multi-tab file editing with unsaved changes tracking
-- [ ] Add collaborative editing indicators for multi-user sessions
-- [ ] Implement code formatting integration with existing project tools
-- [ ] Create inline error and warning displays with diagnostic information
-- [ ] Add code navigation features (go to definition, find references)
+- [ ] Extend existing CLI commands with AI assistant capabilities
+- [ ] Implement `aiex analyze` command using CodeAnalyzer engine
+- [ ] Create `aiex generate` command with GenerationEngine integration
+- [ ] Add `aiex explain` command using ExplanationEngine
+- [ ] Implement `aiex refactor` command with RefactoringEngine integration
+- [ ] Create `aiex test` command using TestGenerator
+- [ ] Add conversation mode with `aiex chat` for interactive sessions
+- [ ] Implement file watching mode for continuous AI assistance
+- [ ] Create batch processing commands for large codebases
+- [ ] Add progress reporting and streaming output for long-running operations
 
 **Tests Required:**
-- [ ] Code editor integration tests
-- [ ] Syntax highlighting accuracy tests
-- [ ] File operation security tests
-- [ ] Real-time file change notification tests
-- [ ] Code diff visualization tests
-- [ ] Code completion functionality tests
-- [ ] Multi-tab file editing tests
-- [ ] Collaborative editing tests
-- [ ] Code formatting integration tests
+- [ ] CLI command integration with AI engines tests
+- [ ] Analyze command accuracy and output format tests
+- [ ] Generate command code quality tests
+- [ ] Explain command clarity and comprehensiveness tests
+- [ ] Refactor command safety and effectiveness tests
+- [ ] Test command generation quality tests
+- [ ] Interactive chat mode functionality tests
+- [ ] File watching mode behavior tests
+- [ ] Batch processing performance tests
 
-### Section 6.5: Performance Optimization and Caching
+### Section 6.5: Prompt Templates and System Integration
 - [ ] **Completed**
 
-Implementing comprehensive performance optimizations for the LiveView interface, including memory management, caching strategies, and efficient rendering patterns. This section ensures the web interface performs well under load and with long conversations.
+Implementing comprehensive prompt template system with intelligent context injection, role-based prompting, and seamless integration with existing LLM coordination and context management systems.
 
 **Tasks:**
-- [ ] Implement temporary assigns for message streams to prevent memory bloat
-- [ ] Create multi-layer caching using ETS and Cachex for conversation data
-- [ ] Add debouncing and throttling for user input events (search, typing)
-- [ ] Implement efficient re-rendering strategies using LiveComponent isolation
-- [ ] Create conversation archival system with automatic cleanup after 1000 messages
-- [ ] Add WebSocket connection optimization with custom reconnection strategies
-- [ ] Implement client-side caching for static assets and code syntax rules
-- [ ] Create performance monitoring dashboard showing FPS, memory, and response times
-- [ ] Add rate limiting for AI requests integrated with existing Hammer configuration
-- [ ] Implement lazy loading for file tree and conversation history
-- [ ] Create background job processing for heavy operations using existing Task coordination
-- [ ] Add compression for large message payloads and file transfers
+- [ ] Create PromptTemplate module with dynamic template compilation
+- [ ] Implement context injection system using existing Context.Manager
+- [ ] Add role-based prompt templates (analyzer, generator, explainer, refactorer)
+- [ ] Create prompt optimization based on LLM provider capabilities
+- [ ] Implement template validation and testing framework
+- [ ] Add dynamic prompt generation based on code context and user intent
+- [ ] Create prompt versioning and A/B testing for template effectiveness
+- [ ] Implement template caching and performance optimization
+- [ ] Add integration with existing semantic chunker for context-aware prompting
+- [ ] Create prompt analytics and quality measurement
 
 **Tests Required:**
-- [ ] Memory usage tests with long conversations
-- [ ] Caching efficiency and invalidation tests
-- [ ] Debouncing and throttling behavior tests
-- [ ] Re-rendering performance tests
-- [ ] Conversation archival tests
-- [ ] WebSocket optimization tests
-- [ ] Rate limiting integration tests
-- [ ] Lazy loading functionality tests
-- [ ] Compression efficiency tests
-
-### Section 6.6: Security and Authentication Integration
-- [ ] **Completed**
-
-Implementing comprehensive security measures for the web interface, integrating with existing distributed security architecture and ensuring safe AI interactions. This section creates a secure web environment that maintains the security standards of the OTP system.
-
-**Tasks:**
-- [ ] Integrate LiveView authentication with existing DistributedAuditLogger
-- [ ] Implement session management using existing distributed session system
-- [ ] Create CSRF protection for all LiveView forms and interactions
-- [ ] Add input validation and sanitization using Ecto changesets
-- [ ] Implement file upload security with type validation and malware scanning
-- [ ] Create rate limiting for LiveView events integrated with existing security system
-- [ ] Add secure file access controls using existing Sandbox.PathValidator
-- [ ] Implement audit logging for all user interactions and AI requests
-- [ ] Create security headers and Content Security Policy configuration
-- [ ] Add XSS protection for user-generated content and AI responses
-- [ ] Implement proper error handling without information disclosure
-- [ ] Create security monitoring dashboard integrated with existing security metrics
-
-**Tests Required:**
-- [ ] Authentication integration tests
-- [ ] Session management security tests
-- [ ] CSRF protection tests
-- [ ] Input validation and sanitization tests
-- [ ] File upload security tests
-- [ ] Rate limiting tests
-- [ ] Audit logging completeness tests
-- [ ] Security header tests
-- [ ] XSS protection tests
-- [ ] Error handling security tests
+- [ ] Template compilation and rendering tests
+- [ ] Context injection accuracy tests
+- [ ] Role-based prompt quality tests
+- [ ] Provider-specific optimization tests
+- [ ] Template validation framework tests
+- [ ] Dynamic generation logic tests
+- [ ] Prompt versioning and A/B testing tests
+- [ ] Caching efficiency tests
+- [ ] Semantic chunker integration tests
+- [ ] Analytics and quality measurement tests
 
 **Phase 6 Integration Tests:**
-- [ ] End-to-end chat workflow from web interface to OTP backend
-- [ ] Multi-user real-time collaboration with concurrent sessions
-- [ ] File operations security across web and CLI interfaces
-- [ ] AI response streaming performance under load
-- [ ] Cross-interface state synchronization (web, CLI, TUI)
-- [ ] Memory usage optimization with long-running sessions
-- [ ] Security audit compliance across all web interface components
-- [ ] Responsive design functionality across different devices and screen sizes
-- [ ] Accessibility compliance (WCAG 2.1 AA) for all interface components
-- [ ] Performance benchmarks meeting web vitals standards
+- [ ] End-to-end AI assistant workflow across all engines (analyze → generate → test → refactor)
+- [ ] Multi-engine coordination with context preservation and result synthesis
+- [ ] CLI command integration with AI engines under various load conditions
+- [ ] Prompt template effectiveness across different coding scenarios
+- [ ] Conversation management with branching and context switching
+- [ ] Performance benchmarks for AI operations with large codebases
+- [ ] Integration with existing distributed infrastructure (LLM coordination, context management, event sourcing)
+- [ ] Security validation for AI-generated code and suggestions
+- [ ] Cross-interface AI assistant consistency (CLI, TUI, future interfaces)
+- [ ] Memory usage optimization during intensive AI processing operations
 
 ## Phase 7: Advanced Multi-LLM Coordination (Weeks 21-23)
 

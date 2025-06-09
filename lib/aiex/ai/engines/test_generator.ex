@@ -294,7 +294,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         # Process and structure the test generation response
         case post_process_test_generation(llm_response, test_type, code_analysis, options) do
@@ -379,7 +379,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         case parse_test_data_response(llm_response, data_type) do
           {:ok, test_data} ->
@@ -882,7 +882,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         case parse_test_response(llm_response, :integration_tests) do
           {:ok, tests} -> tests
@@ -1006,7 +1006,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
   
   defp get_enhanced_project_context(options, _state) do
     # Get base project context
-    base_context = case ContextManager.get_current_context() do
+    base_context = case ContextManager.get_context("default") do
       {:ok, ctx} -> ctx
       {:error, _} -> %{}
     end
@@ -1069,7 +1069,8 @@ defmodule Aiex.AI.Engines.TestGenerator do
   defp load_phoenix_test_patterns, do: %{}
   
   defp prepare_test_generator(options, state) do
-    case ModelCoordinator.health_check() do
+    case ModelCoordinator.force_health_check() do
+      :ok -> {:ok, "healthy"}
       :ok ->
         updated_state = if Keyword.get(options, :reload_templates, false) do
           %{state | 

@@ -160,6 +160,10 @@ defmodule Aiex do
         # Interface Gateway for unified access
         {Aiex.InterfaceGateway, []},
 
+        # AI Coordinators
+        Aiex.AI.Coordinators.CodingAssistant,
+        Aiex.AI.Coordinators.ConversationManager,
+
         # TUI communication infrastructure
         Aiex.TUI.Supervisor,
 

@@ -174,7 +174,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
     # Load project conventions
     updated_state = load_project_conventions(state)
     
-    EventBus.emit("ai.engine.generation_engine.started", %{
+    EventBus.publish("ai.engine.generation_engine.started", %{
       session_id: session_id,
       timestamp: DateTime.utc_now()
     })
@@ -206,7 +206,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   def handle_call(:cleanup, _from, state) do
     :ets.delete(state.generation_cache)
     
-    EventBus.emit("ai.engine.generation_engine.stopped", %{
+    EventBus.publish("ai.engine.generation_engine.stopped", %{
       session_id: state.session_id,
       timestamp: DateTime.utc_now()
     })
@@ -265,7 +265,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         # Post-process and validate the generated code
         case post_process_generated_code(llm_response, generation_type, context, state) do
@@ -479,7 +479,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   
   defp apply_formatting(code) do
     # Use Code.format_string! to format the code
-    case Code.format_string(code) do
+    case Code.format_string!(code) do
       formatted_code when is_binary(formatted_code) -> formatted_code
       _ -> code  # Fallback if formatting fails
     end
@@ -523,7 +523,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   
   defp get_enhanced_project_context(context, _state) do
     # Get base project context
-    base_context = case ContextManager.get_current_context() do
+    base_context = case ContextManager.get_context("default") do
       {:ok, ctx} -> ctx
       {:error, _} -> %{}
     end
@@ -615,7 +615,8 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   
   defp prepare_generation_engine(options, state) do
     # Validate LLM coordinator readiness
-    case ModelCoordinator.health_check() do
+    case ModelCoordinator.force_health_check() do
+      :ok -> {:ok, "healthy"}
       :ok ->
         # Reload project conventions if requested
         updated_state = if Keyword.get(options, :reload_conventions, false) do
@@ -646,7 +647,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   end
   
   defp record_generation_metrics(generation_type, duration_ms, code_size_bytes) do
-    EventBus.emit("ai.engine.generation_engine.metrics", %{
+    EventBus.publish("ai.engine.generation_engine.metrics", %{
       generation_type: generation_type,
       duration_ms: duration_ms,
       code_size_bytes: code_size_bytes,

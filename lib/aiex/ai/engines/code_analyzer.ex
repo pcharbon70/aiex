@@ -133,7 +133,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     Logger.info("CodeAnalyzer engine started with session_id: #{session_id}")
     
     # Emit event for engine startup
-    EventBus.emit("ai.engine.code_analyzer.started", %{
+    EventBus.publish("ai.engine.code_analyzer.started", %{
       session_id: session_id,
       timestamp: DateTime.utc_now()
     })
@@ -187,7 +187,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     # Clean up cache and resources
     :ets.delete(state.analysis_cache)
     
-    EventBus.emit("ai.engine.code_analyzer.stopped", %{
+    EventBus.publish("ai.engine.code_analyzer.stopped", %{
       session_id: state.session_id,
       timestamp: DateTime.utc_now()
     })
@@ -244,7 +244,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
       options: Map.new(options)
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         # Process and structure the LLM response
         structured_result = structure_analysis_result(llm_response, analysis_type, options)
@@ -432,7 +432,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   
   defp get_project_context(options) do
     # Leverage existing context management
-    case ContextManager.get_current_context() do
+    case ContextManager.get_context("default") do
       {:ok, context} -> context
       {:error, _} -> %{}
     end
@@ -449,7 +449,8 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   
   defp prepare_analysis_engine(_options, _state) do
     # Warm up LLM connections and validate dependencies
-    case ModelCoordinator.health_check() do
+    case ModelCoordinator.force_health_check() do
+      :ok -> {:ok, "healthy"}
       :ok -> :ok
       {:error, reason} -> {:error, "LLM coordinator not ready: #{reason}"}
     end
@@ -462,7 +463,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   end
   
   defp record_analysis_metrics(analysis_type, duration_ms, code_size_bytes) do
-    EventBus.emit("ai.engine.code_analyzer.metrics", %{
+    EventBus.publish("ai.engine.code_analyzer.metrics", %{
       analysis_type: analysis_type,
       duration_ms: duration_ms,
       code_size_bytes: code_size_bytes,

@@ -37,10 +37,15 @@ defmodule Aiex.CLI.Commands do
   Routes parsed commands to their appropriate handlers.
   """
   def route(result) do
+    # Debug logging
+    require Logger
+    Logger.info("Routing result: #{inspect(result)}")
+    
     case result do
       {[:create], %Optimus.ParseResult{}} -> {:ok, Create}
       {[:analyze], %Optimus.ParseResult{}} -> {:ok, Analyze}
       {[:ai], %Optimus.ParseResult{}} -> {:ok, AI}
+      {[:ai, _subcommand], %Optimus.ParseResult{}} -> {:ok, AI}
 
       {[:help], %Optimus.ParseResult{}} -> {:ok, Help}
       {[:version], %Optimus.ParseResult{}} -> {:ok, Version}
@@ -48,7 +53,14 @@ defmodule Aiex.CLI.Commands do
       {[], %Optimus.ParseResult{}} -> {:ok, Help}
       # Default to help for empty parse result
       %Optimus.ParseResult{} -> {:ok, Help}
-      _ -> {:error, "Unknown command. Use 'aiex --help' for available commands."}
+      _ -> {:error, "Unknown command. Use 'aiex --help' for available commands.
+
+Available commands:
+  • create - Create new projects or modules
+  • analyze - Analyze code and dependencies
+  • ai - AI-powered coding assistance commands
+  • help - Show help information
+  • version - Show version information"}
     end
   end
 
@@ -182,220 +194,6 @@ defmodule Aiex.CLI.Commands do
           help: "Command to show help for",
           required: false,
           parser: :string
-        ]
-      ]
-    ]
-  end
-
-  defp ai_command_spec do
-    [
-      name: "ai",
-      about: "AI-powered coding assistance commands",
-      subcommands: [
-        analyze: [
-          name: "analyze",
-          about: "Analyze code with AI for quality insights",
-          args: [],
-          options: [
-            file: [
-              value_name: "FILE",
-              short: "-f",
-              long: "--file",
-              help: "File to analyze",
-              required: true,
-              parser: :string
-            ],
-            type: [
-              value_name: "TYPE",
-              short: "-t",
-              long: "--type",
-              help: "Analysis type (quality, performance, security)",
-              required: false,
-              parser: :string,
-              default: "quality"
-            ],
-            output: [
-              value_name: "FORMAT",
-              short: "-o",
-              long: "--output",
-              help: "Output format (text, json, markdown)",
-              required: false,
-              parser: :string,
-              default: "text"
-            ]
-          ]
-        ],
-        generate: [
-          name: "generate",
-          about: "Generate code using AI",
-          args: [],
-          options: [
-            type: [
-              value_name: "TYPE",
-              short: "-t",
-              long: "--type",
-              help: "Generation type (module, function, test)",
-              required: true,
-              parser: :string
-            ],
-            requirements: [
-              value_name: "TEXT",
-              short: "-r",
-              long: "--requirements",
-              help: "Requirements description",
-              required: true,
-              parser: :string
-            ],
-            context: [
-              value_name: "FILE",
-              short: "-c",
-              long: "--context",
-              help: "Context file for generation",
-              required: false,
-              parser: :string
-            ],
-            output: [
-              value_name: "FILE",
-              short: "-o",
-              long: "--output",
-              help: "Output file (default: stdout)",
-              required: false,
-              parser: :string
-            ]
-          ]
-        ],
-        explain: [
-          name: "explain",
-          about: "Get AI explanations of code",
-          args: [],
-          options: [
-            file: [
-              value_name: "FILE",
-              short: "-f",
-              long: "--file",
-              help: "File to explain",
-              required: true,
-              parser: :string
-            ],
-            level: [
-              value_name: "LEVEL",
-              short: "-l",
-              long: "--level",
-              help: "Detail level (basic, intermediate, advanced)",
-              required: false,
-              parser: :string,
-              default: "intermediate"
-            ],
-            focus: [
-              value_name: "FOCUS",
-              long: "--focus",
-              help: "Focus area (comprehensive, patterns, architecture)",
-              required: false,
-              parser: :string,
-              default: "comprehensive"
-            ]
-          ]
-        ],
-        refactor: [
-          name: "refactor",
-          about: "Get AI refactoring suggestions",
-          args: [],
-          options: [
-            file: [
-              value_name: "FILE",
-              short: "-f",
-              long: "--file",
-              help: "File to refactor",
-              required: true,
-              parser: :string
-            ],
-            type: [
-              value_name: "TYPE",
-              short: "-t",
-              long: "--type",
-              help: "Refactoring type (all, performance, readability)",
-              required: false,
-              parser: :string,
-              default: "all"
-            ]
-          ],
-          flags: [
-            apply: [
-              short: "-a",
-              long: "--apply",
-              help: "Apply refactoring changes to file"
-            ],
-            preview: [
-              short: "-p",
-              long: "--preview",
-              help: "Show refactoring preview"
-            ]
-          ]
-        ],
-        workflow: [
-          name: "workflow",
-          about: "Execute AI workflow templates",
-          args: [],
-          options: [
-            template: [
-              value_name: "TEMPLATE",
-              short: "-t",
-              long: "--template",
-              help: "Workflow template name",
-              required: true,
-              parser: :string
-            ],
-            context: [
-              value_name: "FILE",
-              short: "-c",
-              long: "--context",
-              help: "Context file for workflow",
-              required: false,
-              parser: :string
-            ],
-            description: [
-              value_name: "TEXT",
-              short: "-d",
-              long: "--description",
-              help: "Workflow description",
-              required: false,
-              parser: :string
-            ],
-            mode: [
-              value_name: "MODE",
-              short: "-m",
-              long: "--mode",
-              help: "Execution mode (sequential, parallel)",
-              required: false,
-              parser: :string,
-              default: "sequential"
-            ]
-          ]
-        ],
-        chat: [
-          name: "chat",
-          about: "Start interactive AI chat session",
-          args: [],
-          options: [
-            conversation_type: [
-              value_name: "TYPE",
-              short: "-t",
-              long: "--type",
-              help: "Conversation type (coding, general, debug)",
-              required: false,
-              parser: :string,
-              default: "coding"
-            ],
-            context: [
-              value_name: "DIR",
-              short: "-c",
-              long: "--context",
-              help: "Project context directory",
-              required: false,
-              parser: :string,
-              default: "."
-            ]
-          ]
         ]
       ]
     ]
@@ -536,32 +334,35 @@ defmodule Aiex.CLI.Commands do
   defp ai_command_spec do
     [
       name: "ai",
-      about: "AI-powered coding assistance and workflow orchestration",
+      about: "AI-powered coding assistance commands",
       subcommands: [
         analyze: [
           name: "analyze",
-          about: "Analyze code using AI engines for insights and improvements",
+          about: "Analyze code with AI for quality insights",
           options: [
             file: [
-              value_name: "FILE_PATH",
+              value_name: "FILE",
               short: "-f",
               long: "--file",
-              help: "Path to the file to analyze",
+              help: "File to analyze",
+              required: true,
               parser: :string
             ],
             type: [
-              value_name: "ANALYSIS_TYPE",
+              value_name: "TYPE",
               short: "-t",
               long: "--type",
-              help: "Type of analysis (structure, quality, performance, all)",
+              help: "Analysis type (quality, performance, security)",
+              required: false,
               parser: :string,
               default: "quality"
             ],
             output: [
-              value_name: "OUTPUT_FORMAT",
+              value_name: "FORMAT",
               short: "-o",
               long: "--output",
               help: "Output format (text, json, markdown)",
+              required: false,
               parser: :string,
               default: "text"
             ]
@@ -569,65 +370,68 @@ defmodule Aiex.CLI.Commands do
         ],
         generate: [
           name: "generate",
-          about: "Generate code using AI with intelligent suggestions",
+          about: "Generate code using AI",
           options: [
             type: [
-              value_name: "GENERATION_TYPE",
+              value_name: "TYPE",
               short: "-t",
               long: "--type",
-              help: "Type of generation (function, module, test, documentation)",
-              parser: :string,
-              required: true
-            ],
-            context: [
-              value_name: "CONTEXT_FILE",
-              short: "-c",
-              long: "--context",
-              help: "Context file to base generation on",
+              help: "Generation type (module, function, test)",
+              required: true,
               parser: :string
             ],
             requirements: [
-              value_name: "REQUIREMENTS",
+              value_name: "TEXT",
               short: "-r",
               long: "--requirements",
-              help: "Requirements or description for generation",
-              parser: :string,
-              required: true
+              help: "Requirements description",
+              required: true,
+              parser: :string
+            ],
+            context: [
+              value_name: "FILE",
+              short: "-c",
+              long: "--context",
+              help: "Context file for generation",
+              required: false,
+              parser: :string
             ],
             output: [
-              value_name: "OUTPUT_FILE",
+              value_name: "FILE",
               short: "-o",
               long: "--output",
-              help: "Output file path (default: stdout)",
+              help: "Output file (default: stdout)",
+              required: false,
               parser: :string
             ]
           ]
         ],
         explain: [
           name: "explain",
-          about: "Get AI explanations of code functionality and patterns",
+          about: "Get AI explanations of code",
           options: [
             file: [
-              value_name: "FILE_PATH",
+              value_name: "FILE",
               short: "-f",
               long: "--file",
-              help: "Path to the file to explain",
-              parser: :string,
-              required: true
+              help: "File to explain",
+              required: true,
+              parser: :string
             ],
             level: [
-              value_name: "DETAIL_LEVEL",
+              value_name: "LEVEL",
               short: "-l",
               long: "--level",
-              help: "Explanation detail level (beginner, intermediate, advanced)",
+              help: "Detail level (basic, intermediate, advanced)",
+              required: false,
               parser: :string,
               default: "intermediate"
             ],
             focus: [
-              value_name: "FOCUS_AREA",
-              short: "-F",
+              value_name: "FOCUS",
               long: "--focus",
-              help: "Focus area (architecture, patterns, logic, performance)",
+              help: "Focus area (comprehensive, patterns, architecture)",
+              required: false,
               parser: :string,
               default: "comprehensive"
             ]
@@ -635,70 +439,73 @@ defmodule Aiex.CLI.Commands do
         ],
         refactor: [
           name: "refactor",
-          about: "AI-powered code refactoring with suggestions and automation",
+          about: "Get AI refactoring suggestions",
           options: [
             file: [
-              value_name: "FILE_PATH",
+              value_name: "FILE",
               short: "-f",
               long: "--file",
-              help: "Path to the file to refactor",
-              parser: :string,
-              required: true
+              help: "File to refactor",
+              required: true,
+              parser: :string
             ],
             type: [
-              value_name: "REFACTOR_TYPE",
+              value_name: "TYPE",
               short: "-t",
               long: "--type",
-              help: "Refactoring type (extract_function, simplify_logic, optimize_performance, all)",
+              help: "Refactoring type (all, performance, readability)",
+              required: false,
               parser: :string,
               default: "all"
-            ],
+            ]
+          ],
+          flags: [
             apply: [
               short: "-a",
               long: "--apply",
-              help: "Apply refactoring suggestions automatically",
-              multiple: false
+              help: "Apply refactoring changes to file"
             ],
             preview: [
               short: "-p",
               long: "--preview",
-              help: "Show preview of changes without applying",
-              multiple: false
+              help: "Show refactoring preview"
             ]
           ]
         ],
         workflow: [
           name: "workflow",
-          about: "Execute AI-orchestrated workflows for complex tasks",
+          about: "Execute AI workflow templates",
           options: [
             template: [
-              value_name: "TEMPLATE_NAME",
+              value_name: "TEMPLATE",
               short: "-t",
               long: "--template",
-              help: "Workflow template (feature_implementation, bug_fix_workflow, code_review_workflow)",
-              parser: :string,
-              required: true
+              help: "Workflow template name",
+              required: true,
+              parser: :string
             ],
             context: [
-              value_name: "CONTEXT_FILE",
+              value_name: "FILE",
               short: "-c",
               long: "--context",
-              help: "Context file for workflow execution",
+              help: "Context file for workflow",
+              required: false,
               parser: :string
             ],
             description: [
-              value_name: "DESCRIPTION",
+              value_name: "TEXT",
               short: "-d",
               long: "--description",
-              help: "Description of the task or feature to implement",
-              parser: :string,
-              required: true
+              help: "Workflow description",
+              required: false,
+              parser: :string
             ],
             mode: [
-              value_name: "EXECUTION_MODE",
+              value_name: "MODE",
               short: "-m",
               long: "--mode",
-              help: "Execution mode (sequential, parallel, pipeline)",
+              help: "Execution mode (sequential, parallel)",
+              required: false,
               parser: :string,
               default: "sequential"
             ]
@@ -706,67 +513,30 @@ defmodule Aiex.CLI.Commands do
         ],
         chat: [
           name: "chat",
-          about: "Start an interactive AI chat session for coding assistance",
+          about: "Start interactive AI chat session",
           options: [
             conversation_type: [
-              value_name: "CONVERSATION_TYPE",
+              value_name: "TYPE",
               short: "-t",
               long: "--type",
-              help: "Conversation type (coding, general, project, debugging)",
+              help: "Conversation type (coding, general, debug)",
+              required: false,
               parser: :string,
               default: "coding"
             ],
             context: [
-              value_name: "CONTEXT_DIR",
+              value_name: "DIR",
               short: "-c",
               long: "--context",
-              help: "Project directory for context",
+              help: "Project context directory",
+              required: false,
               parser: :string,
               default: "."
-            ]
-          ]
-        ],
-        template: [
-          name: "template",
-          about: "Manage and test AI prompt templates",
-          subcommands: [
-            list: [
-              name: "list",
-              about: "List available templates",
-              options: [
-                category: [
-                  value_name: "CATEGORY",
-                  short: "-c",
-                  long: "--category",
-                  help: "Filter by category (workflow, operation)",
-                  parser: :string
-                ]
-              ]
-            ],
-            test: [
-              name: "test",
-              about: "Test a template with sample data",
-              options: [
-                name: [
-                  value_name: "TEMPLATE_NAME",
-                  short: "-n",
-                  long: "--name",
-                  help: "Name of template to test",
-                  parser: :string,
-                  required: true
-                ],
-                variables: [
-                  value_name: "VARIABLES_JSON",
-                  short: "-v",
-                  long: "--variables",
-                  help: "JSON string of template variables",
-                  parser: :string
-                ]
-              ]
             ]
           ]
         ]
       ]
     ]
   end
+
 end

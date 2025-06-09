@@ -17,18 +17,19 @@ defmodule Aiex.CLI.Commands.AI do
 
 
   @impl true
-  def execute({[:ai], %Optimus.ParseResult{args: args} = parsed}) do
-    case Map.keys(args) do
-      [:analyze] -> ai_analyze(parsed)
-      [:generate] -> ai_generate(parsed)
-      [:explain] -> ai_explain(parsed)
-      [:refactor] -> ai_refactor(parsed)
-      [:workflow] -> ai_workflow(parsed)
-      [:chat] -> ai_chat(parsed)
+  def execute({[:ai], %Optimus.ParseResult{} = parsed}) do
+    {:error, "No AI subcommand specified. Use 'aiex help ai' for options."}
+  end
 
-      [:template] -> ai_template(parsed)
-      [] -> {:error, "No AI subcommand specified. Use 'aiex help ai' for options."}
-      _ -> {:error, "Invalid AI subcommand. Use 'aiex help ai' for options."}
+  def execute({[:ai, subcommand], %Optimus.ParseResult{} = parsed}) do
+    case subcommand do
+      :analyze -> ai_analyze(parsed)
+      :generate -> ai_generate(parsed)
+      :explain -> ai_explain(parsed)
+      :refactor -> ai_refactor(parsed)
+      :workflow -> ai_workflow(parsed)
+      :chat -> ai_chat(parsed)
+      _ -> {:error, "Invalid AI subcommand: #{subcommand}. Use 'aiex help ai' for options."}
     end
   end
 
