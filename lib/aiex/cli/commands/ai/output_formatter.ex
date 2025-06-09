@@ -1,397 +1,481 @@
 defmodule Aiex.CLI.Commands.AI.OutputFormatter do
   @moduledoc """
-  Output formatting utilities for AI command results.
+
+  Output formatting utilities for AI command responses.
   
-  Provides consistent formatting for different types of AI responses
-  across various output formats (text, JSON, markdown).
+  Provides consistent formatting for different types of AI outputs including
+  code analysis, explanations, refactoring suggestions, and workflow results.
   """
-  
+
   @doc """
   Format AI analysis results for display.
   """
-  def format_analysis_result(response, format \\ "text")
-  
-  def format_analysis_result(response, "json") do
-    response
-    |> extract_analysis_data()
-    |> Jason.encode!(pretty: true)
-  end
-  
-  def format_analysis_result(response, "markdown") do
-    data = extract_analysis_data(response)
-    
+  def format_analysis(response, format \\ "text")
+
+  def format_analysis(response, "text") do
     """
-    # Code Analysis Results
-    
+    📊 AI Code Analysis Results
+    #{String.duplicate("=", 50)}
+
+    #{format_analysis_summary(response)}
+
+    #{format_analysis_details(response)}
+
+    #{format_recommendations(response)}
+    """
+  end
+
+  def format_analysis(response, "json") do
+    Jason.encode!(response, pretty: true)
+  end
+
+  def format_analysis(response, "markdown") do
+    """
+    # 📊 AI Code Analysis Results
+
     ## Summary
-    #{data.summary || "No summary available"}
-    
-    ## Quality Score
-    **#{data.quality_score || "N/A"}/10**
-    
-    ## Issues Found
-    #{format_issues_markdown(data.issues)}
-    
+    #{format_analysis_summary(response)}
+
+    ## Detailed Analysis
+    #{format_analysis_details(response)}
+
     ## Recommendations
-    #{format_recommendations_markdown(data.recommendations)}
-    
-    ## Detailed Insights
-    #{data.insights || "No detailed insights available"}
+    #{format_recommendations(response)}
     """
   end
-  
-  def format_analysis_result(response, "text") do
-    data = extract_analysis_data(response)
-    
-    """
-    📊 Code Analysis Results
-    #{String.duplicate("=", 50)}
-    
-    Summary: #{data.summary || "No summary available"}
-    Quality Score: #{data.quality_score || "N/A"}/10
-    
-    #{format_issues_text(data.issues)}
-    
-    #{format_recommendations_text(data.recommendations)}
-    
-    💡 Insights:
-    #{data.insights || "No detailed insights available"}
-    """
-  end
-  
+
   @doc """
-  Format AI code generation results.
+  Format AI code explanation for display.
   """
-  def format_generation_result(response, generation_type) do
-    data = extract_generation_data(response)
-    
+  def format_explanation(response) do
     """
-    🚀 Generated #{String.capitalize(to_string(generation_type))}
+    🤖 AI Code Explanation
     #{String.duplicate("=", 50)}
-    
-    #{data.description || "Generated code"}
-    
-    ```elixir
-    #{data.code || "# No code generated"}
-    ```
-    
-    💡 Implementation Notes:
-    #{format_implementation_notes(data.notes)}
-    
-    🔧 Usage Instructions:
-    #{data.usage || "No specific usage instructions provided"}
+
+    #{format_explanation_overview(response)}
+
+    #{format_code_structure(response)}
+
+    #{format_key_concepts(response)}
+
+    #{format_complexity_analysis(response)}
     """
   end
-  
+
   @doc """
-  Format AI explanation results.
+  Format refactoring suggestions for preview.
   """
-  def format_explanation_result(response, level, focus) do
-    data = extract_explanation_data(response)
-    
+  def format_refactoring_preview(response) do
     """
-    📖 Code Explanation (#{level} level, #{focus} focus)
-    #{String.duplicate("=", 60)}
-    
-    ## Overview
-    #{data.overview || "No overview available"}
-    
-    ## Key Concepts
-    #{format_concepts_list(data.concepts)}
-    
-    ## Code Structure
-    #{data.structure || "No structure analysis available"}
-    
-    ## Implementation Details
-    #{data.details || "No implementation details available"}
-    
-    #{if level == "advanced", do: format_advanced_explanation(data), else: ""}
-    
-    ## Best Practices
-    #{format_best_practices(data.best_practices)}
+    🔄 Refactoring Preview
+    #{String.duplicate("=", 50)}
+
+    #{format_refactoring_summary(response)}
+
+    #{format_changes_preview(response)}
+
+    #{format_impact_analysis(response)}
+
+    💡 Use --apply to apply these changes or --preview=false to see suggestions only.
     """
   end
-  
+
   @doc """
-  Format AI refactoring results.
+  Format refactoring suggestions without preview.
   """
-  def format_refactor_result(response, refactor_type, show_preview \\ false) do
-    data = extract_refactor_data(response)
-    
-    base_output = """
-    🔧 Refactoring Analysis (#{refactor_type})
-    #{String.duplicate("=", 50)}
-    
-    ## Summary
-    #{data.summary || "No summary available"}
-    
-    ## Suggested Changes
-    #{format_refactor_suggestions(data.suggestions)}
-    
-    ## Impact Assessment
-    #{format_impact_assessment(data.impact)}
+  def format_refactoring_suggestions(response) do
     """
-    
-    if show_preview and data.preview_code do
-      base_output <> """
-      
-      ## Preview of Refactored Code
-      #{String.duplicate("-", 40)}
-      
-      ```elixir
-      #{data.preview_code}
-      ```
-      
-      To apply these changes, run with --apply flag.
-      """
-    else
-      base_output
+    🔄 Refactoring Suggestions
+    #{String.duplicate("=", 50)}
+
+    #{format_refactoring_summary(response)}
+
+    #{format_suggestions_list(response)}
+
+    #{format_next_steps(response)}
+    """
+  end
+
+  @doc """
+  Format workflow execution results.
+  """
+  def format_workflow_results(workflow_state) do
+    """
+    🔧 Workflow Execution Results
+    #{String.duplicate("=", 50)}
+
+    Status: #{format_workflow_status(workflow_state.status)}
+    Duration: #{format_duration(workflow_state.duration_ms)}
+    Steps Completed: #{length(workflow_state.completed_steps)}/#{length(workflow_state.all_steps)}
+
+    #{format_workflow_steps(workflow_state)}
+
+    #{format_workflow_artifacts(workflow_state)}
+    """
+  end
+
+  # Private formatting functions
+
+  defp format_analysis_summary(response) do
+    case Map.get(response, :summary) do
+      nil -> "No summary available."
+      summary -> 
+        """
+        Overall Assessment: #{Map.get(summary, :overall_score, "N/A")}/10
+        Code Quality: #{Map.get(summary, :quality_score, "N/A")}/10
+        Maintainability: #{Map.get(summary, :maintainability_score, "N/A")}/10
+        Performance: #{Map.get(summary, :performance_score, "N/A")}/10
+        
+        #{Map.get(summary, :description, "")}
+        """
     end
   end
-  
-  @doc """
-  Format AI workflow execution results.
-  """
-  def format_workflow_result(workflow_state, template) do
-    """
-    🔄 Workflow Execution: #{template}
-    #{String.duplicate("=", 50)}
-    
-    Status: #{workflow_state.status || "Unknown"}
-    Steps Completed: #{length(workflow_state.completed_steps || [])}
-    Duration: #{format_duration(workflow_state.duration_ms)}
-    
-    ## Execution Summary
-    #{workflow_state.summary || "No summary available"}
-    
-    ## Step Results
-    #{format_workflow_steps(workflow_state.completed_steps || [])}
-    
-    ## Final Output
-    #{workflow_state.final_output || "No final output generated"}
-    """
+
+  defp format_analysis_details(response) do
+    case Map.get(response, :details) do
+      nil -> ""
+      details ->
+        sections = for {category, items} <- details do
+          """
+          #{String.capitalize(to_string(category))}:
+          #{format_detail_items(items)}
+          """
+        end
+        Enum.join(sections, "\n")
+    end
   end
-  
-  @doc """
-  Format chat session information.
-  """
-  def format_chat_info(conversation_id, type, context) do
-    """
-    💬 AI Chat Session
-    #{String.duplicate("=", 30)}
-    
-    Conversation ID: #{conversation_id}
-    Type: #{type}
-    Context: #{context}
-    Started: #{DateTime.utc_now() |> Calendar.strftime("%Y-%m-%d %H:%M:%S")}
-    
-    Use 'aiex shell --mode chat' to continue this conversation.
-    """
-  end
-  
-  # Private helper functions for data extraction
-  
-  defp extract_analysis_data(response) do
-    %{
-      summary: get_nested(response, [:summary]) || get_nested(response, [:result, :summary]),
-      quality_score: get_nested(response, [:quality_score]) || get_nested(response, [:result, :quality_score]),
-      issues: get_nested(response, [:issues]) || get_nested(response, [:result, :issues]) || [],
-      recommendations: get_nested(response, [:recommendations]) || get_nested(response, [:result, :recommendations]) || [],
-      insights: get_nested(response, [:insights]) || get_nested(response, [:result, :insights])
-    }
-  end
-  
-  defp extract_generation_data(response) do
-    %{
-      description: get_nested(response, [:description]) || get_nested(response, [:result, :description]),
-      code: get_nested(response, [:artifacts, :code]) || get_nested(response, [:result, :code]),
-      notes: get_nested(response, [:notes]) || get_nested(response, [:result, :notes]) || [],
-      usage: get_nested(response, [:usage]) || get_nested(response, [:result, :usage])
-    }
-  end
-  
-  defp extract_explanation_data(response) do
-    %{
-      overview: get_nested(response, [:overview]) || get_nested(response, [:result, :overview]),
-      concepts: get_nested(response, [:concepts]) || get_nested(response, [:result, :concepts]) || [],
-      structure: get_nested(response, [:structure]) || get_nested(response, [:result, :structure]),
-      details: get_nested(response, [:details]) || get_nested(response, [:result, :details]),
-      best_practices: get_nested(response, [:best_practices]) || get_nested(response, [:result, :best_practices]) || []
-    }
-  end
-  
-  defp extract_refactor_data(response) do
-    %{
-      summary: get_nested(response, [:summary]) || get_nested(response, [:result, :summary]),
-      suggestions: get_nested(response, [:suggestions]) || get_nested(response, [:result, :suggestions]) || [],
-      impact: get_nested(response, [:impact]) || get_nested(response, [:result, :impact]),
-      preview_code: get_nested(response, [:artifacts, :code]) || get_nested(response, [:result, :refactored_code])
-    }
-  end
-  
-  defp get_nested(map, keys) when is_map(map) do
-    Enum.reduce(keys, map, fn key, acc ->
-      if is_map(acc), do: Map.get(acc, key), else: nil
-    end)
-  end
-  defp get_nested(_, _), do: nil
-  
-  # Formatting helper functions
-  
-  defp format_issues_markdown([]), do: "No issues found."
-  defp format_issues_markdown(issues) do
-    issues
-    |> Enum.map(fn issue ->
-      severity = Map.get(issue, :severity, "info")
-      message = Map.get(issue, :message, "Unknown issue")
-      "- **#{String.upcase(severity)}**: #{message}"
-    end)
-    |> Enum.join("\n")
-  end
-  
-  defp format_issues_text([]), do: "✅ No issues found."
-  defp format_issues_text(issues) do
-    header = "⚠️  Issues Found (#{length(issues)}):\n"
-    
-    issue_list = issues
-    |> Enum.with_index(1)
-    |> Enum.map(fn {issue, index} ->
-      severity = Map.get(issue, :severity, "info")
-      message = Map.get(issue, :message, "Unknown issue")
-      severity_icon = case severity do
-        "error" -> "❌"
-        "warning" -> "⚠️"
-        "info" -> "ℹ️"
-        _ -> "•"
+
+  defp format_detail_items(items) when is_list(items) do
+    items
+    |> Enum.map(fn item ->
+      case item do
+        %{severity: severity, message: message, line: line} ->
+          "  • [#{severity}] Line #{line}: #{message}"
+        %{message: message} ->
+          "  • #{message}"
+        item when is_binary(item) ->
+          "  • #{item}"
+        _ ->
+          "  • #{inspect(item)}"
       end
-      "   #{index}. #{severity_icon} #{message}"
     end)
     |> Enum.join("\n")
-    
-    header <> issue_list
   end
-  
-  defp format_recommendations_markdown([]), do: "No specific recommendations."
-  defp format_recommendations_markdown(recommendations) do
+
+  defp format_detail_items(items), do: "  • #{inspect(items)}"
+
+  defp format_recommendations(response) do
+    case Map.get(response, :recommendations) do
+      nil -> ""
+      recommendations when is_list(recommendations) ->
+        """
+        💡 Recommendations:
+        #{format_recommendation_list(recommendations)}
+        """
+      recommendations ->
+        "💡 Recommendations: #{recommendations}"
+    end
+  end
+
+  defp format_recommendation_list(recommendations) do
     recommendations
-    |> Enum.map(fn rec ->
-      title = Map.get(rec, :title, "Recommendation")
-      description = Map.get(rec, :description, "No description")
-      "- **#{title}**: #{description}"
-    end)
-    |> Enum.join("\n")
-  end
-  
-  defp format_recommendations_text([]), do: "💡 No specific recommendations."
-  defp format_recommendations_text(recommendations) do
-    header = "🔧 Recommendations (#{length(recommendations)}):\n"
-    
-    rec_list = recommendations
     |> Enum.with_index(1)
     |> Enum.map(fn {rec, index} ->
-      title = Map.get(rec, :title, "Recommendation")
-      description = Map.get(rec, :description, "No description")
-      "   #{index}. #{title}: #{description}"
-    end)
-    |> Enum.join("\n")
-    
-    header <> rec_list
-  end
-  
-  defp format_concepts_list([]), do: "No key concepts identified."
-  defp format_concepts_list(concepts) do
-    concepts
-    |> Enum.map(fn concept ->
-      name = Map.get(concept, :name, "Unknown")
-      description = Map.get(concept, :description, "No description")
-      "• **#{name}**: #{description}"
-    end)
-    |> Enum.join("\n")
-  end
-  
-  defp format_implementation_notes([]), do: "No specific implementation notes."
-  defp format_implementation_notes(notes) do
-    notes
-    |> Enum.map(fn note -> "• #{note}" end)
-    |> Enum.join("\n")
-  end
-  
-  defp format_best_practices([]), do: "No specific best practices identified."
-  defp format_best_practices(practices) do
-    practices
-    |> Enum.map(fn practice -> "• #{practice}" end)
-    |> Enum.join("\n")
-  end
-  
-  defp format_advanced_explanation(data) do
-    case Map.get(data, :advanced_topics) do
-      nil -> ""
-      topics ->
-        """
-        
-        ## Advanced Topics
-        #{format_advanced_topics(topics)}
-        """
-    end
-  end
-  
-  defp format_advanced_topics(topics) when is_list(topics) do
-    topics
-    |> Enum.map(fn topic ->
-      title = Map.get(topic, :title, "Advanced Topic")
-      content = Map.get(topic, :content, "No content")
-      "### #{title}\n#{content}"
+      case rec do
+        %{priority: priority, action: action, description: description} ->
+          "#{index}. [#{priority}] #{action}\n   #{description}"
+        %{action: action, description: description} ->
+          "#{index}. #{action}\n   #{description}"
+        rec when is_binary(rec) ->
+          "#{index}. #{rec}"
+        _ ->
+          "#{index}. #{inspect(rec)}"
+      end
     end)
     |> Enum.join("\n\n")
   end
-  defp format_advanced_topics(_), do: "No advanced topics available."
-  
-  defp format_refactor_suggestions([]), do: "No refactoring suggestions."
-  defp format_refactor_suggestions(suggestions) do
-    suggestions
-    |> Enum.with_index(1)
-    |> Enum.map(fn {suggestion, index} ->
-      title = Map.get(suggestion, :title, "Refactoring")
-      description = Map.get(suggestion, :description, "No description")
-      impact = Map.get(suggestion, :impact, "unknown")
-      "   #{index}. #{title} (Impact: #{impact})\n      #{description}"
+
+  defp format_explanation_overview(response) do
+    case Map.get(response, :overview) do
+      nil -> "No overview available."
+      overview ->
+        """
+        Purpose: #{Map.get(overview, :purpose, "Not specified")}
+        Language: #{Map.get(overview, :language, "Unknown")}
+        Complexity: #{Map.get(overview, :complexity_level, "Unknown")}
+        
+        #{Map.get(overview, :description, "")}
+        """
+    end
+  end
+
+  defp format_code_structure(response) do
+    case Map.get(response, :structure) do
+      nil -> ""
+      structure ->
+        """
+        📁 Code Structure:
+        #{format_structure_items(structure)}
+        """
+    end
+  end
+
+  defp format_structure_items(structure) when is_map(structure) do
+    for {category, items} <- structure do
+      """
+      #{String.capitalize(to_string(category))}:
+      #{format_structure_list(items)}
+      """
+    end
+    |> Enum.join("\n")
+  end
+
+  defp format_structure_items(structure), do: inspect(structure)
+
+  defp format_structure_list(items) when is_list(items) do
+    items
+    |> Enum.map(fn item ->
+      case item do
+        %{name: name, line: line, description: desc} ->
+          "  • #{name} (line #{line}): #{desc}"
+        %{name: name, description: desc} ->
+          "  • #{name}: #{desc}"
+        %{name: name} ->
+          "  • #{name}"
+        item when is_binary(item) ->
+          "  • #{item}"
+        _ ->
+          "  • #{inspect(item)}"
+      end
     end)
     |> Enum.join("\n")
   end
-  
-  defp format_impact_assessment(nil), do: "No impact assessment available."
-  defp format_impact_assessment(impact) do
-    """
-    Risk Level: #{Map.get(impact, :risk, "unknown")}
-    Estimated Effort: #{Map.get(impact, :effort, "unknown")}
-    Benefits: #{Map.get(impact, :benefits, "Not specified")}
-    """
+
+  defp format_structure_list(items), do: "  • #{inspect(items)}"
+
+  defp format_key_concepts(response) do
+    case Map.get(response, :key_concepts) do
+      nil -> ""
+      concepts when is_list(concepts) ->
+        """
+        🔑 Key Concepts:
+        #{format_concept_list(concepts)}
+        """
+      concepts ->
+        "🔑 Key Concepts: #{concepts}"
+    end
   end
-  
-  defp format_workflow_steps([]), do: "No steps completed."
-  defp format_workflow_steps(steps) do
+
+  defp format_concept_list(concepts) do
+    concepts
+    |> Enum.map(fn concept ->
+      case concept do
+        %{term: term, explanation: explanation} ->
+          "  • #{term}: #{explanation}"
+        concept when is_binary(concept) ->
+          "  • #{concept}"
+        _ ->
+          "  • #{inspect(concept)}"
+      end
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_complexity_analysis(response) do
+    case Map.get(response, :complexity) do
+      nil -> ""
+      complexity ->
+        """
+        📈 Complexity Analysis:
+        Cyclomatic Complexity: #{Map.get(complexity, :cyclomatic, "N/A")}
+        Cognitive Complexity: #{Map.get(complexity, :cognitive, "N/A")}
+        Lines of Code: #{Map.get(complexity, :loc, "N/A")}
+        
+        #{Map.get(complexity, :assessment, "")}
+        """
+    end
+  end
+
+  defp format_refactoring_summary(response) do
+    case Map.get(response, :summary) do
+      nil -> "No refactoring summary available."
+      summary ->
+        """
+        Refactoring Type: #{Map.get(summary, :type, "General")}
+        Estimated Impact: #{Map.get(summary, :impact_level, "Unknown")}
+        Changes Proposed: #{Map.get(summary, :changes_count, 0)}
+        
+        #{Map.get(summary, :description, "")}
+        """
+    end
+  end
+
+  defp format_changes_preview(response) do
+    case Map.get(response, :changes_preview) do
+      nil -> ""
+      preview ->
+        """
+        📝 Changes Preview:
+        #{preview}
+        """
+    end
+  end
+
+  defp format_impact_analysis(response) do
+    case Map.get(response, :impact_analysis) do
+      nil -> ""
+      impact ->
+        """
+        📊 Impact Analysis:
+        Breaking Changes: #{if Map.get(impact, :has_breaking_changes), do: "Yes", else: "No"}
+        Test Updates Required: #{if Map.get(impact, :requires_test_updates), do: "Yes", else: "No"}
+        Dependencies Affected: #{Map.get(impact, :dependencies_affected, 0)}
+        
+        #{Map.get(impact, :notes, "")}
+        """
+    end
+  end
+
+  defp format_suggestions_list(response) do
+    case Map.get(response, :suggestions) do
+      nil -> "No suggestions available."
+      suggestions when is_list(suggestions) ->
+        suggestions
+        |> Enum.with_index(1)
+        |> Enum.map(fn {suggestion, index} ->
+          case suggestion do
+            %{title: title, description: description, difficulty: difficulty} ->
+              "#{index}. #{title} [#{difficulty}]\n   #{description}"
+            %{title: title, description: description} ->
+              "#{index}. #{title}\n   #{description}"
+            suggestion when is_binary(suggestion) ->
+              "#{index}. #{suggestion}"
+            _ ->
+              "#{index}. #{inspect(suggestion)}"
+          end
+        end)
+        |> Enum.join("\n\n")
+      suggestions ->
+        inspect(suggestions)
+    end
+  end
+
+  defp format_next_steps(response) do
+    case Map.get(response, :next_steps) do
+      nil -> ""
+      steps when is_list(steps) ->
+        """
+        
+        🎯 Recommended Next Steps:
+        #{Enum.with_index(steps, 1) |> Enum.map(fn {step, i} -> "#{i}. #{step}" end) |> Enum.join("\n")}
+        """
+      steps ->
+        "\n🎯 Next Steps: #{steps}"
+    end
+  end
+
+  defp format_workflow_status(:completed), do: "✅ Completed"
+  defp format_workflow_status(:failed), do: "❌ Failed"
+  defp format_workflow_status(:running), do: "🔄 Running"
+  defp format_workflow_status(:pending), do: "⏳ Pending"
+  defp format_workflow_status(status), do: "#{status}"
+
+  defp format_duration(nil), do: "N/A"
+  defp format_duration(ms) when ms < 1000, do: "#{ms}ms"
+  defp format_duration(ms) when ms < 60_000 do
+    seconds = div(ms, 1000)
+    "#{seconds}s"
+  end
+  defp format_duration(ms) do
+    minutes = div(ms, 60_000)
+    seconds = div(rem(ms, 60_000), 1000)
+    "#{minutes}m #{seconds}s"
+  end
+
+  defp format_workflow_steps(workflow_state) do
+    case Map.get(workflow_state, :completed_steps) do
+      nil -> ""
+      completed_steps ->
+        """
+        
+        📋 Completed Steps:
+        #{format_step_list(completed_steps)}
+        """
+    end
+  end
+
+  defp format_step_list(steps) when is_list(steps) do
     steps
     |> Enum.with_index(1)
     |> Enum.map(fn {step, index} ->
-      name = Map.get(step, :name, "Step #{index}")
-      status = Map.get(step, :status, "unknown")
-      duration = Map.get(step, :duration_ms, 0)
-      status_icon = if status == "completed", do: "✅", else: "❌"
-      "   #{index}. #{status_icon} #{name} (#{format_duration(duration)})"
+      case step do
+        %{name: name, status: status, duration_ms: duration} ->
+          "#{index}. #{name} - #{format_workflow_status(status)} (#{format_duration(duration)})"
+        %{name: name, status: status} ->
+          "#{index}. #{name} - #{format_workflow_status(status)}"
+        %{name: name} ->
+          "#{index}. #{name}"
+        step when is_binary(step) ->
+          "#{index}. #{step}"
+        _ ->
+          "#{index}. #{inspect(step)}"
+      end
     end)
     |> Enum.join("\n")
   end
-  
-  defp format_duration(nil), do: "0ms"
-  defp format_duration(ms) when is_integer(ms) do
-    cond do
-      ms < 1000 -> "#{ms}ms"
-      ms < 60_000 -> "#{Float.round(ms / 1000, 1)}s"
-      true -> 
-        minutes = div(ms, 60_000)
-        seconds = div(rem(ms, 60_000), 1000)
-        "#{minutes}m #{seconds}s"
+
+  defp format_step_list(steps), do: inspect(steps)
+
+  defp format_workflow_artifacts(workflow_state) do
+    case Map.get(workflow_state, :artifacts) do
+      nil -> ""
+      artifacts when map_size(artifacts) == 0 -> ""
+      artifacts ->
+        """
+        
+        📦 Generated Artifacts:
+        #{format_artifact_list(artifacts)}
+        """
     end
   end
-  defp format_duration(_), do: "unknown"
+
+  defp format_artifact_list(artifacts) when is_map(artifacts) do
+    for {type, items} <- artifacts do
+      """
+      #{String.capitalize(to_string(type))}:
+      #{format_artifact_items(items)}
+      """
+    end
+    |> Enum.join("\n")
+  end
+
+  defp format_artifact_items(items) when is_list(items) do
+    items
+    |> Enum.map(fn item ->
+      case item do
+        %{path: path, size: size} ->
+          "  • #{path} (#{format_file_size(size)})"
+        %{path: path} ->
+          "  • #{path}"
+        item when is_binary(item) ->
+          "  • #{item}"
+        _ ->
+          "  • #{inspect(item)}"
+      end
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_artifact_items(items), do: "  • #{inspect(items)}"
+
+  defp format_file_size(size) when size < 1024, do: "#{size} bytes"
+  defp format_file_size(size) when size < 1024 * 1024 do
+    kb = Float.round(size / 1024, 1)
+    "#{kb} KB"
+  end
+  defp format_file_size(size) do
+    mb = Float.round(size / (1024 * 1024), 1)
+    "#{mb} MB"
+  end
+  
 end
