@@ -199,12 +199,16 @@ defmodule Aiex.CLI.Commands do
           options: [
             file: [
               value_name: "FILE",
+              short: "-f",
+              long: "--file",
               help: "File to analyze",
               required: true,
               parser: :string
             ],
             type: [
               value_name: "TYPE",
+              short: "-t",
+              long: "--type",
               help: "Analysis type (quality, performance, security)",
               required: false,
               parser: :string,
@@ -212,6 +216,8 @@ defmodule Aiex.CLI.Commands do
             ],
             output: [
               value_name: "FORMAT",
+              short: "-o",
+              long: "--output",
               help: "Output format (text, json, markdown)",
               required: false,
               parser: :string,
@@ -226,24 +232,32 @@ defmodule Aiex.CLI.Commands do
           options: [
             type: [
               value_name: "TYPE",
+              short: "-t",
+              long: "--type",
               help: "Generation type (module, function, test)",
               required: true,
               parser: :string
             ],
             requirements: [
               value_name: "TEXT",
+              short: "-r",
+              long: "--requirements",
               help: "Requirements description",
               required: true,
               parser: :string
             ],
             context: [
               value_name: "FILE",
+              short: "-c",
+              long: "--context",
               help: "Context file for generation",
               required: false,
               parser: :string
             ],
             output: [
               value_name: "FILE",
+              short: "-o",
+              long: "--output",
               help: "Output file (default: stdout)",
               required: false,
               parser: :string
@@ -256,13 +270,17 @@ defmodule Aiex.CLI.Commands do
           args: [],
           options: [
             file: [
-              value_name: "FILE", 
+              value_name: "FILE",
+              short: "-f",
+              long: "--file",
               help: "File to explain",
               required: true,
               parser: :string
             ],
             level: [
               value_name: "LEVEL",
+              short: "-l",
+              long: "--level",
               help: "Detail level (basic, intermediate, advanced)",
               required: false,
               parser: :string,
@@ -270,6 +288,7 @@ defmodule Aiex.CLI.Commands do
             ],
             focus: [
               value_name: "FOCUS",
+              long: "--focus",
               help: "Focus area (comprehensive, patterns, architecture)",
               required: false,
               parser: :string,
@@ -284,12 +303,16 @@ defmodule Aiex.CLI.Commands do
           options: [
             file: [
               value_name: "FILE",
+              short: "-f",
+              long: "--file",
               help: "File to refactor",
               required: true,
               parser: :string
             ],
             type: [
               value_name: "TYPE",
+              short: "-t",
+              long: "--type",
               help: "Refactoring type (all, performance, readability)",
               required: false,
               parser: :string,
@@ -298,9 +321,13 @@ defmodule Aiex.CLI.Commands do
           ],
           flags: [
             apply: [
+              short: "-a",
+              long: "--apply",
               help: "Apply refactoring changes to file"
             ],
             preview: [
+              short: "-p",
+              long: "--preview",
               help: "Show refactoring preview"
             ]
           ]
@@ -312,24 +339,32 @@ defmodule Aiex.CLI.Commands do
           options: [
             template: [
               value_name: "TEMPLATE",
+              short: "-t",
+              long: "--template",
               help: "Workflow template name",
               required: true,
               parser: :string
             ],
             context: [
               value_name: "FILE",
+              short: "-c",
+              long: "--context",
               help: "Context file for workflow",
               required: false,
               parser: :string
             ],
             description: [
               value_name: "TEXT",
+              short: "-d",
+              long: "--description",
               help: "Workflow description",
               required: false,
               parser: :string
             ],
             mode: [
-              value_name: "MODE", 
+              value_name: "MODE",
+              short: "-m",
+              long: "--mode",
               help: "Execution mode (sequential, parallel)",
               required: false,
               parser: :string,
@@ -344,6 +379,8 @@ defmodule Aiex.CLI.Commands do
           options: [
             conversation_type: [
               value_name: "TYPE",
+              short: "-t",
+              long: "--type",
               help: "Conversation type (coding, general, debug)",
               required: false,
               parser: :string,
@@ -351,6 +388,8 @@ defmodule Aiex.CLI.Commands do
             ],
             context: [
               value_name: "DIR",
+              short: "-c",
+              long: "--context",
               help: "Project context directory",
               required: false,
               parser: :string,
@@ -370,12 +409,16 @@ defmodule Aiex.CLI.Commands do
       options: [
         project_dir: [
           value_name: "DIR",
+          short: "-d",
+          long: "--project-dir",
           help: "Project directory for context",
           required: false,
           parser: :string
         ],
         mode: [
           value_name: "MODE",
+          short: "-m",
+          long: "--mode",
           help: "Shell mode (interactive, command, chat)",
           required: false,
           parser: :string,
@@ -383,6 +426,8 @@ defmodule Aiex.CLI.Commands do
         ],
         save_session: [
           value_name: "FILE",
+          short: "-s",
+          long: "--save-session",
           help: "Auto-save session to file",
           required: false,
           parser: :string
@@ -390,9 +435,12 @@ defmodule Aiex.CLI.Commands do
       ],
       flags: [
         no_auto_save: [
+          long: "--no-auto-save",
           help: "Disable automatic session saving"
         ],
         verbose: [
+          short: "-v",
+          long: "--verbose",
           help: "Enable verbose output"
         ]
       ]
