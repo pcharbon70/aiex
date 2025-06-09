@@ -132,19 +132,19 @@ defmodule Aiex.LLM.Templates.TemplateCompiler do
   defp classify_token(token) do
     cond do
       String.starts_with?(token, "{{#") ->
-        condition_name = String.slice(token, 3..-3)
+        condition_name = String.slice(token, 3..-3//-1)
         {:condition_start, String.trim(condition_name)}
       
       String.starts_with?(token, "{{/") ->
-        condition_name = String.slice(token, 3..-3)
+        condition_name = String.slice(token, 3..-3//-1)
         {:condition_end, String.trim(condition_name)}
       
       String.starts_with?(token, "{{>") ->
-        include_name = String.slice(token, 3..-3)
+        include_name = String.slice(token, 3..-3//-1)
         {:include, String.trim(include_name)}
       
       String.starts_with?(token, "{{") and String.ends_with?(token, "}}") ->
-        variable_name = String.slice(token, 2..-3)
+        variable_name = String.slice(token, 2..-3//-1)
         {:variable, String.trim(variable_name)}
       
       true ->
@@ -167,7 +167,7 @@ defmodule Aiex.LLM.Templates.TemplateCompiler do
     parse_tokens_recursive(remaining_tokens, [condition_node | acc], stack)
   end
   
-  defp parse_tokens_recursive([{:condition_end, _name} | rest], acc, stack) do
+  defp parse_tokens_recursive([{:condition_end, _name} | rest], acc, _stack) do
     {Enum.reverse(acc), rest}
   end
   
@@ -206,6 +206,10 @@ defmodule Aiex.LLM.Templates.TemplateCompiler do
   
   defp compile_content_part(ast) when is_list(ast) do
     Enum.map(ast, &compile_ast_node/1)
+  end
+  
+  defp compile_content_part(ast) do
+    compile_ast_node(ast)
   end
   
   defp compile_ast_node({:text, text}), do: {:static, text}
@@ -318,7 +322,7 @@ defmodule Aiex.LLM.Templates.TemplateCompiler do
           _ -> 
             # Remove quotes if present
             if String.starts_with?(value, "\"") and String.ends_with?(value, "\"") do
-              String.slice(value, 1..-2)
+              String.slice(value, 1..-2//-1)
             else
               value
             end
