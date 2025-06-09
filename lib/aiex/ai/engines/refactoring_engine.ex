@@ -441,7 +441,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
       {:ok, rendered_prompt} -> 
         rendered_prompt
       {:error, reason} ->
-        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        Logger.warning("Template rendering failed, falling back to legacy prompt: #{reason}")
         generate_legacy_refactoring_prompt(code_content, refactoring_type, code_metrics, project_context)
     end
   end

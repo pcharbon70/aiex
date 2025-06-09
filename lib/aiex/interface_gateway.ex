@@ -643,7 +643,7 @@ defmodule Aiex.InterfaceGateway do
             send(pid, {:interface_event, event_type, event_data})
 
           nil ->
-            Logger.warn("Interface #{interface_id} not found for event forwarding")
+            Logger.warning("Interface #{interface_id} not found for event forwarding")
         end
       end
     end)

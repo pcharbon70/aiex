@@ -319,7 +319,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
       {:ok, rendered_prompt} -> 
         rendered_prompt
       {:error, reason} ->
-        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        Logger.warning("Template rendering failed, falling back to legacy prompt: #{reason}")
         generate_legacy_explanation_prompt(code_content, context, project_context, state)
     end
   end

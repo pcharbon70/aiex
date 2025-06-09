@@ -221,7 +221,7 @@ defmodule Aiex.Config.DistributedConfig do
             merge_node_config(node_config, node)
 
           {:error, reason} ->
-            Logger.warn("Failed to sync config with #{node}: #{inspect(reason)}")
+            Logger.warning("Failed to sync config with #{node}: #{inspect(reason)}")
         end
       end)
     end)
@@ -236,7 +236,7 @@ defmodule Aiex.Config.DistributedConfig do
         Logger.info("Successfully synced config to new node: #{new_node}")
 
       {:error, reason} ->
-        Logger.warn("Failed to sync config to new node #{new_node}: #{inspect(reason)}")
+        Logger.warning("Failed to sync config to new node #{new_node}: #{inspect(reason)}")
     end
   end
 

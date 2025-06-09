@@ -312,7 +312,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
       {:ok, rendered_prompt} -> 
         rendered_prompt
       {:error, reason} ->
-        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        Logger.warning("Template rendering failed, falling back to legacy prompt: #{reason}")
         generate_legacy_analysis_prompt(analysis_type, code_content, context)
     end
   end

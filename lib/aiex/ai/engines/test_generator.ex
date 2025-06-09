@@ -446,7 +446,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
       {:ok, rendered_prompt} -> 
         rendered_prompt
       {:error, reason} ->
-        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        Logger.warning("Template rendering failed, falling back to legacy prompt: #{reason}")
         generate_legacy_test_prompt(code_content, test_type, code_analysis, project_context, options)
     end
   end
