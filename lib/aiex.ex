@@ -148,6 +148,9 @@ defmodule Aiex do
         # Distributed LLM Model Coordinator
         {Aiex.LLM.ModelCoordinator, []},
 
+        # Template system for AI prompts (integrated but supervisor pending)
+        # Aiex.LLM.Templates.TemplateRegistry,
+
         # Semantic Analysis
         Aiex.Semantic.Chunker,
 
