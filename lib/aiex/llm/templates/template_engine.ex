@@ -125,10 +125,8 @@ defmodule Aiex.LLM.Templates.TemplateEngine do
   
   @impl true
   def init(opts) do
-    # Start template registry
-    {:ok, registry_pid} = TemplateRegistry.start_link(opts)
-    
-    # Initialize context injector
+    # Template registry is already started by supervisor
+    # Just initialize context injector
     context_injector = ContextInjector.init(
       Keyword.get(opts, :context_config, [])
     )
@@ -141,7 +139,7 @@ defmodule Aiex.LLM.Templates.TemplateEngine do
     }
     
     state = %__MODULE__{
-      registry: registry_pid,
+      registry: Aiex.LLM.Templates.TemplateRegistry,
       context_injector: context_injector,
       config: config,
       performance_metrics: %{
