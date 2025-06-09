@@ -23,12 +23,38 @@ Complete specification of the planned feature set for Aiex. This represents the 
 - TUI interface specifications
 - Comprehensive LLM integration
 
+### [Templating Engine](templating_engine.md)
+Comprehensive guide to Aiex's templating engine for managing AI prompts and generating consistent, high-quality interactions with language models.
+
+**Contents:**
+- Architecture and components overview
+- Template structure and syntax
+- Built-in templates (workflow, operation, conversation)
+- Creating and registering custom templates
+- Variable substitution and conditional logic
+- Context injection and performance optimization
+- API reference and troubleshooting
+
+### [Intelligent Language Processing](intelligent_language_processing.md)
+Complete guide to Aiex's sophisticated language processing system that provides advanced code understanding, semantic analysis, and context management.
+
+**Contents:**
+- Semantic chunking with AST-based parsing
+- Context management and session awareness
+- Multi-strategy context compression
+- Multi-LLM coordination with circuit breaker protection
+- Distributed processing and fault tolerance
+- Performance optimization and caching strategies
+- Integration examples and best practices
+
 ## Quick Start
 
 If you're new to Aiex:
 
 1. **Start with [Current Features](current_features.md)** to understand what's available now
 2. **Reference [Planned Features](planned_features.md)** to see the project's direction and planned capabilities
+3. **Read [Intelligent Language Processing](intelligent_language_processing.md)** to understand the core language processing system
+4. **Study [Templating Engine](templating_engine.md)** to learn how AI prompts are managed and customized
 
 ## Development Status
 
@@ -38,6 +64,7 @@ The project has a solid foundation with:
 - ✅ CLI framework and basic commands functional
 - ✅ LLM adapter architecture in place
 - ✅ AI coordinators implemented (Phase 6.3)
+- ✅ Template system implemented (Phase 6.5)
 
 Currently working on:
 - 🔄 AI command integration (Phase 6.4)
