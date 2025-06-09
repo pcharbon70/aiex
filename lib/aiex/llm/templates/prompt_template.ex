@@ -1,10 +1,14 @@
 defmodule Aiex.LLM.Templates.PromptTemplate do
   @moduledoc """
-  Prompt templating system for consistent and reusable prompts.
-
-  Supports variable substitution, conditional sections, and template inheritance
-  to create maintainable and flexible prompts for different coding tasks.
+  Legacy prompt templating system for backward compatibility.
+  
+  This module provides backward compatibility with the old template system
+  while delegating to the new enhanced template engine for actual functionality.
+  
+  For new code, use Aiex.LLM.Templates.TemplateEngine directly.
   """
+
+  alias Aiex.LLM.Templates.{Template, TemplateEngine}
 
   @type template :: %__MODULE__{
           name: String.t(),
@@ -19,6 +23,8 @@ defmodule Aiex.LLM.Templates.PromptTemplate do
             user_template: "",
             variables: [],
             metadata: %{}
+
+  @deprecated "Use Aiex.LLM.Templates.TemplateEngine instead"
 
   @doc """
   Create a new prompt template.
@@ -36,14 +42,62 @@ defmodule Aiex.LLM.Templates.PromptTemplate do
 
   @doc """
   Render a template with the given variables.
+  
+  This function provides backward compatibility by converting the legacy
+  template to the new format and using the enhanced template engine.
   """
   @spec render(template(), map()) :: {:ok, [Aiex.LLM.Adapter.message()]} | {:error, String.t()}
   def render(template, variables \\ %{}) do
-    with :ok <- validate_variables(template, variables),
-         {:ok, rendered_user} <- render_template(template.user_template, variables) do
-      messages = build_message_list(template.system_prompt, rendered_user, variables)
-      {:ok, messages}
+    # Convert legacy template to new format
+    case convert_to_new_template(template) do
+      {:ok, new_template} ->
+        case TemplateEngine.render_template_struct(new_template, variables) do
+          {:ok, result} -> {:ok, format_as_messages(result.rendered_content, template.system_prompt)}
+          {:error, reason} -> {:error, inspect(reason)}
+        end
+      {:error, reason} ->
+        {:error, "Failed to convert template: #{inspect(reason)}"}
     end
+  end
+
+  defp convert_to_new_template(legacy_template) do
+    # Convert legacy format to new template structure
+    content = if legacy_template.system_prompt do
+      [
+        %{role: "system", content: legacy_template.system_prompt},
+        %{role: "user", content: legacy_template.user_template}
+      ]
+    else
+      legacy_template.user_template
+    end
+
+    variables = Enum.map(legacy_template.variables, fn var_name ->
+      Template.variable(to_string(var_name), :string, description: "Legacy variable")
+    end)
+
+    Template.new(%{
+      name: legacy_template.name,
+      description: "Converted from legacy template",
+      content: content,
+      variables: variables,
+      metadata: legacy_template.metadata
+    })
+  end
+
+  defp format_as_messages(rendered_content, _system_prompt) when is_list(rendered_content) do
+    rendered_content
+  end
+
+  defp format_as_messages(rendered_content, system_prompt) when is_binary(rendered_content) do
+    messages = if system_prompt do
+      [
+        %{role: "system", content: system_prompt},
+        %{role: "user", content: rendered_content}
+      ]
+    else
+      [%{role: "user", content: rendered_content}]
+    end
+    messages
   end
 
   @doc """
@@ -224,64 +278,6 @@ defmodule Aiex.LLM.Templates.PromptTemplate do
     |> Enum.uniq()
   end
 
-  defp validate_variables(template, variables) do
-    required_vars = template.variables
-    provided_vars = Map.keys(variables) |> MapSet.new()
-    required_set = MapSet.new(required_vars)
-
-    missing = MapSet.difference(required_set, provided_vars) |> MapSet.to_list()
-
-    if missing == [] do
-      :ok
-    else
-      {:error, "Missing required variables: #{inspect(missing)}"}
-    end
-  end
-
-  defp render_template(template, variables) do
-    try do
-      rendered =
-        Enum.reduce(variables, template, fn {key, value}, acc ->
-          # Handle conditional sections {{#key}}...{{/key}}
-          acc = render_conditional_sections(acc, key, value)
-
-          # Handle simple variable substitution {{key}}
-          String.replace(acc, "{{#{key}}}", to_string(value))
-        end)
-
-      # Remove any unprocessed conditional sections
-      cleaned = Regex.replace(~r/\{\{#\w+\}\}.*?\{\{\/\w+\}\}/s, rendered, "")
-
-      {:ok, cleaned}
-    rescue
-      e -> {:error, "Template rendering failed: #{Exception.message(e)}"}
-    end
-  end
-
-  defp render_conditional_sections(template, key, value) do
-    pattern = ~r/\{\{##{key}\}\}(.*?)\{\{\/#{key}\}\}/s
-
-    if value && value != "" && value != false do
-      # Render the section
-      Regex.replace(pattern, template, "\\1")
-    else
-      # Remove the section
-      Regex.replace(pattern, template, "")
-    end
-  end
-
-  defp build_message_list(nil, user_content, _variables) do
-    [%{role: :user, content: user_content}]
-  end
-
-  defp build_message_list(system_template, user_content, variables) do
-    {:ok, system_content} = render_template(system_template, variables)
-
-    [
-      %{role: :system, content: system_content},
-      %{role: :user, content: user_content}
-    ]
-  end
 
   defp load_template_file(file_path) do
     try do

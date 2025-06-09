@@ -1,5 +1,6 @@
 defmodule Aiex.CLI.Commands.AI do
   @moduledoc """
+
   AI command handler for enhanced AI-powered coding assistance.
   
   Integrates with the AI coordinators to provide intelligent command-line
@@ -14,6 +15,7 @@ defmodule Aiex.CLI.Commands.AI do
   alias Aiex.LLM.Templates.{TemplateRegistry, TemplateEngine}
   alias Aiex.LLM.ModelCoordinator
 
+
   @impl true
   def execute({[:ai], %Optimus.ParseResult{args: args} = parsed}) do
     case Map.keys(args) do
@@ -23,6 +25,7 @@ defmodule Aiex.CLI.Commands.AI do
       [:refactor] -> ai_refactor(parsed)
       [:workflow] -> ai_workflow(parsed)
       [:chat] -> ai_chat(parsed)
+
       [:template] -> ai_template(parsed)
       [] -> {:error, "No AI subcommand specified. Use 'aiex help ai' for options."}
       _ -> {:error, "Invalid AI subcommand. Use 'aiex help ai' for options."}
@@ -645,4 +648,5 @@ defmodule Aiex.CLI.Commands.AI do
         {:error, "AI generation failed: #{reason}"}
     end
   end
+
 end

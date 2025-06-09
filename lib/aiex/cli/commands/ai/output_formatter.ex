@@ -1,5 +1,6 @@
 defmodule Aiex.CLI.Commands.AI.OutputFormatter do
   @moduledoc """
+
   Output formatting utilities for AI command responses.
   
   Provides consistent formatting for different types of AI outputs including
@@ -476,4 +477,5 @@ defmodule Aiex.CLI.Commands.AI.OutputFormatter do
     mb = Float.round(size / (1024 * 1024), 1)
     "#{mb} MB"
   end
+  
 end

@@ -154,6 +154,9 @@ defmodule Aiex do
         # Semantic Analysis
         Aiex.Semantic.Chunker,
 
+        # Template system for AI prompts
+        Aiex.LLM.Templates.Supervisor,
+
         # Interface Gateway for unified access
         {Aiex.InterfaceGateway, []},
 
