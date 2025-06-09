@@ -13,6 +13,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   @behaviour Aiex.AI.Behaviours.AIEngine
   
   alias Aiex.LLM.ModelCoordinator
+  alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.Semantic.Chunker
@@ -298,6 +299,26 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   end
   
   defp generate_analysis_prompt(analysis_type, code_content, context) do
+    # Use the template system for consistent, structured analysis prompts
+    template_context = %{
+      intent: :analyze,
+      code: code_content,
+      analysis_type: analysis_type,
+      project_context: context,
+      interface: Map.get(context, :interface, :ai_engine)
+    }
+    
+    case TemplateEngine.render_for_intent(:analyze, template_context) do
+      {:ok, rendered_prompt} -> 
+        rendered_prompt
+      {:error, reason} ->
+        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        generate_legacy_analysis_prompt(analysis_type, code_content, context)
+    end
+  end
+  
+  # Fallback to legacy prompt generation if template system fails  
+  defp generate_legacy_analysis_prompt(analysis_type, code_content, context) do
     base_prompt = get_base_analysis_prompt(analysis_type)
     context_info = format_context_for_prompt(context)
     

@@ -13,6 +13,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   @behaviour Aiex.AI.Behaviours.AIEngine
   
   alias Aiex.LLM.ModelCoordinator
+  alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.Semantic.Chunker
@@ -301,6 +302,30 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   end
   
   defp generate_explanation_prompt(code_content, context, project_context, state) do
+    # Use the template system for consistent, well-structured prompts
+    template_context = %{
+      intent: :explain,
+      code: code_content,
+      explanation_type: Map.get(context, :explanation_type, :code_explanation),
+      detail_level: Map.get(context, :detail_level, :detailed),
+      audience: Map.get(context, :audience, :intermediate),
+      project_context: project_context,
+      specific_requirements: get_specific_instructions(context),
+      interface: Map.get(context, :interface, :ai_engine),
+      session_id: state.session_id
+    }
+    
+    case TemplateEngine.render_for_intent(:explain, template_context) do
+      {:ok, rendered_prompt} -> 
+        rendered_prompt
+      {:error, reason} ->
+        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        generate_legacy_explanation_prompt(code_content, context, project_context, state)
+    end
+  end
+  
+  # Fallback to legacy prompt generation if template system fails
+  defp generate_legacy_explanation_prompt(code_content, context, project_context, state) do
     explanation_type = Map.get(context, :explanation_type, :code_explanation)
     detail_level = Map.get(context, :detail_level, :detailed)
     audience = Map.get(context, :audience, :intermediate)

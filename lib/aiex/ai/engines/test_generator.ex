@@ -14,6 +14,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
   @behaviour Aiex.AI.Behaviours.AIEngine
   
   alias Aiex.LLM.ModelCoordinator
+  alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.Semantic.Chunker
@@ -429,6 +430,29 @@ defmodule Aiex.AI.Engines.TestGenerator do
   end
   
   defp generate_test_prompt(code_content, test_type, code_analysis, project_context, options) do
+    # Use the template system for consistent, structured test generation prompts
+    template_context = %{
+      intent: :workflow,
+      workflow_template: "workflow_generate_tests",
+      code: code_content,
+      test_type: test_type,
+      code_analysis: code_analysis,
+      project_context: project_context,
+      coverage_requirements: get_coverage_requirements(options),
+      interface: Map.get(project_context, :interface, :ai_engine)
+    }
+    
+    case TemplateEngine.render_for_intent(:workflow, template_context) do
+      {:ok, rendered_prompt} -> 
+        rendered_prompt
+      {:error, reason} ->
+        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        generate_legacy_test_prompt(code_content, test_type, code_analysis, project_context, options)
+    end
+  end
+  
+  # Fallback to legacy prompt generation if template system fails
+  defp generate_legacy_test_prompt(code_content, test_type, code_analysis, project_context, options) do
     base_prompt = get_base_test_prompt(test_type)
     context_info = format_context_for_prompt(project_context)
     analysis_info = format_analysis_for_prompt(code_analysis)

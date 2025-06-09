@@ -14,6 +14,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   @behaviour Aiex.AI.Behaviours.AIEngine
   
   alias Aiex.LLM.ModelCoordinator
+  alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.Semantic.Chunker
@@ -426,6 +427,27 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   end
   
   defp generate_refactoring_prompt(code_content, refactoring_type, code_metrics, project_context) do
+    # Use the template system for consistent, structured refactoring prompts
+    template_context = %{
+      intent: :refactor,
+      code: code_content,
+      refactor_type: refactoring_type,
+      code_metrics: code_metrics,
+      project_context: project_context,
+      interface: Map.get(project_context, :interface, :ai_engine)
+    }
+    
+    case TemplateEngine.render_for_intent(:refactor, template_context) do
+      {:ok, rendered_prompt} -> 
+        rendered_prompt
+      {:error, reason} ->
+        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        generate_legacy_refactoring_prompt(code_content, refactoring_type, code_metrics, project_context)
+    end
+  end
+  
+  # Fallback to legacy prompt generation if template system fails
+  defp generate_legacy_refactoring_prompt(code_content, refactoring_type, code_metrics, project_context) do
     base_prompt = get_base_refactoring_prompt(refactoring_type)
     context_info = format_context_for_prompt(project_context)
     metrics_info = format_metrics_for_prompt(code_metrics)

@@ -468,6 +468,416 @@ defmodule Aiex.LLM.Templates.ContextInjector do
     :crypto.hash(:md5, :erlang.term_to_binary({layer_name, relevant_data}))
     |> Base.encode16()
   end
+
+  # Context extraction implementations
   
+  defp extract_immediate_context(request_data) do
+    %{
+      intent: Map.get(request_data, :intent, :unknown),
+      description: Map.get(request_data, :description, ""),
+      code: Map.get(request_data, :code, ""),
+      file_path: Map.get(request_data, :file_path),
+      requirements: Map.get(request_data, :requirements, []),
+      timestamp: DateTime.utc_now()
+    }
+  end
   
+  defp extract_file_context(request_data) do
+    case Map.get(request_data, :file_path) do
+      nil -> %{}
+      file_path when is_binary(file_path) ->
+        try do
+          case File.read(file_path) do
+            {:ok, content} ->
+              %{
+                file_path: file_path,
+                file_name: Path.basename(file_path),
+                file_extension: Path.extname(file_path),
+                file_content: content,
+                file_size: byte_size(content),
+                directory: Path.dirname(file_path),
+                module_name: extract_module_name(content),
+                functions: extract_function_names(content),
+                dependencies: extract_dependencies(content)
+              }
+            {:error, _} ->
+              %{file_path: file_path, file_error: "Could not read file"}
+          end
+        rescue
+          _ -> %{file_path: file_path, file_error: "File processing error"}
+        end
+      _ -> %{}
+    end
+  end
+  
+  defp extract_project_context(request_data) do
+    project_dir = Map.get(request_data, :project_directory) || System.cwd!()
+    
+    try do
+      # Check if it's an Elixir project
+      mix_file = Path.join(project_dir, "mix.exs")
+      
+      project_info = if File.exists?(mix_file) do
+        case File.read(mix_file) do
+          {:ok, content} ->
+            %{
+              type: :elixir,
+              name: extract_project_name(content),
+              version: extract_project_version(content),
+              dependencies: extract_mix_dependencies(content)
+            }
+          {:error, _} ->
+            %{type: :unknown}
+        end
+      else
+        %{type: :unknown}
+      end
+      
+      # Scan for relevant files
+      elixir_files = Path.wildcard(Path.join([project_dir, "**", "*.{ex,exs}"]))
+      |> Enum.take(50)  # Limit for performance
+      
+      test_files = Path.wildcard(Path.join([project_dir, "test", "**", "*_test.exs"]))
+      |> Enum.take(20)
+      
+      %{
+        project_directory: project_dir,
+        project_info: project_info,
+        file_count: length(elixir_files),
+        test_file_count: length(test_files),
+        recent_files: get_recently_modified_files(elixir_files),
+        structure: analyze_project_structure(project_dir)
+      }
+    rescue
+      _ -> %{project_directory: project_dir, error: "Could not analyze project"}
+    end
+  end
+  
+  defp extract_conversation_context(request_data) do
+    session_id = Map.get(request_data, :session_id)
+    conversation_id = Map.get(request_data, :conversation_id)
+    
+    case {session_id, conversation_id} do
+      {nil, _} -> %{}
+      {_, nil} -> %{session_id: session_id}
+      {session_id, conversation_id} ->
+        # Get conversation history from ConversationManager if available
+        try do
+          case Aiex.AI.Coordinators.ConversationManager.get_conversation_history(
+                 session_id, 
+                 conversation_id, 
+                 limit: 5
+               ) do
+            {:ok, history} ->
+              %{
+                session_id: session_id,
+                conversation_id: conversation_id,
+                recent_messages: format_conversation_history(history),
+                turn_count: length(history),
+                context_summary: summarize_conversation_context(history)
+              }
+            {:error, _} ->
+              %{session_id: session_id, conversation_id: conversation_id}
+          end
+        rescue
+          _ -> %{session_id: session_id, conversation_id: conversation_id}
+        end
+    end
+  end
+  
+  defp extract_user_preferences(request_data) do
+    # Extract user preferences from various sources
+    interface = Map.get(request_data, :interface, :unknown)
+    
+    base_preferences = %{
+      interface: interface,
+      preferred_detail_level: get_interface_detail_preference(interface),
+      preferred_format: get_interface_format_preference(interface),
+      code_style: :elixir_standard,
+      explanation_style: :technical
+    }
+    
+    # Add any explicit preferences from request
+    explicit_prefs = Map.take(request_data, [
+      :detail_level, :format, :style, :verbosity, :include_examples
+    ])
+    
+    Map.merge(base_preferences, explicit_prefs)
+  end
+  
+  defp extract_technical_context(request_data) do
+    %{
+      language: detect_language(request_data),
+      frameworks: detect_frameworks(request_data),
+      patterns: detect_code_patterns(request_data),
+      complexity: estimate_complexity(request_data),
+      domain: infer_domain_context(request_data),
+      architecture_style: detect_architecture_style(request_data)
+    }
+  end
+  
+  defp extract_historical_context(request_data) do
+    # Extract patterns from historical interactions
+    # This could be enhanced with ML-based pattern detection
+    
+    %{
+      similar_requests: find_similar_requests(request_data),
+      user_patterns: analyze_user_patterns(request_data),
+      success_patterns: get_successful_patterns(request_data),
+      feedback_trends: get_feedback_trends(request_data)
+    }
+  end
+
+  # Helper functions for context extraction
+  
+  defp extract_module_name(content) do
+    case Regex.run(~r/defmodule\s+([A-Za-z_][A-Za-z0-9_.]*)/m, content) do
+      [_, module_name] -> module_name
+      nil -> nil
+    end
+  end
+  
+  defp extract_function_names(content) do
+    Regex.scan(~r/def\s+([a-z_][a-zA-Z0-9_]*)/m, content)
+    |> Enum.map(fn [_, name] -> name end)
+    |> Enum.uniq()
+    |> Enum.take(10)  # Limit for context size
+  end
+  
+  defp extract_dependencies(content) do
+    Regex.scan(~r/alias\s+([A-Za-z_][A-Za-z0-9_.]*)/m, content)
+    |> Enum.map(fn [_, name] -> name end)
+    |> Enum.uniq()
+    |> Enum.take(10)
+  end
+  
+  defp extract_project_name(mix_content) do
+    case Regex.run(~r/app:\s*:([a-zA-Z_][a-zA-Z0-9_]*)/m, mix_content) do
+      [_, name] -> name
+      nil -> "unknown"
+    end
+  end
+  
+  defp extract_project_version(mix_content) do
+    case Regex.run(~r/version:\s*"([^"]+)"/m, mix_content) do
+      [_, version] -> version
+      nil -> "0.1.0"
+    end
+  end
+  
+  defp extract_mix_dependencies(mix_content) do
+    # Simple extraction - could be enhanced with proper AST parsing
+    case Regex.run(~r/defp deps do\s*\[(.*?)\]/ms, mix_content) do
+      [_, deps_content] ->
+        Regex.scan(~r/{:([a-zA-Z_][a-zA-Z0-9_]*)/m, deps_content)
+        |> Enum.map(fn [_, name] -> name end)
+        |> Enum.uniq()
+        |> Enum.take(20)
+      nil -> []
+    end
+  end
+  
+  defp get_recently_modified_files(files) do
+    files
+    |> Enum.map(fn file ->
+      case File.stat(file) do
+        {:ok, stat} -> {file, stat.mtime}
+        {:error, _} -> {file, {{1970, 1, 1}, {0, 0, 0}}}
+      end
+    end)
+    |> Enum.sort_by(fn {_, mtime} -> mtime end, :desc)
+    |> Enum.take(5)
+    |> Enum.map(fn {file, _} -> file end)
+  end
+  
+  defp analyze_project_structure(project_dir) do
+    lib_dir = Path.join(project_dir, "lib")
+    test_dir = Path.join(project_dir, "test")
+    
+    %{
+      has_lib: File.dir?(lib_dir),
+      has_test: File.dir?(test_dir),
+      has_config: File.dir?(Path.join(project_dir, "config")),
+      has_priv: File.dir?(Path.join(project_dir, "priv")),
+      structure_type: infer_structure_type(project_dir)
+    }
+  end
+  
+  defp infer_structure_type(project_dir) do
+    cond do
+      File.exists?(Path.join(project_dir, "apps")) -> :umbrella
+      File.exists?(Path.join(project_dir, "lib")) -> :standard
+      true -> :unknown
+    end
+  end
+  
+  defp format_conversation_history(history) do
+    history
+    |> Enum.take(3)  # Last 3 messages for context
+    |> Enum.map(fn msg ->
+      %{
+        role: msg.role,
+        content: String.slice(msg.content, 0, 200),  # Truncate for context
+        timestamp: msg.timestamp
+      }
+    end)
+  end
+  
+  defp summarize_conversation_context(history) do
+    # Simple keyword extraction - could be enhanced with NLP
+    all_content = history
+    |> Enum.map(& &1.content)
+    |> Enum.join(" ")
+    
+    keywords = extract_keywords(all_content)
+    
+    %{
+      message_count: length(history),
+      keywords: keywords,
+      topics: infer_topics_from_keywords(keywords),
+      last_intent: get_last_intent(history)
+    }
+  end
+  
+  defp extract_keywords(text) do
+    # Simple keyword extraction
+    text
+    |> String.downcase()
+    |> String.replace(~r/[^\w\s]/, "")
+    |> String.split()
+    |> Enum.filter(&(String.length(&1) > 3))
+    |> Enum.frequencies()
+    |> Enum.sort_by(fn {_, count} -> count end, :desc)
+    |> Enum.take(10)
+    |> Enum.map(fn {word, _} -> word end)
+  end
+  
+  defp infer_topics_from_keywords(keywords) do
+    # Simple topic inference based on common programming keywords
+    programming_keywords = ["function", "module", "test", "code", "error", "debug"]
+    architecture_keywords = ["design", "pattern", "structure", "architecture"]
+    performance_keywords = ["performance", "optimize", "speed", "memory"]
+    
+    topics = []
+    
+    topics = if Enum.any?(keywords, &(&1 in programming_keywords)), 
+      do: ["programming" | topics], else: topics
+    topics = if Enum.any?(keywords, &(&1 in architecture_keywords)), 
+      do: ["architecture" | topics], else: topics
+    topics = if Enum.any?(keywords, &(&1 in performance_keywords)), 
+      do: ["performance" | topics], else: topics
+    
+    topics
+  end
+  
+  defp get_last_intent(history) do
+    case List.last(history) do
+      %{intent: intent} -> intent
+      _ -> :unknown
+    end
+  end
+  
+  defp get_interface_detail_preference(:cli), do: :concise
+  defp get_interface_detail_preference(:tui), do: :detailed
+  defp get_interface_detail_preference(:liveview), do: :interactive
+  defp get_interface_detail_preference(:lsp), do: :minimal
+  defp get_interface_detail_preference(_), do: :balanced
+  
+  defp get_interface_format_preference(:cli), do: :text
+  defp get_interface_format_preference(:tui), do: :structured
+  defp get_interface_format_preference(:liveview), do: :html
+  defp get_interface_format_preference(:lsp), do: :json
+  defp get_interface_format_preference(_), do: :markdown
+  
+  defp detect_language(request_data) do
+    code = Map.get(request_data, :code, "")
+    file_path = Map.get(request_data, :file_path, "")
+    
+    cond do
+      String.contains?(file_path, ".ex") -> :elixir
+      String.contains?(file_path, ".exs") -> :elixir
+      String.contains?(code, "defmodule") -> :elixir
+      String.contains?(code, "def ") -> :elixir
+      true -> :unknown
+    end
+  end
+  
+  defp detect_frameworks(request_data) do
+    code = Map.get(request_data, :code, "")
+    dependencies = Map.get(request_data, :dependencies, [])
+    
+    frameworks = []
+    
+    frameworks = if "phoenix" in dependencies or String.contains?(code, "Phoenix"), 
+      do: ["phoenix" | frameworks], else: frameworks
+    frameworks = if "ecto" in dependencies or String.contains?(code, "Ecto"), 
+      do: ["ecto" | frameworks], else: frameworks
+    frameworks = if "genserver" in dependencies or String.contains?(code, "GenServer"), 
+      do: ["otp" | frameworks], else: frameworks
+    
+    frameworks
+  end
+  
+  defp detect_code_patterns(request_data) do
+    code = Map.get(request_data, :code, "")
+    
+    patterns = []
+    
+    patterns = if String.contains?(code, "use GenServer"), 
+      do: ["genserver" | patterns], else: patterns
+    patterns = if String.contains?(code, "|>"), 
+      do: ["pipe_operator" | patterns], else: patterns
+    patterns = if String.contains?(code, "with "), 
+      do: ["with_statement" | patterns], else: patterns
+    patterns = if String.contains?(code, "case "), 
+      do: ["pattern_matching" | patterns], else: patterns
+    
+    patterns
+  end
+  
+  defp estimate_complexity(request_data) do
+    code = Map.get(request_data, :code, "")
+    lines = String.split(code, "\n") |> length()
+    
+    cond do
+      lines < 10 -> :simple
+      lines < 50 -> :moderate
+      lines < 200 -> :complex
+      true -> :very_complex
+    end
+  end
+  
+  defp infer_domain_context(request_data) do
+    description = Map.get(request_data, :description, "")
+    code = Map.get(request_data, :code, "")
+    
+    text = "#{description} #{code}" |> String.downcase()
+    
+    cond do
+      String.contains?(text, ["web", "http", "api", "rest"]) -> :web_development
+      String.contains?(text, ["database", "sql", "ecto"]) -> :data_persistence
+      String.contains?(text, ["test", "spec", "assert"]) -> :testing
+      String.contains?(text, ["deploy", "release", "docker"]) -> :devops
+      String.contains?(text, ["performance", "optimize", "benchmark"]) -> :performance
+      true -> :general
+    end
+  end
+  
+  defp detect_architecture_style(request_data) do
+    code = Map.get(request_data, :code, "")
+    
+    cond do
+      String.contains?(code, "GenServer") -> :actor_model
+      String.contains?(code, "Supervisor") -> :supervision_tree
+      String.contains?(code, "Agent") -> :stateful_agents
+      String.contains?(code, "Task") -> :task_concurrency
+      true -> :functional
+    end
+  end
+  
+  # Simplified implementations for historical context
+  defp find_similar_requests(_request_data), do: []
+  defp analyze_user_patterns(_request_data), do: %{}
+  defp get_successful_patterns(_request_data), do: []
+  defp get_feedback_trends(_request_data), do: %{}
 end

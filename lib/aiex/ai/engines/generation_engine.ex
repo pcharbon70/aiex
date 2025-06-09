@@ -13,6 +13,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   @behaviour Aiex.AI.Behaviours.AIEngine
   
   alias Aiex.LLM.ModelCoordinator
+  alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.Semantic.Chunker
@@ -282,6 +283,29 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   end
   
   defp generate_code_prompt(generation_type, specification, context, project_context, state) do
+    # Use the template system for consistent, structured generation prompts
+    template_context = %{
+      intent: :generate,
+      generation_type: generation_type,
+      description: specification,
+      requirements: specification,
+      project_context: project_context,
+      project_conventions: state.project_conventions,
+      specific_context: format_specific_context(context, generation_type),
+      interface: Map.get(context, :interface, :ai_engine)
+    }
+    
+    case TemplateEngine.render_for_intent(:generate, template_context) do
+      {:ok, rendered_prompt} -> 
+        rendered_prompt
+      {:error, reason} ->
+        Logger.warn("Template rendering failed, falling back to legacy prompt: #{reason}")
+        generate_legacy_code_prompt(generation_type, specification, context, project_context, state)
+    end
+  end
+  
+  # Fallback to legacy prompt generation if template system fails
+  defp generate_legacy_code_prompt(generation_type, specification, context, project_context, state) do
     base_prompt = get_base_generation_prompt(generation_type)
     conventions = format_project_conventions(state.project_conventions)
     context_info = format_context_for_prompt(project_context)
