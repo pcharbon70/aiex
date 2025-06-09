@@ -385,6 +385,46 @@ defmodule Aiex.CLI.Commands do
               default: "."
             ]
           ]
+        ],
+        template: [
+          name: "template",
+          about: "Manage and test AI prompt templates",
+          subcommands: [
+            list: [
+              name: "list",
+              about: "List available templates",
+              options: [
+                category: [
+                  value_name: "CATEGORY",
+                  short: "-c",
+                  long: "--category",
+                  help: "Filter by category (workflow, operation)",
+                  parser: :string
+                ]
+              ]
+            ],
+            test: [
+              name: "test",
+              about: "Test a template with sample data",
+              options: [
+                name: [
+                  value_name: "TEMPLATE_NAME",
+                  short: "-n",
+                  long: "--name",
+                  help: "Name of template to test",
+                  parser: :string,
+                  required: true
+                ],
+                variables: [
+                  value_name: "VARIABLES_JSON",
+                  short: "-v",
+                  long: "--variables",
+                  help: "JSON string of template variables",
+                  parser: :string
+                ]
+              ]
+            ]
+          ]
         ]
       ]
     ]
