@@ -1267,7 +1267,7 @@ tail -f /var/log/aiex/erlang.log.1
    ```elixir
    config :aiex, :context,
      max_sessions: 10,
-     session_timeout_ms: 1_800_000  # 30 minutes
+     session_timeout_ms: 1_800_000  # Session timeout
    ```
 
 3. **Monitor with recon**
