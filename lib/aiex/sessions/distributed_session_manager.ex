@@ -376,7 +376,7 @@ defmodule Aiex.Sessions.DistributedSessionManager do
   def handle_info({:migration_complete, migration_id, result}, state) do
     # Handle migration completion
     case Map.get(state.migrations, migration_id) do
-      %{caller: from} = migration ->
+      %{caller: from} = _migration ->
         # Reply to original caller
         GenServer.reply(from, result)
         
@@ -646,7 +646,7 @@ defmodule Aiex.Sessions.DistributedSessionManager do
     Enum.filter(sessions, fn s -> s[:status] == status end)
   end
   
-  defp start_migration(session_id, from_node, to_node, caller) do
+  defp start_migration(session_id, from_node, to_node, _caller) do
     migration_id = "mig_#{:erlang.unique_integer([:positive])}"
     
     # Publish migration started event
@@ -933,7 +933,7 @@ defmodule Aiex.Sessions.DistributedSessionManager do
   
   defp handle_session_event(_event, state), do: state
   
-  defp handle_session_crash(ref, pid, reason, state) do
+  defp handle_session_crash(ref, _pid, reason, state) do
     # Find session by monitor ref
     case find_session_by_monitor(ref, state.sessions) do
       {:ok, session_id} ->

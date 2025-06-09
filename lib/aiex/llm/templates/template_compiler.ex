@@ -132,19 +132,19 @@ defmodule Aiex.LLM.Templates.TemplateCompiler do
   defp classify_token(token) do
     cond do
       String.starts_with?(token, "{{#") ->
-        condition_name = String.slice(token, 3..-3//-1)
+        condition_name = String.slice(token, 3..-3//1)
         {:condition_start, String.trim(condition_name)}
       
       String.starts_with?(token, "{{/") ->
-        condition_name = String.slice(token, 3..-3//-1)
+        condition_name = String.slice(token, 3..-3//1)
         {:condition_end, String.trim(condition_name)}
       
       String.starts_with?(token, "{{>") ->
-        include_name = String.slice(token, 3..-3//-1)
+        include_name = String.slice(token, 3..-3//1)
         {:include, String.trim(include_name)}
       
       String.starts_with?(token, "{{") and String.ends_with?(token, "}}") ->
-        variable_name = String.slice(token, 2..-3//-1)
+        variable_name = String.slice(token, 2..-3//1)
         {:variable, String.trim(variable_name)}
       
       true ->

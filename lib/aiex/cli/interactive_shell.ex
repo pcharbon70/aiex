@@ -175,7 +175,7 @@ defmodule Aiex.CLI.InteractiveShell do
           line in ["quit", "exit", ":q"] -> :quit
           line == "" -> run_shell_loop()
           String.ends_with?(line, "\\") -> 
-            {:multiline, String.slice(line, 0..-2)}
+            {:multiline, String.slice(line, 0..-2//-1)}
           true -> 
             {:command, line}
         end
@@ -493,11 +493,11 @@ defmodule Aiex.CLI.InteractiveShell do
     # Simple parsing - could be enhanced with more sophisticated syntax
     cond do
       String.starts_with?(spec, "file:") ->
-        file_path = String.slice(spec, 5..-1)
+        file_path = String.slice(spec, 5..-1//-1)
         Map.put(base_context, :file_path, file_path)
         
       String.starts_with?(spec, "module:") ->
-        module_name = String.slice(spec, 7..-1)
+        module_name = String.slice(spec, 7..-1//-1)
         Map.put(base_context, :module, module_name)
         
       true ->

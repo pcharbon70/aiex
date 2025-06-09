@@ -369,7 +369,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
     end
   end
   
-  defp execute_refactoring_application(code_content, refactoring_suggestion, options, state) do
+  defp execute_refactoring_application(code_content, refactoring_suggestion, options, _state) do
     # Generate prompt for applying the specific refactoring
     application_prompt = generate_application_prompt(code_content, refactoring_suggestion)
     
@@ -403,7 +403,7 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
     end
   end
   
-  defp perform_refactoring_validation(original_code, refactored_code, options, state) do
+  defp perform_refactoring_validation(original_code, refactored_code, options, _state) do
     # Generate validation prompt
     validation_prompt = generate_validation_prompt(original_code, refactored_code, options)
     

@@ -324,7 +324,7 @@ defmodule Aiex.TUI.Server do
     state
   end
 
-  defp handle_tui_request(client_id, request_id, %{"command" => command, "params" => params}) do
+  defp handle_tui_request(client_id, request_id, %{"command" => command, "params" => _params}) do
     # Route commands to appropriate modules
     response =
       case command do

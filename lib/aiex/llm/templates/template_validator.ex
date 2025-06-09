@@ -141,19 +141,19 @@ defmodule Aiex.LLM.Templates.TemplateValidator do
     errors = errors ++ validate_required_fields(template)
     
     # Validate individual components
-    case validate_content(template.content) do
-      {:ok, _} -> :ok
-      {:error, content_errors} -> errors = errors ++ content_errors
+    errors = case validate_content(template.content) do
+      {:ok, _} -> errors
+      {:error, content_errors} -> errors ++ content_errors
     end
     
-    case validate_variables(template.variables) do
-      {:ok, _} -> :ok
-      {:error, variable_errors} -> errors = errors ++ variable_errors
+    errors = case validate_variables(template.variables) do
+      {:ok, _} -> errors
+      {:error, variable_errors} -> errors ++ variable_errors
     end
     
-    case validate_conditionals(template.conditionals) do
-      {:ok, _} -> :ok
-      {:error, conditional_errors} -> errors = errors ++ conditional_errors
+    errors = case validate_conditionals(template.conditionals) do
+      {:ok, _} -> errors
+      {:error, conditional_errors} -> errors ++ conditional_errors
     end
     
     # Validate template coherence

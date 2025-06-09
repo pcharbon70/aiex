@@ -678,8 +678,53 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
   
   defp get_workflow_template_conditions(_type), do: []
   
-  defp get_conversation_template_content(_type), do: "You are a helpful AI assistant."
-  defp get_conversation_template_variables(_type), do: []
+  defp get_conversation_template_content(type) do
+    case type do
+      :intent_classification ->
+        """
+        You are an AI assistant that classifies user intents in coding conversations.
+        
+        ## User Message
+        {{user_message}}
+        
+        ## Context
+        {{conversation_context}}
+        
+        Classify the intent as one of: explain, generate, refactor, analyze, help, or other.
+        Provide your classification with confidence level.
+        """
+      
+      :continuation ->
+        "Continue the conversation naturally based on the context: {{conversation_context}}"
+      
+      :summarization ->
+        "Summarize the following conversation: {{conversation_history}}"
+      
+      _ -> "You are a helpful AI assistant."
+    end
+  end
+  
+  defp get_conversation_template_variables(type) do
+    case type do
+      :intent_classification ->
+        [
+          %{name: "user_message", type: :string, required: true},
+          %{name: "conversation_context", type: :string, required: false}
+        ]
+      
+      :continuation ->
+        [
+          %{name: "conversation_context", type: :string, required: true}
+        ]
+      
+      :summarization ->
+        [
+          %{name: "conversation_history", type: :string, required: true}
+        ]
+      
+      _ -> []
+    end
+  end
   
   defp get_operation_template_content(type) do
     case type do

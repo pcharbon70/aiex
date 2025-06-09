@@ -469,9 +469,9 @@ defmodule Aiex.AI.Engines.GenerationEngine do
     |> apply_type_specific_transformations(generation_type, context)
   end
   
-  defp apply_naming_conventions(code, context, state) do
+  defp apply_naming_conventions(code, _context, state) do
     # Apply project-specific naming conventions
-    conventions = state.project_conventions
+    _conventions = state.project_conventions
     
     # This would be more sophisticated in practice
     code
@@ -521,7 +521,7 @@ defmodule Aiex.AI.Engines.GenerationEngine do
     perform_code_generation(generation_type, specification, merged_context, state)
   end
   
-  defp get_enhanced_project_context(context, state) do
+  defp get_enhanced_project_context(context, _state) do
     # Get base project context
     base_context = case ContextManager.get_current_context() do
       {:ok, ctx} -> ctx
