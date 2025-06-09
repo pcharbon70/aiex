@@ -121,8 +121,15 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
       performance_metrics: %{}
     }
     
-    # Load default templates
-    {:ok, state} = load_default_templates(state)
+    # Load default templates unless skipped
+    state = case Keyword.get(opts, :skip_defaults, false) do
+      true -> state
+      false -> 
+        case load_default_templates(state) do
+          {:ok, loaded_state} -> loaded_state
+          {:error, _reason} -> state
+        end
+    end
     
     # Load custom templates if specified
     case Keyword.get(opts, :custom_templates_path) do
@@ -195,7 +202,8 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
       }
       
       # Update inheritance tree if template has parent
-      new_state = case Map.get(opts, :extends) do
+      opts_map = if is_list(opts), do: Enum.into(opts, %{}), else: opts
+      new_state = case Map.get(opts_map, :extends) do
         nil -> new_state
         parent_id -> update_inheritance_tree(new_state, template_id, parent_id)
       end
@@ -403,13 +411,14 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
   # Default template generators
   defp get_default_workflow_template(type) do
     %{
-      category: :workflow,
-      intent: type,
+      name: "#{type} workflow",
       description: "Default #{type} workflow template",
       version: "1.0.0",
-      template: get_workflow_template_content(type),
+      category: :workflow,
+      intent: type,
+      content: get_workflow_template_content(type),
       variables: get_workflow_template_variables(type),
-      conditions: [],
+      conditions: get_workflow_template_conditions(type),
       metadata: %{
         complexity: :medium,
         estimated_tokens: 2000
@@ -419,11 +428,12 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
   
   defp get_default_conversation_template(type) do
     %{
-      category: :conversation,
-      intent: type,
+      name: "#{type} conversation",
       description: "Default #{type} conversation template",
       version: "1.0.0",
-      template: get_conversation_template_content(type),
+      category: :conversation,
+      intent: type,
+      content: get_conversation_template_content(type),
       variables: get_conversation_template_variables(type),
       conditions: [],
       metadata: %{}
@@ -432,37 +442,360 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
   
   defp get_default_operation_template(type) do
     %{
-      category: :operation,
-      intent: type,
+      name: "#{type} operation",
       description: "Default #{type} operation template",
       version: "1.0.0",
-      template: get_operation_template_content(type),
+      category: :operation,
+      intent: type,
+      content: get_operation_template_content(type),
       variables: get_operation_template_variables(type),
-      conditions: [],
+      conditions: get_operation_template_conditions(type),
       metadata: %{}
     }
   end
   
   defp get_default_system_template(type) do
     %{
-      category: :system,
-      intent: type,
+      name: "#{type} system",
       description: "Default #{type} system template",
       version: "1.0.0",
-      template: get_system_template_content(type),
+      category: :system,
+      intent: type,
+      content: get_system_template_content(type),
       variables: get_system_template_variables(type),
       conditions: [],
       metadata: %{}
     }
   end
   
-  # Template content generators (to be implemented)
-  defp get_workflow_template_content(_type), do: "TODO: Implement workflow template content"
-  defp get_workflow_template_variables(_type), do: []
-  defp get_conversation_template_content(_type), do: "TODO: Implement conversation template content"
+  # Template content generators
+  defp get_workflow_template_content(type) do
+    case type do
+      :implement_feature ->
+        """
+        You are an expert Elixir developer working on a distributed OTP application.
+        
+        ## Task
+        Implement the feature: {{feature_description}}
+        
+        ## Context
+        Project: {{project_name}}
+        Framework: {{framework}}
+        
+        ## Requirements
+        - Follow OTP design patterns and supervision trees
+        - Write comprehensive documentation and typespecs
+        - Include unit tests using ExUnit
+        - Ensure code follows Elixir formatting standards
+        
+        ## Existing Code Context
+        {{existing_code}}
+        
+        Provide a complete implementation with explanations.
+        """
+      
+      :fix_bug ->
+        """
+        You are an expert Elixir developer debugging a distributed OTP application.
+        
+        ## Bug Report
+        {{bug_description}}
+        
+        ## Error Information
+        ```
+        {{error_info}}
+        ```
+        
+        ## Code Context
+        {{code_context}}
+        
+        ## Requirements
+        - Identify the root cause of the issue
+        - Provide a minimal fix that preserves existing functionality
+        - Explain the fix and why it resolves the issue
+        - Suggest tests to prevent regression
+        
+        Provide a detailed analysis and fix.
+        """
+      
+      :refactor_code ->
+        """
+        You are an expert Elixir developer refactoring code for better maintainability.
+        
+        ## Original Code
+        ```elixir
+        {{original_code}}
+        ```
+        
+        ## Refactoring Goals
+        {{refactoring_goals}}
+        
+        ## Requirements
+        - Preserve existing functionality
+        - Improve code structure and readability
+        - Follow Elixir and OTP best practices
+        - Provide clear explanations for all changes
+        
+        Provide the refactored code with detailed explanations.
+        """
+      
+      :explain_codebase ->
+        """
+        You are an expert Elixir developer explaining a codebase structure.
+        
+        ## Codebase Path
+        {{codebase_path}}
+        
+        ## Explanation Level
+        {{explanation_level}}
+        
+        ## Requirements
+        - Explain the overall architecture and structure
+        - Identify key modules and their responsibilities
+        - Highlight important patterns and design decisions
+        - Provide clear guidance for new developers
+        
+        Provide a comprehensive codebase explanation.
+        """
+      
+      :generate_tests ->
+        """
+        You are an expert Elixir developer writing comprehensive tests.
+        
+        ## Code to Test
+        ```elixir
+        {{code_to_test}}
+        ```
+        
+        ## Test Framework
+        {{test_framework}}
+        
+        ## Requirements
+        - Write comprehensive unit tests using ExUnit
+        - Cover edge cases and error conditions
+        - Include property-based tests where appropriate
+        - Follow testing best practices
+        
+        Provide complete test suite with explanations.
+        """
+      
+      :code_review ->
+        """
+        You are an expert Elixir developer performing a code review.
+        
+        ## Code to Review
+        ```elixir
+        {{code_content}}
+        ```
+        
+        ## Review Focus
+        {{review_focus}}
+        
+        ## Requirements
+        - Identify potential issues and improvements
+        - Check for OTP patterns and best practices
+        - Evaluate performance and security considerations
+        - Provide constructive feedback with examples
+        
+        Provide a detailed code review with recommendations.
+        """
+      
+      :generate_docs ->
+        """
+        You are an expert Elixir developer writing documentation.
+        
+        ## Code to Document
+        ```elixir
+        {{code_content}}
+        ```
+        
+        ## Documentation Type
+        {{documentation_type}}
+        
+        ## Requirements
+        - Write clear and comprehensive documentation
+        - Include usage examples and API reference
+        - Follow Elixir documentation conventions
+        - Provide helpful explanations for complex concepts
+        
+        Provide complete documentation with examples.
+        """
+      
+      _ -> "TODO: Implement #{type} workflow template"
+    end
+  end
+  
+  defp get_workflow_template_variables(type) do
+    case type do
+      :implement_feature ->
+        [
+          %{name: "feature_description", type: :string, required: true},
+          %{name: "project_name", type: :string, required: false},
+          %{name: "framework", type: :string, required: false},
+          %{name: "existing_code", type: :string, required: false}
+        ]
+      
+      :fix_bug ->
+        [
+          %{name: "bug_description", type: :string, required: true},
+          %{name: "error_info", type: :string, required: false},
+          %{name: "code_context", type: :string, required: true}
+        ]
+      
+      :refactor_code ->
+        [
+          %{name: "original_code", type: :string, required: true},
+          %{name: "refactoring_goals", type: :string, required: true}
+        ]
+      
+      :explain_codebase ->
+        [
+          %{name: "codebase_path", type: :string, required: true},
+          %{name: "explanation_level", type: :string, required: false}
+        ]
+      
+      :generate_tests ->
+        [
+          %{name: "code_to_test", type: :string, required: true},
+          %{name: "test_framework", type: :string, required: false}
+        ]
+      
+      :code_review ->
+        [
+          %{name: "code_content", type: :string, required: true},
+          %{name: "review_focus", type: :string, required: false}
+        ]
+      
+      :generate_docs ->
+        [
+          %{name: "code_content", type: :string, required: true},
+          %{name: "documentation_type", type: :string, required: false}
+        ]
+      
+      _ -> []
+    end
+  end
+  
+  defp get_workflow_template_conditions(_type), do: []
+  
+  defp get_conversation_template_content(_type), do: "You are a helpful AI assistant."
   defp get_conversation_template_variables(_type), do: []
-  defp get_operation_template_content(_type), do: "TODO: Implement operation template content"
-  defp get_operation_template_variables(_type), do: []
-  defp get_system_template_content(_type), do: "TODO: Implement system template content"
+  
+  defp get_operation_template_content(type) do
+    case type do
+      :analyze ->
+        """
+        Analyze the following Elixir code and provide insights:
+        
+        ## Code to Analyze
+        ```elixir
+        {{code_content}}
+        ```
+        
+        ## Focus Areas
+        {{analysis_focus}}
+        
+        Provide analysis covering:
+        - Code structure and organization
+        - OTP patterns and best practices
+        - Potential improvements
+        - Performance considerations
+        """
+      
+      :generate ->
+        """
+        Generate Elixir code for the following specification:
+        
+        ## Specification
+        {{specification}}
+        
+        ## Context
+        {{context_info}}
+        
+        ## Requirements
+        - Follow Elixir and OTP best practices
+        - Include comprehensive documentation
+        - Add appropriate typespecs
+        - Ensure code is production-ready
+        
+        Provide complete, working code with explanations.
+        """
+      
+      :explain ->
+        """
+        Explain the following Elixir code in detail:
+        
+        ## Code
+        ```elixir
+        {{code_content}}
+        ```
+        
+        ## Detail Level: {{explanation_level}}
+        
+        Provide a clear explanation covering:
+        - What the code does
+        - How it works
+        - Key concepts and patterns used
+        - Any notable design decisions
+        """
+      
+      :refactor ->
+        """
+        Refactor the following Elixir code to improve:
+        
+        ## Original Code
+        ```elixir
+        {{original_code}}
+        ```
+        
+        ## Refactoring Goals
+        {{refactoring_goals}}
+        
+        ## Requirements
+        - Maintain existing functionality
+        - Improve code quality and maintainability
+        - Follow Elixir best practices
+        - Provide clear explanations for changes
+        
+        Provide the refactored code with detailed explanations.
+        """
+      
+      _ -> "TODO: Implement #{type} operation template"
+    end
+  end
+  
+  defp get_operation_template_variables(type) do
+    case type do
+      :analyze ->
+        [
+          %{name: "code_content", type: :string, required: true},
+          %{name: "analysis_focus", type: :string, required: false}
+        ]
+      
+      :generate ->
+        [
+          %{name: "specification", type: :string, required: true},
+          %{name: "context_info", type: :string, required: false}
+        ]
+      
+      :explain ->
+        [
+          %{name: "code_content", type: :string, required: true},
+          %{name: "explanation_level", type: :string, required: false}
+        ]
+      
+      :refactor ->
+        [
+          %{name: "original_code", type: :string, required: true},
+          %{name: "refactoring_goals", type: :string, required: true}
+        ]
+      
+      _ -> []
+    end
+  end
+  
+  defp get_operation_template_conditions(_type), do: []
+  
+  defp get_system_template_content(_type), do: "System template placeholder."
   defp get_system_template_variables(_type), do: []
 end
