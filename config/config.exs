@@ -15,6 +15,44 @@ config :aiex, AiexFinch,
     default: [size: 25, timeout: 30_000]
   }
 
+# Configure Phoenix
+config :aiex, AiexWeb.Endpoint,
+  url: [host: "localhost"],
+  render_errors: [
+    formats: [html: AiexWeb.ErrorHTML, json: AiexWeb.ErrorJSON],
+    layout: false
+  ],
+  pubsub_server: Aiex.PubSub,
+  live_view: [signing_salt: "jL3h9kM2"]
+
+# Configure Phoenix generators
+config :phoenix, :json_library, Jason
+
+# Configure PubSub
+config :aiex, Aiex.PubSub, name: Aiex.PubSub
+
+# Configure esbuild (the version is required)
+config :esbuild,
+  version: "0.17.11",
+  aiex: [
+    args:
+      ~w(js/app.js --bundle --target=es2017 --outdir=../priv/static/assets --external:/fonts/* --external:/images/*),
+    cd: Path.expand("../assets", __DIR__),
+    env: %{"NODE_PATH" => Path.expand("../deps", __DIR__)}
+  ]
+
+# Configure tailwind (the version is required)
+config :tailwind,
+  version: "3.4.0",
+  aiex: [
+    args: ~w(
+      --config=tailwind.config.js
+      --input=css/app.css
+      --output=../priv/static/assets/app.css
+    ),
+    cd: Path.expand("../assets", __DIR__)
+  ]
+
 # Libcluster configuration for distributed deployment
 # This will be overridden in dev.exs and test.exs
 config :libcluster,

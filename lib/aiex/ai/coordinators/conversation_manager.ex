@@ -383,8 +383,17 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
         {:error, :conversation_not_found}
         
       conversation ->
-        # Generate final summary
-        {:ok, summary} = generate_conversation_summary(conversation_id, state)
+        # Generate final summary (gracefully handle failures)
+        summary = case generate_conversation_summary(conversation_id, state) do
+          {:ok, summary_data} -> summary_data
+          {:error, _reason} -> %{
+            conversation_id: conversation_id,
+            summary: "Conversation ended without summary due to LLM unavailability",
+            generated_at: DateTime.utc_now(),
+            history_length: length(conversation.history),
+            conversation_type: conversation.conversation_type
+          }
+        end
         
         # Store in conversation memory
         conversation_memory = Map.put(state.conversation_memory, conversation_id, %{
@@ -531,7 +540,7 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
       }
     }
     
-    case ModelCoordinator.request(llm_request) do
+    case ModelCoordinator.process_request(llm_request) do
       {:ok, llm_response} ->
         {:ok, %{
           response: llm_response,
@@ -645,7 +654,7 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
           }
         }
         
-        case ModelCoordinator.request(llm_request) do
+        case ModelCoordinator.process_request(llm_request) do
           {:ok, summary_text} ->
             summary = %{
               conversation_id: conversation_id,

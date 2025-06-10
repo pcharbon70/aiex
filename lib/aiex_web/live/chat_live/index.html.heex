@@ -1,0 +1,143 @@
+<div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+  <!-- Context Sidebar -->
+  <div :if={@show_context} data-role="context-sidebar" class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Project Context</h3>
+    
+    <div class="space-y-4">
+      <div>
+        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Current Session</h4>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" data-role="conversation-id">
+          ID: <%= String.slice(@conversation_id || "", 0..7) %>
+        </p>
+      </div>
+
+      <div :if={map_size(@project_context) > 0}>
+        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Info</h4>
+        <dl class="mt-2 text-xs space-y-1">
+          <div :for={{key, value} <- @project_context}>
+            <dt class="text-gray-500 dark:text-gray-400"><%= key %></dt>
+            <dd class="text-gray-700 dark:text-gray-300"><%= value %></dd>
+          </div>
+        </dl>
+      </div>
+
+      <div>
+        <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Actions</h4>
+        <div class="space-y-2">
+          <button
+            phx-click="new_conversation"
+            class="w-full text-left px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+          >
+            🆕 New Conversation
+          </button>
+          <button
+            phx-click="clear_chat"
+            class="w-full text-left px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+          >
+            🗑️ Clear Chat
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat Area -->
+  <div class="flex-1 flex flex-col h-full">
+    <!-- Chat Header -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex-shrink-0 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">AI Chat Assistant</h2>
+        <button
+          phx-click="toggle_context"
+          class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages Area -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-4 min-h-0 relative">
+      <!-- Welcome message when no messages -->
+      <div :if={Enum.empty?(@streams.messages.inserts)} class="absolute inset-0 flex items-center justify-center text-center">
+        <div class="max-w-md">
+          <div class="text-6xl mb-4">🤖</div>
+          <h3 class="text-xl font-medium text-gray-900 dark:text-white mb-2">Welcome to AI Chat Assistant</h3>
+          <p class="text-gray-500 dark:text-gray-400">Ask me anything about your code, request explanations, generate new modules, or get help with debugging.</p>
+        </div>
+      </div>
+      
+      <!-- Chat messages stream -->
+      <div id="messages" data-role="messages" phx-update="stream" class="space-y-4">
+        <div :for={{dom_id, message} <- @streams.messages} id={dom_id} data-role="message" data-message-role={message.role} class={["flex", if(message.role == :user, do: "justify-end", else: "")]}>
+          <div class={["max-w-3xl", "rounded-lg", "px-4", "py-3", if(message.role == :user, do: "bg-blue-600 text-white", else: "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white")]}>
+            <div class="flex items-start space-x-2">
+              <span class="text-lg">
+                <%= if message.role == :user, do: "👤", else: "🤖" %>
+              </span>
+              <div class="flex-1">
+                <div class="text-sm font-medium mb-1">
+                  <%= if message.role == :user, do: "You", else: "AI Assistant" %>
+                  <span class="text-xs opacity-75 ml-2" data-role="message-time">
+                    <%= Calendar.strftime(message.timestamp, "%H:%M") %>
+                  </span>
+                </div>
+                <div class={["prose", "prose-sm", "max-w-none", if(message.role == :user, do: "prose-invert", else: "")]}>
+                  <%= render_message_content(message.content) %>
+                </div>
+                <div :if={message[:metadata]} class="mt-2 text-xs opacity-75" data-role="message-metadata">
+                  <%= if message.metadata[:tokens], do: "#{message.metadata.tokens} tokens" %>
+                  <%= if message.metadata[:duration], do: "• #{message.metadata.duration}ms" %>
+                  <%= if message.metadata[:model], do: "• #{message.metadata.model}" %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div :if={@typing_indicator} id="typing-indicator" data-role="typing-indicator" class="flex">
+        <div class="bg-gray-200 dark:bg-gray-700 rounded-lg px-4 py-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">🤖</span>
+            <div class="flex space-x-1">
+              <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+              <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+              <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
+      <form phx-submit="send_message" class="flex space-x-4">
+        <input
+          type="text"
+          name="message"
+          value={@current_message}
+          phx-keyup="update_message"
+          phx-debounce="100"
+          placeholder="Ask me anything about your code..."
+          disabled={@processing}
+          class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white disabled:opacity-50"
+          autocomplete="off"
+        />
+        <button
+          type="submit"
+          disabled={@processing || String.trim(@current_message) == ""}
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <%= if @processing, do: "Sending...", else: "Send" %>
+        </button>
+      </form>
+      <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        Press Enter to send • Supports markdown and code blocks
+      </div>
+    </div>
+  </div>
+</div>

@@ -35,3 +35,9 @@ config :hammer,
        expiry_ms: 1_000,
        cleanup_interval_ms: 500
      ]}
+
+# Configure Phoenix endpoint for testing
+config :aiex, AiexWeb.Endpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4002],
+  secret_key_base: "test_secret_key_base_that_is_at_least_64_characters_long_for_testing_purposes_only",
+  server: false

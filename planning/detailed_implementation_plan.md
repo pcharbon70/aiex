@@ -1766,6 +1766,170 @@ Creating comprehensive research workflows that combine multiple search sources w
 - [ ] Knowledge graph construction from diverse sources
 - [ ] Performance benchmarks meeting sub-300ms targets
 
+## Phase 12: Distributed Rule System (Weeks 33-36)
+
+This phase implements a sophisticated distributed rule system that enables AI assistants to understand and apply project-specific, language-specific, and framework-specific rules. The system uses markdown files with YAML frontmatter for rule definitions, Mnesia for distributed storage with event sourcing, and intelligent context injection for LLM prompts. Built on the existing distributed infrastructure, this system provides hierarchical rule management with priority-based aggregation and high-performance caching.
+
+### Section 12.1: Rule Storage Infrastructure with Mnesia
+- [ ] **Completed**
+
+Establishing the distributed storage foundation for rules using Mnesia with multi-table architecture optimized for the 95% single-node, 5% distributed usage pattern. This section creates persistent, replicated storage with event sourcing for complete audit trails and version management.
+
+**Tasks:**
+- [ ] Create Mnesia schema with rules table (id, scope, language, priority, metadata, content, version, timestamps, status)
+- [ ] Implement rule_events table for event sourcing with ordered_set type and comprehensive indexing
+- [ ] Set up rule_cache table with RAM-only storage for high-performance lookups
+- [ ] Implement adaptive replication strategy based on cluster size (single-node disc_copies, small cluster full replication, large cluster selective)
+- [ ] Create RuleStore module with transactional operations and conflict resolution
+- [ ] Implement rule versioning system with semantic versioning support
+- [ ] Add Mnesia table fragmentation preparation for future scaling
+- [ ] Create migration system for schema evolution
+
+**Tests Required:**
+- [ ] Mnesia table creation and schema validation tests
+- [ ] Transaction consistency tests with concurrent operations
+- [ ] Event sourcing append and replay tests
+- [ ] Cache invalidation and consistency tests
+- [ ] Replication strategy tests for different cluster sizes
+- [ ] Version conflict resolution tests
+- [ ] Performance benchmarks for read/write operations
+- [ ] Network partition handling tests
+
+### Section 12.2: Rule Discovery and File System Integration
+- [ ] **Completed**
+
+Building the file system integration layer for discovering and loading rules from markdown files with standardized directory structure. This section implements automatic rule discovery, file watching, and parsing of YAML frontmatter metadata.
+
+**Tasks:**
+- [ ] Implement .ai-rules/ directory structure (00-global, 10-languages, 20-frameworks, 30-contexts)
+- [ ] Create markdown parser for YAML frontmatter extraction with validation
+- [ ] Build FileWatcher GenServer for automatic rule reloading on changes
+- [ ] Implement glob pattern matching for rule file discovery
+- [ ] Create rule file validator with schema checking
+- [ ] Add support for inheriting rules from dependencies via usage_rules pattern
+- [ ] Implement rule file templating system for common patterns
+- [ ] Create CLI commands for rule management (list, validate, reload)
+
+**Tests Required:**
+- [ ] Directory structure creation and validation tests
+- [ ] YAML frontmatter parsing tests with edge cases
+- [ ] File watcher notification and reload tests
+- [ ] Glob pattern matching accuracy tests
+- [ ] Rule inheritance resolution tests
+- [ ] Template expansion tests
+- [ ] CLI command integration tests
+- [ ] File system error handling tests
+
+### Section 12.3: Rule Aggregation and Priority System
+- [ ] **Completed**
+
+Implementing the intelligent rule aggregation system that merges rules from multiple sources with priority-based conflict resolution. This section creates the core logic for determining which rules apply in specific contexts.
+
+**Tasks:**
+- [ ] Create RuleAggregator GenServer with supervised rule workers
+- [ ] Implement priority hierarchy (user > project > framework > dependency > default)
+- [ ] Build rule merging algorithm with conflict detection
+- [ ] Create tag-based rule filtering system
+- [ ] Implement scope-based rule application (project, file, language)
+- [ ] Add rule dependency resolution for prerequisite rules
+- [ ] Create rule composition system for combining related rules
+- [ ] Implement rule override mechanism with inheritance
+
+**Tests Required:**
+- [ ] Priority ordering tests with complex hierarchies
+- [ ] Conflict resolution tests for overlapping rules
+- [ ] Tag filtering accuracy tests
+- [ ] Scope application tests with nested contexts
+- [ ] Dependency resolution cycle detection tests
+- [ ] Composition correctness tests
+- [ ] Override inheritance chain tests
+- [ ] Performance tests for large rule sets
+
+### Section 12.4: Context Injection Pipeline
+- [ ] **Completed**
+
+Creating the sophisticated pipeline for injecting relevant rules into LLM prompts with intelligent selection and formatting. This section ensures rules are efficiently integrated into AI assistant contexts while managing token limits.
+
+**Tasks:**
+- [ ] Implement PromptContextBuilder with pipeline architecture
+- [ ] Create relevance scoring algorithm for rule selection
+- [ ] Build template-based injection system with variable substitution
+- [ ] Implement token counting and compression for LLM limits
+- [ ] Create context-aware rule filtering based on current file/task
+- [ ] Add rule explanation generation for complex rules
+- [ ] Implement rule example extraction from codebase
+- [ ] Create prompt optimization for different LLM providers
+
+**Tests Required:**
+- [ ] Pipeline stage isolation tests
+- [ ] Relevance scoring accuracy tests
+- [ ] Template rendering tests with nested variables
+- [ ] Token limit compliance tests
+- [ ] Context filtering effectiveness tests
+- [ ] Example extraction quality tests
+- [ ] Provider-specific optimization tests
+- [ ] End-to-end prompt generation tests
+
+### Section 12.5: Performance Optimization and Caching
+- [ ] **Completed**
+
+Implementing multi-layer caching strategies and performance optimizations to ensure sub-millisecond rule evaluation. This section creates the high-performance infrastructure needed for real-time rule application.
+
+**Tasks:**
+- [ ] Set up ETS-based primary cache with read concurrency optimization
+- [ ] Implement cache warming strategies for frequently used rules
+- [ ] Create cache invalidation system with granular control
+- [ ] Build performance monitoring with detailed metrics
+- [ ] Implement circuit breakers for rule evaluation failures
+- [ ] Add lazy loading for large rule content
+- [ ] Create rule precompilation for complex patterns
+- [ ] Implement distributed cache coordination via pg
+
+**Tests Required:**
+- [ ] Cache hit rate optimization tests
+- [ ] Invalidation correctness tests
+- [ ] Performance benchmark suite (target: <1ms for hot path)
+- [ ] Circuit breaker trigger and recovery tests
+- [ ] Lazy loading memory efficiency tests
+- [ ] Precompilation correctness tests
+- [ ] Distributed cache consistency tests
+- [ ] Load testing with concurrent requests
+
+### Section 12.6: Integration with Existing Systems
+- [ ] **Completed**
+
+Seamlessly integrating the rule system with existing Context.Manager, LLM.ModelCoordinator, and other core systems. This section ensures rules enhance rather than complicate the existing architecture.
+
+**Tasks:**
+- [ ] Extend Context.Manager with rule-aware context enrichment
+- [ ] Integrate with LLM.ModelCoordinator for rule-based model selection
+- [ ] Add rule support to semantic chunking system
+- [ ] Create InterfaceGateway extensions for rule commands
+- [ ] Implement configuration system with runtime feature flags
+- [ ] Add rule metrics to monitoring and observability
+- [ ] Create rule system health checks and diagnostics
+- [ ] Implement gradual rollout system for new rules
+
+**Tests Required:**
+- [ ] Context enrichment integration tests
+- [ ] Model selection with rules tests
+- [ ] Chunking strategy modification tests
+- [ ] Interface command tests across CLI/TUI/Web
+- [ ] Feature flag toggle tests
+- [ ] Metrics accuracy tests
+- [ ] Health check reliability tests
+- [ ] Gradual rollout behavior tests
+
+**Phase 12 Integration Tests:**
+- [ ] End-to-end rule discovery, aggregation, and application flow
+- [ ] Multi-node rule synchronization with Mnesia replication
+- [ ] Performance benchmarks meeting targets (<1ms hot path, <10ms cold path)
+- [ ] Rule system fault tolerance with node failures
+- [ ] Complex rule hierarchies with 100+ rules
+- [ ] LLM prompt generation with context-aware rule injection
+- [ ] Rule hot reloading without service interruption
+- [ ] Distributed rule consistency across 5-node cluster
+
 ## Final Distributed Validation Suite
 
 Before considering the distributed system production-ready, all integration tests must pass:

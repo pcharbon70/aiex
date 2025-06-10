@@ -160,12 +160,25 @@ defmodule Aiex do
         # Interface Gateway for unified access
         {Aiex.InterfaceGateway, []},
 
+        # AI Engines (must start before coordinators that depend on them)
+        Aiex.AI.Engines.CodeAnalyzer,
+        Aiex.AI.Engines.GenerationEngine,
+        Aiex.AI.Engines.ExplanationEngine,
+        Aiex.AI.Engines.RefactoringEngine,
+        Aiex.AI.Engines.TestGenerator,
+
         # AI Coordinators
         Aiex.AI.Coordinators.CodingAssistant,
         Aiex.AI.Coordinators.ConversationManager,
 
         # TUI communication infrastructure
         Aiex.TUI.Supervisor,
+
+        # Phoenix PubSub
+        {Phoenix.PubSub, name: Aiex.PubSub},
+
+        # Phoenix Endpoint for web interface
+        AiexWeb.Endpoint,
 
         # LLM Client (optional - only start if configured)
         llm_client_spec(),

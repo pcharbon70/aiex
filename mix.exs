@@ -34,6 +34,8 @@ defmodule Aiex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:tidewave, "~> 0.1", only: [:dev]},
+      {:igniter, "~> 0.6", only: [:dev, :test]},
       # CLI and HTTP
       {:owl, "~> 0.12.0"},
       {:optimus, "~> 0.3.0"},
@@ -46,11 +48,23 @@ defmodule Aiex.MixProject do
       {:phoenix_live_view, "~> 0.20.17"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:phoenix_live_reload, "~> 1.5", only: :dev},
       {:plug_cowboy, "~> 2.7"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.1"},
       {:gettext, "~> 0.24"},
       {:floki, ">= 0.30.0", only: :test},
+
+      # Assets
+      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.2", runtime: Mix.env() == :dev},
+      {:heroicons,
+       github: "tailwindlabs/heroicons",
+       tag: "v2.1.1",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1},
 
       # Distributed OTP
       {:horde, "~> 0.9.0"},
@@ -61,8 +75,8 @@ defmodule Aiex.MixProject do
       {:gnat, "~> 1.8"},
       {:msgpax, "~> 2.4"},
 
-      # Terminal UI
-      {:ratatouille, "~> 0.5.1"},
+      # Terminal UI (temporarily disabled due to Python 3.14 compatibility issue)
+      # {:ratatouille, "~> 0.5.1"},
 
       # Documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}
@@ -92,20 +106,24 @@ defmodule Aiex.MixProject do
   # Copy the Rust TUI binary into the release
   defp copy_tui_binary(release) do
     tui_binary = Path.join(["tui", "target", "release", "aiex-tui"])
+
     if File.exists?(tui_binary) do
       File.cp!(tui_binary, Path.join([release.path, "bin", "aiex-tui"]))
       File.chmod!(Path.join([release.path, "bin", "aiex-tui"]), 0o755)
     end
+
     release
   end
 
   # Copy the launcher script into the release
   defp copy_launcher(release) do
     launcher_script = "scripts/aiex-launcher.sh"
+
     if File.exists?(launcher_script) do
       File.cp!(launcher_script, Path.join([release.path, "bin", "aiex"]))
       File.chmod!(Path.join([release.path, "bin", "aiex"]), 0o755)
     end
+
     release
   end
 

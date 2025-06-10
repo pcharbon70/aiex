@@ -1,0 +1,44 @@
+<header class="bg-white dark:bg-gray-800 shadow-sm">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
+      <div class="flex items-center">
+        <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
+          Aiex AI Assistant
+        </h1>
+      </div>
+      <nav class="flex space-x-4">
+        <.link 
+          href={~p"/"} 
+          class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+        >
+          Chat
+        </.link>
+        <.link 
+          href={~p"/analyze"} 
+          class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+        >
+          Analyze
+        </.link>
+        <.link 
+          href={~p"/generate"} 
+          class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+        >
+          Generate
+        </.link>
+        <.link 
+          href={~p"/sessions"} 
+          class="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+        >
+          Sessions
+        </.link>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<main class="h-full">
+  <div class="max-w-7xl mx-auto">
+    <.flash_group flash={@flash} />
+    <%= @inner_content %>
+  </div>
+</main>
