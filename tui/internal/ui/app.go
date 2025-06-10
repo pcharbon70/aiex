@@ -61,11 +61,13 @@ type LayoutConfig struct {
 
 // NewApp creates a new application instance
 func NewApp(rpcClient *rpc.Client) *AIAssistantModel {
+	focusManager := NewFocusManager()
+	
 	return &AIAssistantModel{
 		rpcClient:   rpcClient,
 		eventStream: NewEventStreamManager(),
 		stateManager: state.NewManager(),
-		focusManager: NewFocusManager(),
+		focusManager: focusManager,
 		layout: LayoutConfig{
 			SidebarWidth: 30,
 			EditorRatio:  0.6,
@@ -73,9 +75,13 @@ func NewApp(rpcClient *rpc.Client) *AIAssistantModel {
 			ShowSidebar:  true,
 			ShowContext:  true,
 		},
-		activePanel: FileTreePanel,
-		ready:       false,
-		connected:   false,
+		activePanel:  FileTreePanel,
+		ready:        false,
+		connected:    false,
+		fileExplorer: NewFileExplorerModel("/home/ducky/code/aiex"),
+		codeEditor:   NewCodeEditorModel(),
+		chatPanel:    NewChatPanelModel(),
+		contextPanel: ContextPanelModel{focused: false},
 	}
 }
 
@@ -100,15 +106,15 @@ func (m AIAssistantModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Handle focus shortcuts first
+		if cmd := m.focusManager.HandleFocusShortcut(msg.String()); cmd != nil {
+			m.activePanel = m.focusManager.GetCurrentFocus()
+			return m, cmd
+		}
+		
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "tab":
-			m.focusNextPanel()
-			return m, nil
-		case "shift+tab":
-			m.focusPrevPanel()
-			return m, nil
 		case "f1":
 			m.layout.ShowSidebar = !m.layout.ShowSidebar
 			return m, nil
@@ -143,22 +149,31 @@ func (m AIAssistantModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update focused panel
 	switch m.activePanel {
 	case FileTreePanel:
+		m.fileExplorer.focused = true
 		newExplorer, cmd := m.fileExplorer.Update(msg)
 		m.fileExplorer = newExplorer
 		cmds = append(cmds, cmd)
 	case EditorPanel:
+		m.codeEditor.focused = true
 		newEditor, cmd := m.codeEditor.Update(msg)
 		m.codeEditor = newEditor
 		cmds = append(cmds, cmd)
 	case ChatPanel:
+		m.chatPanel.focused = true
 		newChat, cmd := m.chatPanel.Update(msg)
 		m.chatPanel = newChat
 		cmds = append(cmds, cmd)
 	case ContextPanel:
+		m.contextPanel.focused = true
 		newContext, cmd := m.contextPanel.Update(msg)
 		m.contextPanel = newContext
 		cmds = append(cmds, cmd)
 	}
+	
+	// Update focus manager
+	focusManager, focusCmd := m.focusManager.Update(msg)
+	m.focusManager = focusManager.(*FocusManager)
+	cmds = append(cmds, focusCmd)
 
 	m.lastUpdate = time.Now()
 	return m, tea.Batch(cmds...)
@@ -219,22 +234,6 @@ func (m AIAssistantModel) View() string {
 }
 
 // Helper methods for panel management
-func (m *AIAssistantModel) focusNextPanel() {
-	panels := []PanelType{FileTreePanel, EditorPanel, ChatPanel, ContextPanel}
-	current := int(m.activePanel)
-	m.activePanel = panels[(current+1)%len(panels)]
-	m.focusManager.SetFocus(m.activePanel)
-}
-
-func (m *AIAssistantModel) focusPrevPanel() {
-	panels := []PanelType{FileTreePanel, EditorPanel, ChatPanel, ContextPanel}
-	current := int(m.activePanel)
-	if current == 0 {
-		current = len(panels)
-	}
-	m.activePanel = panels[current-1]
-	m.focusManager.SetFocus(m.activePanel)
-}
 
 func (m AIAssistantModel) resizeAllPanels() AIAssistantModel {
 	// Update all panel sizes based on new dimensions

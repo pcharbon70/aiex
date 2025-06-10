@@ -119,7 +119,7 @@ func (m AIAssistantModel) renderStatusBar() string {
 func (m AIAssistantModel) renderSidebar(width, height int) string {
 	m.fileExplorer.width = width
 	m.fileExplorer.height = height
-	m.fileExplorer.focused = (m.activePanel == FileTreePanel)
+	m.fileExplorer.focused = m.focusManager.IsFocused(FileTreePanel)
 	
 	return m.fileExplorer.View()
 }
@@ -128,7 +128,7 @@ func (m AIAssistantModel) renderSidebar(width, height int) string {
 func (m AIAssistantModel) renderEditor(width, height int) string {
 	m.codeEditor.width = width
 	m.codeEditor.height = height
-	m.codeEditor.focused = (m.activePanel == EditorPanel)
+	m.codeEditor.focused = m.focusManager.IsFocused(EditorPanel)
 	
 	return m.codeEditor.View()
 }
@@ -137,7 +137,7 @@ func (m AIAssistantModel) renderEditor(width, height int) string {
 func (m AIAssistantModel) renderChat(width, height int) string {
 	m.chatPanel.width = width
 	m.chatPanel.height = height
-	m.chatPanel.focused = (m.activePanel == ChatPanel)
+	m.chatPanel.focused = m.focusManager.IsFocused(ChatPanel)
 	
 	return m.chatPanel.View()
 }
