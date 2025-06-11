@@ -77,6 +77,9 @@ defmodule Aiex.MixProject do
 
       # Terminal UI (temporarily disabled due to Python 3.14 compatibility issue)
       # {:ratatouille, "~> 0.5.1"},
+      
+      # Zig/Libvaxis TUI Integration
+      {:zigler, "~> 0.13.0"},
 
       # Documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false}

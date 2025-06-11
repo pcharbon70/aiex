@@ -1,0 +1,22 @@
+.{
+    .name = "libvaxis_nif",
+    .version = "0.1.0",
+
+    .dependencies = .{
+        // Zigler beam module (will be provided by Zigler)
+        .beam = .{
+            .path = "../deps/zigler/beam",
+        },
+        // Libvaxis terminal UI library
+        .vaxis = .{
+            .url = "https://github.com/rockorager/libvaxis/archive/refs/tags/v0.5.1.tar.gz",
+            .hash = "1220000000000000000000000000000000000000000000000000000000000000", // Replace with actual hash
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "libvaxis_nif.zig",
+    },
+}

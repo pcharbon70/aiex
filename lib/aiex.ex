@@ -176,6 +176,10 @@ defmodule Aiex do
 
         # Phoenix Endpoint for web interface
         AiexWeb.Endpoint,
+        
+        # Terminal User Interface (Zig/Libvaxis)
+        # Started in isolated supervision for fault tolerance
+        tui_supervisor(),
 
         # LLM Client (optional - only start if configured)
         llm_client_spec(),
@@ -226,5 +230,16 @@ defmodule Aiex do
     # For now, we'll skip it to allow basic CLI functionality
     # In a full implementation, this would check for API keys
     nil
+  end
+  
+  defp tui_supervisor do
+    # Only start TUI if explicitly enabled
+    if Application.get_env(:aiex, :tui_enabled, false) do
+      require Logger
+      Logger.info("Starting Zig/Libvaxis Terminal User Interface")
+      Aiex.Tui.Supervisor
+    else
+      nil
+    end
   end
 end

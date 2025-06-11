@@ -8,6 +8,8 @@ config :libcluster,
 config :aiex,
   # Disable clustering for development - single node mode
   cluster_enabled: false,
+  # Enable Zig/Libvaxis TUI in development
+  tui_enabled: true,
   # TUI server configuration - using Mock TUI in development
   tui: [
     enabled: true,
