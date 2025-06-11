@@ -200,145 +200,12 @@ Creating essential Mix tasks that integrate AI capabilities into existing Elixir
 - [ ] Multi-node cluster formation tests
 - [ ] Interface abstraction layer validation
 
-## Phase 2: Elixir Ratatouille Terminal Interface
 
-This phase implements a sophisticated Elixir-based Terminal User Interface using Ratatouille that integrates directly with the distributed OTP application. The architecture leverages The Elm Architecture (TEA) pattern within the Elixir ecosystem, providing fault-tolerant terminal UI with hot code reloading, automatic crash recovery, and seamless integration with existing business logic through pg process groups and supervision trees.
-
-### Section 2.1: Ratatouille OTP Integration
-- [ ] **Completed**
-
-Establishing Ratatouille runtime integration with the Elixir OTP application supervision tree and distributed coordination using pg process groups.
-
-**Tasks:**
-- [ ] Add Ratatouille dependency (`~> 0.5.1`) to mix.exs
-- [ ] Integrate Ratatouille.Runtime.Supervisor with main application supervision tree
-- [ ] Setup TUI application using Ratatouille.App behaviour
-- [ ] Configure ex_termbox for low-level terminal operations
-- [ ] Implement pg process group integration for event distribution
-- [ ] Create TUIEventBridge for automatic pg-to-TUI event forwarding
-- [ ] Add TUI process supervision with automatic restart strategies
-- [ ] Configure terminal capability detection and graceful fallbacks
-
-**Tests Required:**
-- [ ] Ratatouille runtime startup and supervision tests
-- [ ] TUI application lifecycle tests
-- [ ] pg process group integration tests
-- [ ] Event bridge functionality tests
-- [ ] Terminal capability detection tests
-- [ ] Supervision and restart behavior tests
-- [ ] Cross-platform compatibility tests
-
-### Section 2.2: TEA Architecture Foundation  
-- [ ] **Completed**
-
-Building the foundational TUI architecture using The Elm Architecture (TEA) pattern with Ratatouille's Model-Update-View cycle integrated with OTP patterns.
-
-**Tasks:**
-- [ ] Implement TUI application module with init/1, update/2, render/1 callbacks
-- [ ] Create comprehensive state model with chat history, context, and UI state
-- [ ] Add subscription system using Subscription.interval/2 for periodic updates
-- [ ] Implement command system for asynchronous operations
-- [ ] Create event handling with keyboard input and terminal events
-- [ ] Add state persistence for session recovery
-- [ ] Implement view composition with reusable components
-- [ ] Create controlled rendering with efficient re-draw strategies
-
-**Tests Required:**
-- [ ] TEA callback implementation tests
-- [ ] State model functionality tests
-- [ ] Subscription system tests
-- [ ] Command execution tests
-- [ ] Event handling accuracy tests
-- [ ] State persistence tests
-- [ ] View rendering performance tests
-
-### Section 2.3: Direct OTP Communication
-- [ ] **Completed**
-
-Implementing direct communication with OTP business logic using native Elixir process messaging and pg process groups for distributed coordination.
-
-**Tasks:**
-- [ ] Create TUICoordinator GenServer for business logic communication
-- [ ] Implement direct calls to existing InterfaceGateway
-- [ ] Add pg group subscriptions for real-time updates
-- [ ] Create message routing for commands, queries, and events
-- [ ] Implement distributed request handling across cluster nodes
-- [ ] Add circuit breaker integration with existing LLM coordination
-- [ ] Create session management using existing distributed sessions
-- [ ] Implement context synchronization with Context.Manager
-
-**Tests Required:**
-- [ ] Direct OTP communication tests
-- [ ] InterfaceGateway integration tests
-- [ ] pg group subscription tests
-- [ ] Message routing accuracy tests
-- [ ] Distributed request handling tests
-- [ ] Circuit breaker integration tests
-- [ ] Session management tests
-
-### Section 2.4: Process Communication Patterns
-- [ ] **Completed**
-
-Implementing structured communication patterns using native Elixir messaging with proper error handling and timeout management.
-
-**Tasks:**
-- [ ] Define message schemas for TUI commands and responses
-- [ ] Implement synchronous request/response patterns using GenServer.call
-- [ ] Create asynchronous event streaming using pg broadcasts
-- [ ] Add message correlation and conversation tracking
-- [ ] Implement timeout handling and deadlock prevention
-- [ ] Create error handling with graceful degradation
-- [ ] Add distributed tracing integration with existing telemetry
-- [ ] Implement message validation and security
-
-**Tests Required:**
-- [ ] Message schema validation tests
-- [ ] Synchronous communication tests
-- [ ] Asynchronous event streaming tests
-- [ ] Message correlation tests
-- [ ] Timeout and error handling tests
-- [ ] Security validation tests
-- [ ] Distributed tracing tests
-
-### Section 2.5: Native State Management
-- [ ] **Completed**
-
-Implementing efficient state management using native OTP patterns with ETS caching and real-time synchronization with distributed business logic.
-
-**Tasks:**
-- [ ] Create local state management with ETS caching for performance
-- [ ] Implement real-time state updates via pg group events
-- [ ] Add state reconciliation with distributed context
-- [ ] Create optimistic UI updates with rollback capability
-- [ ] Implement conflict resolution for concurrent updates
-- [ ] Add background state synchronization
-- [ ] Create state checkpointing for crash recovery
-- [ ] Implement memory management and cleanup strategies
-
-**Tests Required:**
-- [ ] Local state management tests
-- [ ] Real-time update processing tests
-- [ ] State reconciliation accuracy tests
-- [ ] Optimistic update behavior tests
-- [ ] Conflict resolution tests
-- [ ] Background synchronization tests
-- [ ] Memory management tests
-
-**Phase 2 Integration Tests:**
-- [ ] End-to-end TUI to OTP business logic execution
-- [ ] Real-time event propagation from distributed system
-- [ ] State consistency across TUI and distributed backend
-- [ ] TUI crash recovery and supervision behavior
-- [ ] Multi-user TUI coordination via distributed events
-- [ ] Performance under concurrent distributed load
-- [ ] Integration with existing distributed infrastructure
-- [ ] Hot code reloading while TUI is running
-
-## Phase 3: Distributed Language Processing ✅ 100% Complete
+## Phase 2: Distributed Language Processing ✅ 100% Complete
 
 This phase introduces sophisticated distributed language processing with semantic chunking across nodes, distributed context compression, multi-LLM coordination with pg process groups, and multi-interface support (CLI, LiveView, LSP). The focus is on scalable code understanding and interface flexibility.
 
-### Section 3.1: Distributed Semantic Chunking
+### Section 2.1: Distributed Semantic Chunking
 - [x] **Completed** ✅
 
 Implementing distributed semantic code chunking with single-node-first design (95% single node usage) using pure Elixir AST parsing instead of Tree-sitter NIFs. This section enables intelligent chunk creation with ETS caching for performance.
@@ -370,7 +237,7 @@ Implementing distributed semantic code chunking with single-node-first design (9
 - Comprehensive test suite with 100% coverage
 - Integrated with context compression and LLM coordination
 
-### Section 3.2: Distributed Context Compression
+### Section 2.2: Distributed Context Compression
 - [x] **Completed** ✅
 
 Building intelligent context compression with multiple strategies and single-node-first optimization. This section optimizes context usage for different LLM models with token-aware compression.
@@ -402,7 +269,7 @@ Building intelligent context compression with multiple strategies and single-nod
 - Comprehensive test suite ensuring compression quality
 - Integrated with semantic chunker for optimal context processing
 
-### Section 3.3: Distributed Multi-LLM Coordination
+### Section 2.3: Distributed Multi-LLM Coordination
 - [x] **Completed** ✅
 
 Creating a sophisticated distributed ModelCoordinator using pg process groups with intelligent provider selection, circuit breaker protection, and integrated context processing. This section ensures reliable AI interactions with automatic context compression.
@@ -436,7 +303,7 @@ Creating a sophisticated distributed ModelCoordinator using pg process groups wi
 - Comprehensive error handling and graceful degradation
 - Integration with existing LLM adapters (OpenAI, Anthropic, Ollama, LM Studio)
 
-### Section 3.4: Multi-Interface Architecture
+### Section 2.4: Multi-Interface Architecture
 - [x] **Completed** ✅
 
 Implementing the interface abstraction layer with support for CLI, Phoenix LiveView, and VS Code LSP. This section enables multiple ways to interact with the distributed AI assistant.
@@ -469,7 +336,7 @@ Implementing the interface abstraction layer with support for CLI, Phoenix LiveV
 - Supports interface registration, routing, communication, and cross-interface synchronization
 - Enhanced with new API functions for status monitoring, messaging, broadcasting, and metrics
 
-### Section 3.5: Distributed IEx Integration
+### Section 2.5: Distributed IEx Integration
 - [x] **Completed** ✅
 
 Developing distributed IEx helpers that work across cluster nodes, enabling AI-assisted development with access to the full distributed context.
@@ -502,7 +369,7 @@ Developing distributed IEx helpers that work across cluster nodes, enabling AI-a
 - Comprehensive test suite with 100% coverage for all IEx integration features
 - Provides complete distributed IEx experience with intelligent node selection and context retrieval
 
-**Phase 3 Integration Tests:**
+**Phase 2 Integration Tests:**
 - [ ] Distributed semantic chunking at scale
 - [ ] Context compression across nodes
 - [ ] Multi-provider failover with node failures
@@ -512,11 +379,11 @@ Developing distributed IEx helpers that work across cluster nodes, enabling AI-a
 - [ ] Performance under distributed load
 - [ ] Interface switching scenarios
 
-## Phase 4: Distributed State Management
+## Phase 3: Distributed State Management
 
 This phase implements distributed state management using event sourcing with pg-based event bus, Mnesia for persistence, comprehensive test generation across nodes, and cluster-wide security. The focus is on distributed reliability, auditability, and consistency.
 
-### Section 4.1: Distributed Event Sourcing with pg
+### Section 3.1: Distributed Event Sourcing with pg
 - [x] **Completed** ✅
 
 Building a distributed event sourcing system using pg module for event distribution and Mnesia for event storage. This section provides cluster-wide auditability without external dependencies.
@@ -550,7 +417,7 @@ Building a distributed event sourcing system using pg module for event distribut
 - Comprehensive test coverage including integration tests for complete event sourcing workflows
 - Ready for distributed deployment with proper table replication strategies
 
-### Section 4.2: Distributed Session Management
+### Section 3.2: Distributed Session Management
 - [ ] **Completed**
 
 Implementing distributed session management with Horde.DynamicSupervisor, automatic session migration between nodes, and network partition handling.
@@ -574,7 +441,7 @@ Implementing distributed session management with Horde.DynamicSupervisor, automa
 - [ ] Handoff mechanism tests
 - [ ] Split-brain resolution tests
 
-### Section 4.3: Distributed Test Generation
+### Section 3.3: Distributed Test Generation
 - [x] **Completed** ✅
 
 Creating distributed test generation with work distribution across nodes using pg process groups for parallel test creation.
@@ -611,7 +478,7 @@ Creating distributed test generation with work distribution across nodes using p
 - Integrated with semantic chunker for intelligent code analysis
 - Added fallback mechanisms for graceful degradation
 
-### Section 4.4: Distributed Security Architecture
+### Section 3.4: Distributed Security Architecture
 - [x] **Completed** ✅
 
 Implementing cluster-wide security with distributed audit logging, node-to-node encryption, and multi-interface authentication.
@@ -647,7 +514,7 @@ Implementing cluster-wide security with distributed audit logging, node-to-node 
 - Implemented cluster-wide security metrics and monitoring with periodic health checks
 - Built advanced query system with time-based filtering, event type filtering, and distributed aggregation
 
-### Section 4.5: Distributed Checkpoint System
+### Section 3.5: Distributed Checkpoint System
 - [x] **Completed** ✅
 
 Building a distributed checkpoint system with Mnesia storage and cross-node synchronization for cluster-wide state management.
@@ -687,7 +554,7 @@ Building a distributed checkpoint system with Mnesia storage and cross-node sync
 - Implemented compression and checksumming for data integrity
 - Built cluster status monitoring and metrics tracking for operational visibility
 
-**Phase 4 Integration Tests:**
+**Phase 3 Integration Tests:**
 - [ ] Distributed event sourcing workflows
 - [ ] Session recovery with node failures
 - [ ] Distributed test generation at scale
@@ -697,376 +564,219 @@ Building a distributed checkpoint system with Mnesia storage and cross-node sync
 - [ ] Performance with network partitions
 - [ ] Multi-node consistency verification
 
-## Phase 5: Advanced Chat-Focused TUI Interface
 
-This phase enhances the Elixir Ratatouille Terminal User Interface with sophisticated chat-focused features that provide an immersive AI coding assistant experience. Building on Phase 2's foundation, this phase implements multi-panel layouts using Ratatouille's grid system, real-time collaboration via pg events, context awareness through distributed state, and rich interactive elements optimized for AI-powered development workflows.
+## Phase 4: Zig/Libvaxis Terminal Interface (Weeks 16-18)
 
-### Section 5.1: Enhanced Ratatouille UI Components
+This phase implements a modern Terminal User Interface (TUI) using Zig and Libvaxis, integrated directly into Elixir via Zigler NIFs. This approach eliminates external process overhead by embedding the TUI directly within the BEAM VM, providing superior performance and tighter integration with the distributed OTP architecture. The interface leverages Libvaxis's advanced terminal capabilities including modern protocol support, true RGB colors, and efficient rendering, while maintaining the chat-focused design optimized for AI coding assistance workflows.
+
+### Section 4.1: Zigler Foundation and Libvaxis Integration
 - [ ] **Completed**
 
-Building advanced UI components using Ratatouille's declarative view system with Bootstrap-inspired 12-column grid layout for sophisticated chat interfaces.
+Establishing the foundational Zigler integration with Libvaxis, creating the NIF bridge that enables Zig terminal code to run directly within the Elixir BEAM VM with proper resource management and error handling.
+
+**Purpose:** Create the core infrastructure for embedding Libvaxis TUI functionality directly in Elixir using Zigler NIFs, ensuring proper resource lifecycle management, thread safety, and seamless integration with OTP supervision trees.
 
 **Tasks:**
-- [ ] Implement advanced layout components using Ratatouille's grid system
-- [ ] Create reusable UI components (ChatPanel, ContextPanel, StatusPanel)
-- [ ] Add enhanced terminal capability detection for features like mouse support
-- [ ] Implement efficient re-rendering strategies for large chat histories
-- [ ] Create component composition patterns for maintainable views
-- [ ] Add scrollable region handling with viewport management
-- [ ] Implement focus management across multiple UI components
-- [ ] Create animation and transition effects using Ratatouille's rendering cycle
+- [ ] Add Zigler dependency (`~> 0.13.0`) to mix.exs with Zig compilation configuration
+- [ ] Create LibvaxisNif module with Zigler resource management for VaxisInstance
+- [ ] Implement Vaxis initialization with proper allocator management and cleanup
+- [ ] Create thread-safe event bridge between Vaxis and Elixir GenServer
+- [ ] Add TTY initialization and terminal capability detection
+- [ ] Implement resource cleanup with automatic destructor handling
+- [ ] Create error handling bridge for Zig errors to Elixir atoms
+- [ ] Add basic window management and screen clearing functionality
+- [ ] Implement event loop integration with BEAM scheduler cooperation
+- [ ] Create configuration system for terminal features and fallbacks
 
 **Tests Required:**
-- [ ] Grid layout system functionality tests
-- [ ] Component composition and reusability tests
-- [ ] Terminal capability feature detection tests
-- [ ] Re-rendering performance optimization tests
-- [ ] Scrollable region behavior tests
-- [ ] Focus management coordination tests
-- [ ] Animation and transition smoothness tests
+- [ ] Zigler compilation and NIF loading tests
+- [ ] Vaxis resource initialization and cleanup tests
+- [ ] Thread safety validation for concurrent NIF calls
+- [ ] Event bridge message passing accuracy tests
+- [ ] TTY initialization and capability detection tests
+- [ ] Resource destructor execution and memory leak tests
+- [ ] Error handling and Elixir atom conversion tests
+- [ ] Window management and rendering pipeline tests
+- [ ] Event loop integration and scheduler cooperation tests
+- [ ] Configuration parsing and feature detection tests
 
-### Section 5.2: Multi-Panel Chat Interface Layout
+### Section 4.2: Multi-Panel Chat Layout with Libvaxis Widgets
 - [ ] **Completed**
 
-Implementing a sophisticated multi-panel layout using Ratatouille's Bootstrap-inspired 12-column grid system optimized for AI coding assistance with dynamic panel management and responsive design.
+Implementing a sophisticated multi-panel layout using Libvaxis's widget system and constraint-based layout management, providing a modern chat-focused interface with dynamic panel management and efficient rendering.
+
+**Purpose:** Create a flexible, responsive layout system using Libvaxis's vxfw widget framework that provides intuitive multi-panel interface for chat history, input, status, and context panels with smooth focus transitions and optimal terminal space utilization.
 
 **Tasks:**
-- [ ] Create flexible constraint-based layout using Ratatouille's row/column system
-- [ ] Implement conversation history panel using panel element (70% of main area)
-- [ ] Add current status panel with real-time updates (30% of main area)
-- [ ] Create collapsible context panel using tree element (left side, 25 columns)
-- [ ] Build quick actions panel with interactive elements (right side, 20 columns)
-- [ ] Implement dynamic panel visibility with keyboard shortcuts (F1/F2 toggles)
-- [ ] Add responsive layout adaptation using Ratatouille's constraint system
-- [ ] Create visual panel focus indicators using Ratatouille's styling system
-
-**Tests Required:**
-- [ ] Ratatouille grid system constraint tests
-- [ ] Panel element rendering and behavior tests
-- [ ] Tree element functionality for context display tests
-- [ ] Responsive design adaptation tests
-- [ ] Focus indicator styling and behavior tests
-- [ ] Multi-panel rendering performance tests
-- [ ] Layout edge case handling tests
-- [ ] Panel state persistence using TEA model tests
-
-### Section 5.3: Interactive Chat System with Message Management
-- [ ] **Completed**
-
-Building a comprehensive chat system using Elixir's concurrent primitives with message history, different message types, token tracking, and conversation persistence integrated with distributed event sourcing.
-
-**Tasks:**
-- [ ] Implement message history using Elixir's efficient data structures
-- [ ] Create multiple message types (User, Assistant, System, Error) with struct patterns
-- [ ] Add timestamp display and formatting using Elixir's DateTime functions
-- [ ] Implement token usage tracking per message integrated with LLM.ModelCoordinator
-- [ ] Create auto-scrolling with manual scroll controls using Ratatouille's viewport
-- [ ] Add conversation persistence using existing event sourcing system
-- [ ] Implement message search and filtering using Elixir's Enum functions
-- [ ] Create message export functionality integrated with existing file operations
-
-**Tests Required:**
-- [ ] Message data structure efficiency tests
-- [ ] Message type pattern matching tests
-- [ ] Timestamp formatting and display tests
-- [ ] Token tracking integration with LLM coordinator tests
-- [ ] Ratatouille viewport scrolling behavior tests
-- [ ] Event sourcing persistence integration tests
-- [ ] Message search and filtering accuracy tests
-- [ ] Performance tests with large message histories in Elixir
-
-### Section 5.4: Focus Management and Navigation System
-- [ ] **Completed**
-
-Implementing sophisticated focus management using Ratatouille's event system with keyboard navigation, visual indicators, and panel-specific shortcuts integrated with TEA state management.
-
-**Tasks:**
-- [ ] Create Tab/Shift+Tab navigation using Ratatouille's event handling
-- [ ] Implement visual focus indicators using Ratatouille's styling attributes
-- [ ] Add panel-specific keyboard shortcuts using pattern matching in update/2
-- [ ] Create input area with Ctrl+Enter message sending via command dispatch
-- [ ] Implement chat navigation with arrow keys using Ratatouille's key events
-- [ ] Add context panel browsing using tree element navigation
-- [ ] Create quick actions selection with Enter execution via TEA commands
-- [ ] Implement global shortcuts (Ctrl+Q quit, F1/F2 toggles) in event handler
-
-**Tests Required:**
-- [ ] Ratatouille event handling navigation tests
-- [ ] Styling attribute focus indicator tests
-- [ ] Pattern matching keyboard shortcut tests
-- [ ] TEA command dispatch tests for input handling
-- [ ] Tree element navigation behavior tests
-- [ ] Command execution via TEA architecture tests
-- [ ] Global shortcut event processing tests
-- [ ] Focus state management in TEA model tests
-
-### Section 5.5: Context Awareness and Quick Actions
-- [ ] **Completed**
-
-Building intelligent context awareness using distributed state management with file status tracking, function references, error detection, and pre-defined quick actions integrated with existing Context.Manager and semantic analysis.
-
-**Tasks:**
-- [ ] Implement file status tracking using existing distributed context system
-- [ ] Create function references using semantic chunker integration
-- [ ] Add error message integration with existing audit logging
-- [ ] Implement visual icons using Ratatouille's text styling and Unicode
-- [ ] Create pre-defined quick actions integrated with InterfaceGateway
-- [ ] Add keyboard shortcuts for rapid action access via TEA event handling
-- [ ] Implement one-click execution using existing AI coordinator integration
-- [ ] Create context-aware action suggestions using distributed intelligence
-
-**Tests Required:**
-- [ ] Distributed context integration accuracy tests
-- [ ] Semantic chunker function reference tests
-- [ ] Audit logging error integration tests
-- [ ] Ratatouille text styling and Unicode icon tests
-- [ ] InterfaceGateway quick action integration tests
-- [ ] TEA event handling shortcut tests
-- [ ] AI coordinator execution integration tests
-- [ ] Distributed intelligence suggestion tests
-
-### Section 5.6: Rich Text Support and Syntax Highlighting
-- [ ] **Completed**
-
-Implementing rich text rendering using Ratatouille's styling system with syntax highlighting, code block formatting, and enhanced visual presentation integrated with existing semantic analysis.
-
-**Tasks:**
-- [ ] Create syntax highlighting using Ratatouille's styling attributes and terminal colors
-- [ ] Implement proper text wrapping using Ratatouille's text flow and word boundaries
-- [ ] Add scrollbar indicators using Ratatouille's scrollable regions
-- [ ] Create status indicators using Unicode symbols and color coding
-- [ ] Implement markdown-style formatting using Ratatouille's text styling
-- [ ] Add code block detection using existing semantic chunker
-- [ ] Create diff visualization using Ratatouille's styling for change indicators
-- [ ] Implement customizable color themes using terminal color capabilities
-
-**Tests Required:**
-- [ ] Ratatouille styling syntax highlighting tests
-- [ ] Text wrapping and flow behavior tests
-- [ ] Scrollable region functionality tests
-- [ ] Unicode and color status indicator tests
-- [ ] Markdown-style text formatting tests
-- [ ] Semantic chunker code block detection tests
-- [ ] Diff visualization styling tests
-- [ ] Terminal color theme switching tests
-
-**Phase 5 Integration Tests:**
-- [ ] End-to-end chat workflow with Elixir OTP backend
-- [ ] Multi-panel interaction using Ratatouille grid system
-- [ ] Performance under heavy message load with Elixir concurrency
-- [ ] Context awareness integration with distributed state
-- [ ] Quick action execution via InterfaceGateway workflows
-- [ ] Real-time collaboration using pg event distribution
-- [ ] Error handling across all panels with supervisor recovery
-- [ ] TEA architecture state consistency and UI responsiveness
-
-## Phase 5.5: Go Bubble Tea Terminal Interface (Weeks 16-18)
-
-This phase implements a sophisticated Terminal User Interface (TUI) in Go using the Bubble Tea framework that communicates with the Elixir OTP distributed AI coding assistant. The interface provides a modern, responsive, multi-panel layout inspired by Claude's interface design with real-time bidirectional communication via JSON-RPC over WebSocket. This phase focuses on creating a high-performance, event-driven TUI that leverages Go's concurrency strengths while seamlessly integrating with the existing Elixir distributed infrastructure.
-
-### Section 5.5.1: Bubble Tea Foundation and JSON-RPC Communication
-- [ ] **Completed**
-
-Establishing the foundational Bubble Tea application architecture with JSON-RPC communication layer for bidirectional real-time communication with the Elixir OTP backend.
-
-**Purpose:** Create the core TUI application structure using Bubble Tea's Elm-inspired Model-Update-View pattern and implement robust JSON-RPC communication with WebSocket transport for seamless integration with the Elixir backend.
-
-**Tasks:**
-- [ ] Initialize Go module with Bubble Tea dependencies (bubbletea, bubbles, lipgloss)
-- [ ] Implement main AIAssistantModel struct with hierarchical component composition
-- [ ] Create JSON-RPC 2.0 client with WebSocket transport using gorilla/websocket
-- [ ] Implement bidirectional communication with notification handlers
-- [ ] Add automatic reconnection with exponential backoff and circuit breaker
-- [ ] Create connection pooling for multiple OTP nodes with failover support
-- [ ] Implement event-driven message routing between Bubble Tea and JSON-RPC
-- [ ] Add comprehensive error handling and graceful degradation patterns
-- [ ] Create configuration system for connection parameters and retry policies
-- [ ] Implement connection health monitoring and status reporting
-
-**Tests Required:**
-- [ ] Bubble Tea model initialization and basic lifecycle tests
-- [ ] JSON-RPC message serialization and deserialization tests
-- [ ] WebSocket connection establishment and failure handling tests
-- [ ] Automatic reconnection logic and backoff algorithm tests
-- [ ] Circuit breaker behavior under various failure conditions tests
-- [ ] Connection pooling and failover mechanism tests
-- [ ] Bidirectional message routing accuracy tests
-- [ ] Error handling and recovery procedure tests
-- [ ] Configuration parsing and validation tests
-- [ ] Health monitoring and status reporting tests
-
-### Section 5.5.2: Multi-Panel Claude-like Layout System
-- [ ] **Completed**
-
-Implementing a sophisticated multi-panel layout system using Lip Gloss styling that provides a modern, responsive interface inspired by Claude's design with dynamic panel management and keyboard navigation.
-
-**Purpose:** Create a flexible, responsive layout system that provides an intuitive multi-panel interface for file exploration, code editing, chat interaction, and context awareness with smooth focus transitions and adaptive sizing.
-
-**Tasks:**
-- [ ] Design and implement three-panel layout (sidebar, editor, chat) using Lip Gloss
-- [ ] Create responsive layout calculations with dynamic panel sizing
-- [ ] Implement FileExplorer panel with tree navigation and file operations
-- [ ] Build CodeEditor panel with syntax highlighting using Chroma library
-- [ ] Create ChatPanel with message history and real-time streaming
+- [ ] Design hierarchical layout using Libvaxis constraint system
+- [ ] Implement ChatHistoryPanel with virtual scrolling support
+- [ ] Create InputPanel with multi-line editing and cursor tracking
+- [ ] Build StatusPanel with real-time connection and AI provider information
 - [ ] Add ContextPanel for project awareness and quick actions
-- [ ] Implement focus management system with visual indicators
-- [ ] Create keyboard navigation with Tab/Shift+Tab panel switching
-- [ ] Add panel resize capabilities with mouse and keyboard controls
-- [ ] Implement layout persistence and restoration across sessions
+- [ ] Implement focus management with visual indicators using Libvaxis styling
+- [ ] Create keyboard navigation with Tab/Shift+Tab and arrow key support
+- [ ] Add dynamic panel resizing with mouse and keyboard controls
+- [ ] Implement panel visibility toggling with function key shortcuts
+- [ ] Create responsive layout adaptation for different terminal sizes
 
 **Tests Required:**
-- [ ] Layout calculation accuracy under various terminal sizes tests
+- [ ] Constraint-based layout calculation accuracy tests
 - [ ] Panel rendering and positioning correctness tests
-- [ ] FileExplorer navigation and file operation tests
-- [ ] CodeEditor syntax highlighting and text manipulation tests
-- [ ] ChatPanel message display and scrolling behavior tests
-- [ ] ContextPanel information accuracy and action execution tests
+- [ ] Virtual scrolling performance with large message histories tests
+- [ ] Multi-line input handling and cursor tracking tests
+- [ ] Status panel real-time update display tests
+- [ ] Context panel information accuracy and interaction tests
 - [ ] Focus management and visual indicator tests
 - [ ] Keyboard navigation and shortcut handling tests
-- [ ] Panel resize functionality and boundary handling tests
-- [ ] Layout persistence and restoration tests
+- [ ] Panel resize functionality and boundary validation tests
+- [ ] Responsive layout adaptation across terminal sizes tests
 
-### Section 5.5.3: Event-Driven Architecture and State Management
+### Section 4.3: Event-Driven Architecture with GenServer Integration
 - [ ] **Completed**
 
-Building a robust event-driven architecture with centralized state management that handles asynchronous updates from the Elixir backend while maintaining UI responsiveness through efficient event processing and state synchronization.
+Building a robust event-driven architecture that bridges Libvaxis events with Elixir's GenServer model, providing seamless integration with the distributed OTP system while maintaining UI responsiveness through efficient event processing.
 
-**Purpose:** Implement a scalable event-driven system that seamlessly handles high-frequency updates from the distributed Elixir backend while maintaining UI responsiveness through adaptive rate limiting, event buffering, and optimistic state management.
+**Purpose:** Implement a scalable event-driven system that handles terminal events from Libvaxis and application events from the distributed Elixir backend, ensuring responsive UI performance through proper event prioritization and state management.
 
 **Tasks:**
-- [ ] Create EventStreamManager with circular event buffering
-- [ ] Implement adaptive rate limiting for high-frequency event streams
-- [ ] Build centralized StateManager with optimistic updates and rollback
-- [ ] Create event categorization and prioritization system
-- [ ] Implement backpressure handling for UI responsiveness
-- [ ] Add event debouncing and batching for expensive operations
-- [ ] Create state synchronization with eventual consistency guarantees
-- [ ] Implement conflict resolution for concurrent state changes
-- [ ] Add event sourcing integration for audit trail and replay
+- [ ] Create LibvaxisTui GenServer for centralized state management
+- [ ] Implement Vaxis event worker thread with message passing to GenServer
+- [ ] Add event categorization (keyboard, mouse, resize, focus) with priority handling
+- [ ] Create message buffer management for high-frequency events
+- [ ] Implement backpressure handling to prevent GenServer mailbox overflow
+- [ ] Add event debouncing for expensive operations like rendering
+- [ ] Create state synchronization with pg process groups for distributed updates
+- [ ] Implement optimistic updates with rollback capability
+- [ ] Add integration with existing Context.Manager and LLM.ModelCoordinator
 - [ ] Create performance monitoring for event processing bottlenecks
 
 **Tests Required:**
-- [ ] Event buffering and overflow handling under high load tests
-- [ ] Adaptive rate limiting algorithm effectiveness tests
-- [ ] Optimistic update and rollback mechanism tests
+- [ ] GenServer lifecycle and state management tests
+- [ ] Event worker thread communication accuracy tests
 - [ ] Event categorization and priority processing tests
-- [ ] Backpressure handling and UI responsiveness tests
-- [ ] Debouncing and batching logic correctness tests
-- [ ] State synchronization and consistency tests
-- [ ] Conflict resolution algorithm tests
-- [ ] Event sourcing integration and replay tests
-- [ ] Performance monitoring accuracy and threshold tests
+- [ ] Message buffer overflow and backpressure handling tests
+- [ ] Event debouncing effectiveness and timing tests
+- [ ] State synchronization with pg process groups tests
+- [ ] Optimistic update and rollback mechanism tests
+- [ ] Integration with existing OTP systems tests
+- [ ] Performance monitoring and bottleneck detection tests
+- [ ] Concurrent event processing safety tests
 
-### Section 5.5.4: File Explorer and Code Editor Integration
+### Section 4.4: Message Rendering with Virtual Scrolling
 - [ ] **Completed**
 
-Implementing sophisticated file system integration with intelligent code editing capabilities, including syntax highlighting, real-time collaboration features, and seamless integration with the Elixir backend for file operations and code analysis.
+Implementing efficient message rendering using Libvaxis's text capabilities with virtual scrolling, syntax highlighting, and rich formatting to handle large chat histories while maintaining smooth performance.
 
-**Purpose:** Create a powerful file management and code editing experience that provides syntax-aware editing, real-time collaboration, intelligent code assistance, and secure file operations through the Elixir sandbox system.
-
-**Tasks:**
-- [ ] Build FileExplorer with tree navigation using bubbles/tree component
-- [ ] Implement file operations (create, delete, rename) via JSON-RPC
-- [ ] Create CodeEditor with syntax highlighting using Chroma library
-- [ ] Add real-time collaborative editing with operational transforms
-- [ ] Implement intelligent code completion and suggestion display
-- [ ] Create mini-map and scroll indicator for large files
-- [ ] Add search and replace functionality with regex support
-- [ ] Implement code folding and outline navigation
-- [ ] Create integration with Elixir semantic analysis for context awareness
-- [ ] Add file watcher integration for external change detection
-
-**Tests Required:**
-- [ ] File tree navigation and update handling tests
-- [ ] File operation execution and error handling tests
-- [ ] Syntax highlighting accuracy across multiple languages tests
-- [ ] Collaborative editing conflict resolution tests
-- [ ] Code completion and suggestion relevance tests
-- [ ] Mini-map rendering and navigation tests
-- [ ] Search and replace functionality tests
-- [ ] Code folding and outline generation tests
-- [ ] Semantic analysis integration tests
-- [ ] File watcher notification handling tests
-
-### Section 5.5.5: Real-time Chat Interface with Streaming
-- [ ] **Completed**
-
-Building an advanced chat interface that provides real-time interaction with AI assistants, including streaming response display, message history management, and rich formatting capabilities for code and technical content.
-
-**Purpose:** Create an intuitive chat experience that handles streaming AI responses, maintains conversation history, supports rich formatting, and provides seamless integration with the distributed AI coordination system.
+**Purpose:** Create a high-performance message display system that efficiently renders large chat histories using virtual scrolling, supports rich text formatting including code blocks and syntax highlighting, and integrates with the existing semantic analysis system.
 
 **Tasks:**
-- [ ] Implement ChatPanel with message history using bubbles/viewport
-- [ ] Create streaming response display with character-by-character rendering
-- [ ] Add message formatting with Markdown and code block support
-- [ ] Implement conversation management with session persistence
-- [ ] Create typing indicators and response status display
-- [ ] Add message search and filtering capabilities
-- [ ] Implement conversation branching and thread management
-- [ ] Create export functionality for conversation history
-- [ ] Add emoji and reaction support for enhanced interaction
-- [ ] Implement message retry and editing capabilities
-
-**Tests Required:**
-- [ ] Message history storage and retrieval tests
-- [ ] Streaming response rendering and timing tests
-- [ ] Markdown and code block formatting tests
-- [ ] Conversation persistence and restoration tests
-- [ ] Typing indicator and status display tests
-- [ ] Message search and filtering accuracy tests
-- [ ] Conversation branching and thread management tests
-- [ ] Export functionality and format validation tests
-- [ ] Emoji and reaction handling tests
-- [ ] Message retry and editing workflow tests
-
-### Section 5.5.6: Performance Optimization and Virtual Scrolling
-- [ ] **Completed**
-
-Implementing comprehensive performance optimizations including virtual scrolling for large content, render caching for expensive operations, and memory management strategies to ensure responsive performance even with extensive chat histories and large codebases.
-
-**Purpose:** Optimize the TUI for handling large-scale content including extensive chat histories, large files, and high-frequency updates while maintaining smooth performance and efficient memory usage.
-
-**Tasks:**
-- [ ] Implement virtual scrolling for large message histories and file content
-- [ ] Create render caching system for expensive syntax highlighting operations
-- [ ] Add memory pooling for frequently allocated UI components
-- [ ] Implement lazy loading for file content and message history
-- [ ] Create efficient diff algorithms for minimal re-rendering
-- [ ] Add performance profiling and monitoring instrumentation
-- [ ] Implement adaptive quality settings based on performance metrics
-- [ ] Create background processing for non-critical operations
-- [ ] Add garbage collection optimization for long-running sessions
-- [ ] Implement resource usage monitoring and alerts
+- [ ] Implement virtual scrolling with viewport management for large message histories
+- [ ] Create message formatting engine with Markdown support
+- [ ] Add syntax highlighting integration using existing semantic chunker
+- [ ] Implement code block detection and special formatting
+- [ ] Create timestamp display with relative and absolute time options
+- [ ] Add message type indicators (User, Assistant, System, Error) with visual styling
+- [ ] Implement message search and filtering with highlight display
+- [ ] Create diff visualization for code changes and suggestions
+- [ ] Add Unicode and emoji support with proper grapheme handling
+- [ ] Implement customizable color themes using Libvaxis styling
 
 **Tests Required:**
 - [ ] Virtual scrolling performance with large datasets tests
-- [ ] Render caching effectiveness and invalidation tests
-- [ ] Memory pooling efficiency and leak detection tests
-- [ ] Lazy loading behavior and correctness tests
-- [ ] Diff algorithm accuracy and performance tests
-- [ ] Performance profiling accuracy and overhead tests
-- [ ] Adaptive quality adjustment logic tests
-- [ ] Background processing correctness and timing tests
-- [ ] Garbage collection optimization effectiveness tests
-- [ ] Resource monitoring accuracy and alerting tests
+- [ ] Message formatting accuracy and Markdown rendering tests
+- [ ] Syntax highlighting integration with semantic chunker tests
+- [ ] Code block detection and formatting tests
+- [ ] Timestamp display and formatting correctness tests
+- [ ] Message type styling and visual indicator tests
+- [ ] Search and filtering functionality with highlighting tests
+- [ ] Diff visualization rendering accuracy tests
+- [ ] Unicode and emoji handling correctness tests
+- [ ] Color theme switching and styling tests
 
-**Phase 5.5 Integration Tests:**
-- [ ] Complete TUI workflow integration with Elixir OTP backend
+### Section 4.5: Input Handling with Multi-line Support
+- [ ] **Completed**
+
+Building sophisticated input handling capabilities with multi-line editing, cursor tracking, and integration with Elixir's distributed messaging system for seamless AI interaction.
+
+**Purpose:** Create an intuitive input system that supports multi-line editing, provides intelligent cursor management, integrates with the existing LLM coordination system, and offers features like auto-completion and command history.
+
+**Tasks:**
+- [ ] Implement multi-line text input with proper cursor tracking
+- [ ] Create text editing operations (insert, delete, backspace, navigation)
+- [ ] Add copy/paste functionality with system clipboard integration
+- [ ] Implement command history with search and recall capabilities
+- [ ] Create auto-completion integration with existing AI engines
+- [ ] Add input validation and preprocessing for AI commands
+- [ ] Implement send-on-enter vs multi-line mode switching
+- [ ] Create input buffer management with undo/redo functionality
+- [ ] Add keyboard shortcuts for common operations (Ctrl+C, Ctrl+V, etc.)
+- [ ] Implement input sanitization and security validation
+
+**Tests Required:**
+- [ ] Multi-line text editing and cursor tracking tests
+- [ ] Text operation accuracy and boundary handling tests
+- [ ] Clipboard integration functionality tests
+- [ ] Command history storage and retrieval tests
+- [ ] Auto-completion integration and suggestion display tests
+- [ ] Input validation and preprocessing tests
+- [ ] Send mode switching and behavior tests
+- [ ] Undo/redo functionality and state management tests
+- [ ] Keyboard shortcut handling and conflicts tests
+- [ ] Input sanitization and security validation tests
+
+### Section 4.6: Distributed Integration with OTP Systems
+- [ ] **Completed**
+
+Integrating the Libvaxis TUI with existing distributed OTP systems including Context.Manager, LLM.ModelCoordinator, and event sourcing, ensuring seamless operation within the distributed architecture.
+
+**Purpose:** Create seamless integration between the embedded TUI and the existing distributed Elixir infrastructure, ensuring proper supervision, fault tolerance, and distributed state synchronization while maintaining the benefits of direct NIF integration.
+
+**Tasks:**
+- [ ] Integrate TUI GenServer with existing supervision tree
+- [ ] Create pg process group subscriptions for distributed event handling
+- [ ] Implement Context.Manager integration for project awareness
+- [ ] Add LLM.ModelCoordinator integration for AI request handling
+- [ ] Create event sourcing integration for TUI interactions audit trail
+- [ ] Implement distributed session management for multi-user scenarios
+- [ ] Add InterfaceGateway integration for unified interface abstraction
+- [ ] Create health monitoring and metrics collection for TUI performance
+- [ ] Implement graceful shutdown and cleanup procedures
+- [ ] Add distributed configuration management and feature flags
+
+**Tests Required:**
+- [ ] Supervision tree integration and fault tolerance tests
+- [ ] pg process group subscription and event handling tests
+- [ ] Context.Manager integration and project awareness tests
+- [ ] LLM.ModelCoordinator request routing and response handling tests
+- [ ] Event sourcing audit trail accuracy tests
+- [ ] Distributed session management and synchronization tests
+- [ ] InterfaceGateway abstraction layer integration tests
+- [ ] Health monitoring and metrics collection tests
+- [ ] Graceful shutdown and resource cleanup tests
+- [ ] Distributed configuration and feature flag tests
+
+**Phase 4 Integration Tests:**
+- [ ] Complete TUI workflow integration with distributed Elixir OTP backend
 - [ ] Multi-panel interaction and focus management across all components
 - [ ] Real-time event processing under high load with performance validation
-- [ ] File operations and code editing with semantic analysis integration
-- [ ] Chat functionality with streaming responses and conversation persistence
-- [ ] Error handling and recovery across all communication layers
-- [ ] Performance benchmarks with large codebases and extensive chat histories
-- [ ] Security validation for all file operations and communication channels
-- [ ] Accessibility features and keyboard-only navigation workflows
-- [ ] Cross-platform compatibility and terminal capability handling
+- [ ] Message rendering and virtual scrolling with large chat histories
+- [ ] Input handling and AI interaction workflows end-to-end
+- [ ] Distributed integration with Context.Manager and LLM.ModelCoordinator
+- [ ] Event sourcing audit trail for all TUI interactions
+- [ ] Error handling and recovery across NIF boundary and OTP systems
+- [ ] Performance benchmarks comparing to external process approaches
+- [ ] Security validation for NIF integration and resource management
+- [ ] Multi-user distributed scenarios with session synchronization
+- [ ] Graceful degradation under various failure conditions
+- [ ] Memory usage and resource cleanup validation
+- [ ] Cross-platform terminal compatibility and feature detection
+- [ ] Integration with existing CLI and other interface systems
 
-## Phase 6: Core AI Assistant Application Logic (Weeks 18-20) ⏳
+## Phase 5: Core AI Assistant Application Logic (Weeks 18-20) ⏳
 
-This phase implements the core AI assistant engines that provide actual coding assistance capabilities. Building on the comprehensive distributed infrastructure from Phases 1-5, this phase creates the application logic that users interact with: code analysis, generation, explanation, refactoring, and test creation. The focus is on intelligent prompt templates, seamless integration with existing LLM coordination, and sophisticated AI workflows that leverage the distributed context management and event sourcing systems.
+This phase implements the core AI assistant engines that provide actual coding assistance capabilities. Building on the comprehensive distributed infrastructure from Phases 1-4, this phase creates the application logic that users interact with: code analysis, generation, explanation, refactoring, and test creation. The focus is on intelligent prompt templates, seamless integration with existing LLM coordination, and sophisticated AI workflows that leverage the distributed context management and event sourcing systems.
 
-### Section 6.1: Core AI Assistant Engines (CodeAnalyzer, GenerationEngine, ExplanationEngine)
+### Section 5.1: Core AI Assistant Engines (CodeAnalyzer, GenerationEngine, ExplanationEngine)
 - [ ] **Completed**
 
 Building the foundational AI assistant engines that provide core coding assistance capabilities, leveraging the existing distributed LLM coordination, context management, and event sourcing infrastructure.
@@ -1093,7 +803,7 @@ Building the foundational AI assistant engines that provide core coding assistan
 - [ ] Event sourcing AI interaction tests
 - [ ] Distributed coordination functionality tests
 
-### Section 6.2: Advanced AI Engines (RefactoringEngine, TestGenerator)
+### Section 5.2: Advanced AI Engines (RefactoringEngine, TestGenerator)
 - [ ] **Completed**
 
 Implementing sophisticated AI engines for code refactoring and test generation, providing advanced coding assistance capabilities with intelligent analysis and automated improvements.
@@ -1121,7 +831,7 @@ Implementing sophisticated AI engines for code refactoring and test generation, 
 - [ ] Property-based test generation tests
 - [ ] Quality scoring algorithm tests
 
-### Section 6.3: AI Assistant Coordinators (CodingAssistant, ConversationManager)
+### Section 5.3: AI Assistant Coordinators (CodingAssistant, ConversationManager)
 - [ ] **Completed**
 
 Creating high-level coordinator modules that orchestrate AI assistant workflows, manage conversation flow, and coordinate between different AI engines for comprehensive coding assistance.
@@ -1149,7 +859,7 @@ Creating high-level coordinator modules that orchestrate AI assistant workflows,
 - [ ] Session persistence tests
 - [ ] Distributed coordination tests
 
-### Section 6.4: Enhanced CLI Integration with AI Commands
+### Section 5.4: Enhanced CLI Integration with AI Commands
 - [ ] **Completed**
 
 Enhancing the existing CLI interface with comprehensive AI assistant commands that leverage the new AI engines, providing a powerful command-line experience for AI-powered development workflows.
@@ -1177,7 +887,7 @@ Enhancing the existing CLI interface with comprehensive AI assistant commands th
 - [ ] File watching mode behavior tests
 - [ ] Batch processing performance tests
 
-### Section 6.5: Prompt Templates and System Integration
+### Section 5.5: Prompt Templates and System Integration
 - [ ] **Completed**
 
 Implementing comprehensive prompt template system with intelligent context injection, role-based prompting, and seamless integration with existing LLM coordination and context management systems.
@@ -1206,7 +916,7 @@ Implementing comprehensive prompt template system with intelligent context injec
 - [ ] Semantic chunker integration tests
 - [ ] Analytics and quality measurement tests
 
-**Phase 6 Integration Tests:**
+**Phase 5 Integration Tests:**
 - [ ] End-to-end AI assistant workflow across all engines (analyze → generate → test → refactor)
 - [ ] Multi-engine coordination with context preservation and result synthesis
 - [ ] CLI command integration with AI engines under various load conditions
@@ -1218,11 +928,11 @@ Implementing comprehensive prompt template system with intelligent context injec
 - [ ] Cross-interface AI assistant consistency (CLI, TUI, future interfaces)
 - [ ] Memory usage optimization during intensive AI processing operations
 
-## Phase 7: Advanced Multi-LLM Coordination (Weeks 21-23)
+## Phase 6: Advanced Multi-LLM Coordination (Weeks 21-23)
 
 This phase implements sophisticated multi-LLM coordination using a hybrid architecture that combines supervisor-based orchestration with peer-to-peer fallback capabilities. Building on research from AutoGen, CrewAI, and LangGraph, this phase creates role-based agent specialization with intelligent provider selection, communication protocols for conflict resolution, and comprehensive monitoring using OpenLit-style observability. The system enables parallel LLM requests with consensus-based result selection while maintaining distributed fault tolerance and integrating seamlessly with the existing distributed OTP infrastructure.
 
-### Section 7.1: Hybrid Coordination Architecture
+### Section 6.1: Hybrid Coordination Architecture
 - [ ] **Completed**
 
 Implementing a hybrid coordination model that combines the reliability of supervisor patterns with the resilience of peer-to-peer architectures. This section creates the foundational coordination infrastructure with intelligent failover and adaptive coordination strategies.
@@ -1246,7 +956,7 @@ Implementing a hybrid coordination model that combines the reliability of superv
 - [ ] State synchronization consistency tests
 - [ ] Health monitoring and recovery tests
 
-### Section 7.2: CrewAI-Style Orchestration Framework
+### Section 6.2: CrewAI-Style Orchestration Framework
 - [ ] **Completed**
 
 Building role-based agent specialization with autonomous collaboration patterns inspired by CrewAI. This section implements specialized agent roles with intelligent task delegation and coordinated execution workflows.
@@ -1270,7 +980,7 @@ Building role-based agent specialization with autonomous collaboration patterns 
 - [ ] Distributed supervision resilience tests
 - [ ] Multi-agent collaboration efficiency tests
 
-### Section 7.3: Communication Protocol Implementation
+### Section 6.3: Communication Protocol Implementation
 - [ ] **Completed**
 
 Implementing standardized communication protocols with conflict resolution mechanisms and distributed message coordination. This section ensures reliable inter-agent communication with consensus-based decision making.
@@ -1294,7 +1004,7 @@ Implementing standardized communication protocols with conflict resolution mecha
 - [ ] Message correlation tracking tests
 - [ ] Communication security validation tests
 
-### Section 7.4: OpenLit-Style Monitoring and Observability
+### Section 6.4: OpenLit-Style Monitoring and Observability
 - [ ] **Completed**
 
 Creating comprehensive LLM monitoring and observability infrastructure inspired by OpenLit, providing real-time insights into multi-agent performance, cost tracking, and system health across the distributed cluster.
@@ -1318,7 +1028,7 @@ Creating comprehensive LLM monitoring and observability infrastructure inspired 
 - [ ] Metrics aggregation consistency tests
 - [ ] Performance monitoring under load tests
 
-### Section 7.5: Quality Assessment and Agent Selection
+### Section 6.5: Quality Assessment and Agent Selection
 - [ ] **Completed**
 
 Implementing intelligent quality assessment and dynamic agent selection based on performance metrics, context requirements, and historical effectiveness. This section creates adaptive routing for optimal results.
@@ -1342,7 +1052,7 @@ Implementing intelligent quality assessment and dynamic agent selection based on
 - [ ] Benchmarking system reliability tests
 - [ ] Adaptive policy learning tests
 
-### Section 7.6: Production Integration and Performance Optimization
+### Section 6.6: Production Integration and Performance Optimization
 - [ ] **Completed**
 
 Integrating multi-LLM coordination with existing distributed infrastructure and implementing performance optimizations for production-grade operation. This section ensures seamless integration with current systems while maintaining high performance.
@@ -1366,7 +1076,7 @@ Integrating multi-LLM coordination with existing distributed infrastructure and 
 - [ ] Existing system integration tests
 - [ ] Operational tooling functionality tests
 
-**Phase 7 Integration Tests:**
+**Phase 6 Integration Tests:**
 - [ ] End-to-end multi-agent coordination workflows with quality assessment
 - [ ] Hybrid coordination failover scenarios under network partitions
 - [ ] Performance benchmarks with multiple concurrent agent collaborations
@@ -1376,11 +1086,11 @@ Integrating multi-LLM coordination with existing distributed infrastructure and 
 - [ ] Cross-interface agent coordination (CLI, TUI, LiveView integration)
 - [ ] Production deployment validation with zero-downtime coordination updates
 
-## Phase 8: Production Distributed Deployment
+## Phase 7: Production Distributed Deployment
 
 This phase focuses on production deployment with Kubernetes integration, cluster-wide performance optimization, distributed monitoring with telemetry aggregation, and multi-node operational excellence. The emphasis is on horizontal scalability and fault tolerance.
 
-### Section 8.1: Distributed Performance Optimization
+### Section 7.1: Distributed Performance Optimization
 - [ ] **Completed**
 
 Implementing cluster-wide performance analysis and optimization with distributed profiling and monitoring. Includes proven patterns from Discord and WhatsApp deployments.
@@ -1403,7 +1113,7 @@ Implementing cluster-wide performance analysis and optimization with distributed
 - [ ] Distributed profiling tests
 - [ ] Dashboard aggregation tests
 
-### Section 8.2: Kubernetes Production Deployment
+### Section 7.2: Kubernetes Production Deployment
 - [ ] **Completed**
 
 Implementing Kubernetes-native deployment with libcluster, automatic scaling, and production supervision trees for cloud-native operation.
@@ -1427,7 +1137,7 @@ Implementing Kubernetes-native deployment with libcluster, automatic scaling, an
 - [ ] Network policy tests
 - [ ] Persistent volume tests
 
-### Section 8.3: Distributed Monitoring and Observability
+### Section 7.3: Distributed Monitoring and Observability
 - [ ] **Completed**
 
 Creating cluster-wide monitoring with telemetry aggregation, distributed tracing, and unified observability across all nodes and interfaces.
@@ -1451,7 +1161,7 @@ Creating cluster-wide monitoring with telemetry aggregation, distributed tracing
 - [ ] Dashboard federation tests
 - [ ] Log aggregation tests
 
-### Section 8.4: Distributed Release Engineering
+### Section 7.4: Distributed Release Engineering
 - [ ] **Completed**
 
 Setting up distributed Mix releases with cluster-aware configuration and container orchestration support.
@@ -1475,7 +1185,7 @@ Setting up distributed Mix releases with cluster-aware configuration and contain
 - [ ] Cluster rollback tests
 - [ ] Version synchronization tests
 
-### Section 8.5: Distributed Developer Tools
+### Section 7.5: Distributed Developer Tools
 - [ ] **Completed**
 
 Creating distributed debugging tools, cluster management utilities, and comprehensive documentation for distributed development.
@@ -1499,7 +1209,7 @@ Creating distributed debugging tools, cluster management utilities, and comprehe
 - [ ] Distributed coverage tests
 - [ ] Cluster integration tests
 
-**Phase 8 Integration Tests:**
+**Phase 7 Integration Tests:**
 - [ ] Cluster-wide performance benchmarks
 - [ ] Kubernetes deployment scenarios
 - [ ] Distributed monitoring accuracy
@@ -1509,11 +1219,11 @@ Creating distributed debugging tools, cluster management utilities, and comprehe
 - [ ] Cluster disaster recovery
 - [ ] Network partition handling
 
-## Phase 9: Distributed AI Intelligence
+## Phase 8: Distributed AI Intelligence
 
 This phase implements distributed AI response comparison, quality assessment, and selection across the cluster. The focus is on leveraging distributed computing for parallel LLM requests, consensus-based selection, and cluster-wide learning from user preferences.
 
-### Section 9.1: Distributed Response Comparison
+### Section 8.1: Distributed Response Comparison
 - [ ] **Completed**
 
 Building a distributed system using pg process groups for coordinating parallel LLM requests across nodes with intelligent comparison and aggregation.
@@ -1537,7 +1247,7 @@ Building a distributed system using pg process groups for coordinating parallel 
 - [ ] Correlation consistency tests
 - [ ] Distributed memory tests
 
-### Section 9.2: Distributed Quality Assessment
+### Section 8.2: Distributed Quality Assessment
 - [ ] **Completed**
 
 Implementing distributed quality assessment with work distribution across nodes for parallel evaluation of responses.
@@ -1561,7 +1271,7 @@ Implementing distributed quality assessment with work distribution across nodes 
 - [ ] Parallel detection tests
 - [ ] Consensus metric tests
 
-### Section 9.3: Distributed Response Selection
+### Section 8.3: Distributed Response Selection
 - [ ] **Completed**
 
 Implementing distributed ML-based selection using consensus algorithms across nodes with pg coordination.
@@ -1585,7 +1295,7 @@ Implementing distributed ML-based selection using consensus algorithms across no
 - [ ] Distributed adaptation tests
 - [ ] Explanation consistency tests
 
-### Section 9.4: Distributed Analytics Platform
+### Section 8.4: Distributed Analytics Platform
 - [ ] **Completed**
 
 Building a distributed analytics platform with Mnesia storage and cluster-wide aggregation for comprehensive insights.
@@ -1609,7 +1319,7 @@ Building a distributed analytics platform with Mnesia storage and cluster-wide a
 - [ ] Cluster monitoring tests
 - [ ] Distributed anomaly tests
 
-### Section 9.5: Distributed Context Intelligence
+### Section 8.5: Distributed Context Intelligence
 - [ ] **Completed**
 
 Implementing distributed context awareness with Mnesia-based knowledge storage and cluster-wide pattern analysis.
@@ -1633,7 +1343,7 @@ Implementing distributed context awareness with Mnesia-based knowledge storage a
 - [ ] Distributed knowledge tests
 - [ ] Consensus optimization tests
 
-**Phase 9 Integration Tests:**
+**Phase 8 Integration Tests:**
 - [ ] Distributed comparison workflows
 - [ ] Cluster-wide quality assessment
 - [ ] Distributed selection effectiveness
@@ -1643,11 +1353,11 @@ Implementing distributed context awareness with Mnesia-based knowledge storage a
 - [ ] Distributed learning validation
 - [ ] Network partition resilience
 
-## Phase 10: AI Techniques Abstraction Layer
+## Phase 9: AI Techniques Abstraction Layer
 
 This phase establishes a comprehensive abstraction layer for implementing advanced AI improvement techniques with runtime configuration and pluggable architecture. The system allows for selective enablement of techniques like self-refinement, multi-agent architectures, RAG, tree-of-thought reasoning, RLHF, and Constitutional AI, providing a flexible foundation for continuous AI enhancement.
 
-### Section 10.1: Core Abstraction Architecture
+### Section 9.1: Core Abstraction Architecture
 - [ ] **Completed**
 
 Building the foundational abstraction layer with GenServer-based technique coordination and distributed management using pg process groups. This section creates the framework for pluggable AI improvement techniques.
@@ -1671,7 +1381,7 @@ Building the foundational abstraction layer with GenServer-based technique coord
 - [ ] Performance monitoring accuracy tests
 - [ ] Distributed coordination tests
 
-### Section 10.2: Multi-Agent Architecture Framework
+### Section 9.2: Multi-Agent Architecture Framework
 - [ ] **Completed**
 
 Implementing a sophisticated multi-agent system using OTP supervision trees with specialized agent roles based on AgentCoder, ChatDev, and MetaGPT patterns. This section provides role-based agent coordination with fault tolerance.
@@ -1695,7 +1405,7 @@ Implementing a sophisticated multi-agent system using OTP supervision trees with
 - [ ] Fault tolerance and recovery tests
 - [ ] Performance under agent load tests
 
-### Section 10.3: Self-Refinement and Iterative Improvement
+### Section 9.3: Self-Refinement and Iterative Improvement
 - [ ] **Completed**
 
 Building self-refinement capabilities with execution feedback loops, error analysis, and iterative code improvement based on CYCLE framework and self-debugging patterns. This section enables AI to improve its own outputs through iteration.
@@ -1719,7 +1429,7 @@ Building self-refinement capabilities with execution feedback loops, error analy
 - [ ] Sandbox integration security tests
 - [ ] Distributed coordination tests
 
-### Section 10.4: Advanced Reasoning Systems
+### Section 9.4: Advanced Reasoning Systems
 - [ ] **Completed**
 
 Implementing tree-of-thought reasoning, chain-of-thought prompting, and constitutional AI principles for enhanced code generation quality. This section provides sophisticated reasoning capabilities for complex coding tasks.
@@ -1743,7 +1453,7 @@ Implementing tree-of-thought reasoning, chain-of-thought prompting, and constitu
 - [ ] Principle enforcement tests
 - [ ] Explanation generation tests
 
-### Section 10.5: Knowledge Integration and RAG
+### Section 9.5: Knowledge Integration and RAG
 - [ ] **Completed**
 
 Building comprehensive Retrieval-Augmented Generation with vector databases, code knowledge graphs, and context management for enhanced AI responses. This section integrates external knowledge sources for better code assistance.
@@ -1767,7 +1477,7 @@ Building comprehensive Retrieval-Augmented Generation with vector databases, cod
 - [ ] Knowledge synchronization tests
 - [ ] Performance at scale tests
 
-### Section 10.6: Quality Assessment and Learning
+### Section 9.6: Quality Assessment and Learning
 - [ ] **Completed**
 
 Implementing comprehensive quality assessment, reinforcement learning from human feedback (RLHF), and continuous learning mechanisms for AI improvement. This section enables the system to learn from user interactions and improve over time.
@@ -1791,7 +1501,7 @@ Implementing comprehensive quality assessment, reinforcement learning from human
 - [ ] Model update synchronization tests
 - [ ] Distributed learning coordination tests
 
-**Phase 10 Integration Tests:**
+**Phase 9 Integration Tests:**
 - [ ] End-to-end technique coordination workflows
 - [ ] Multi-agent collaboration with self-refinement
 - [ ] RAG integration with advanced reasoning
@@ -1810,11 +1520,11 @@ Implementing comprehensive quality assessment, reinforcement learning from human
 - **Fault Tolerance**: Handles network partitions with degraded mode operation
 - **Horizontal Scaling**: Process groups and distributed coordination enable linear scaling
 
-## Phase 11: Deep Research and Web Search Integration
+## Phase 10: Deep Research and Web Search Integration
 
 This phase implements sophisticated deep research capabilities with web search integration, code repository indexing with vector embeddings, distributed caching, and real-time streaming results. The system provides comprehensive research and search functionality that rivals modern coding assistants while leveraging Elixir's strengths in concurrency and distributed computing.
 
-### Section 11.1: Web Search Integration Foundation
+### Section 10.1: Web Search Integration Foundation
 - [ ] **Completed**
 
 Building the foundational web search infrastructure with multiple provider support, context-aware query enhancement, and reliable API integration using circuit breakers and rate limiting.
@@ -1838,7 +1548,7 @@ Building the foundational web search infrastructure with multiple provider suppo
 - [ ] Rate limiting compliance tests
 - [ ] API key rotation tests
 
-### Section 11.2: Vector-Based Code Repository Indexing
+### Section 10.2: Vector-Based Code Repository Indexing
 - [ ] **Completed**
 
 Implementing semantic code search using vector embeddings with tree-sitter parsing for multi-language support and efficient storage in vector databases.
@@ -1862,7 +1572,7 @@ Implementing semantic code search using vector embeddings with tree-sitter parsi
 - [ ] Multi-language support tests
 - [ ] Distributed coordination tests
 
-### Section 11.3: Distributed Search Coordination
+### Section 10.3: Distributed Search Coordination
 - [ ] **Completed**
 
 Building sophisticated search orchestration that coordinates multiple search sources (web, code, documentation) in parallel using Elixir's concurrency primitives.
@@ -1886,7 +1596,7 @@ Building sophisticated search orchestration that coordinates multiple search sou
 - [ ] Load balancing effectiveness tests
 - [ ] Session context preservation tests
 
-### Section 11.4: Performance Optimization and Caching
+### Section 10.4: Performance Optimization and Caching
 - [ ] **Completed**
 
 Implementing comprehensive caching strategies with distributed cache coordination and performance optimization targeting sub-300ms P99 latency for search operations.
@@ -1910,7 +1620,7 @@ Implementing comprehensive caching strategies with distributed cache coordinatio
 - [ ] Compression efficiency tests
 - [ ] Cache analytics accuracy tests
 
-### Section 11.5: Real-time Search Streaming
+### Section 10.5: Real-time Search Streaming
 - [ ] **Completed**
 
 Building real-time search result streaming using Phoenix channels with progressive result delivery and live result refinement.
@@ -1934,7 +1644,7 @@ Building real-time search result streaming using Phoenix channels with progressi
 - [ ] Collaboration features tests
 - [ ] Analytics tracking accuracy tests
 
-### Section 11.6: Deep Research Workflows
+### Section 10.6: Deep Research Workflows
 - [ ] **Completed**
 
 Creating comprehensive research workflows that combine multiple search sources with AI-powered synthesis and knowledge graph construction.
@@ -1958,7 +1668,7 @@ Creating comprehensive research workflows that combine multiple search sources w
 - [ ] Template effectiveness tests
 - [ ] Session persistence tests
 
-**Phase 11 Integration Tests:**
+**Phase 10 Integration Tests:**
 - [ ] End-to-end research workflow with web search and code indexing
 - [ ] Multi-source search coordination under load
 - [ ] Real-time streaming performance with concurrent users
@@ -1968,11 +1678,11 @@ Creating comprehensive research workflows that combine multiple search sources w
 - [ ] Knowledge graph construction from diverse sources
 - [ ] Performance benchmarks meeting sub-300ms targets
 
-## Phase 12: Distributed Rule System (Weeks 33-36)
+## Phase 11: Distributed Rule System (Weeks 33-36)
 
 This phase implements a sophisticated distributed rule system that enables AI assistants to understand and apply project-specific, language-specific, and framework-specific rules. The system uses markdown files with YAML frontmatter for rule definitions, Mnesia for distributed storage with event sourcing, and intelligent context injection for LLM prompts. Built on the existing distributed infrastructure, this system provides hierarchical rule management with priority-based aggregation and high-performance caching.
 
-### Section 12.1: Rule Storage Infrastructure with Mnesia
+### Section 11.1: Rule Storage Infrastructure with Mnesia
 - [ ] **Completed**
 
 Establishing the distributed storage foundation for rules using Mnesia with multi-table architecture optimized for the 95% single-node, 5% distributed usage pattern. This section creates persistent, replicated storage with event sourcing for complete audit trails and version management.
@@ -1997,7 +1707,7 @@ Establishing the distributed storage foundation for rules using Mnesia with mult
 - [ ] Performance benchmarks for read/write operations
 - [ ] Network partition handling tests
 
-### Section 12.2: Rule Discovery and File System Integration
+### Section 11.2: Rule Discovery and File System Integration
 - [ ] **Completed**
 
 Building the file system integration layer for discovering and loading rules from markdown files with standardized directory structure. This section implements automatic rule discovery, file watching, and parsing of YAML frontmatter metadata.
@@ -2022,7 +1732,7 @@ Building the file system integration layer for discovering and loading rules fro
 - [ ] CLI command integration tests
 - [ ] File system error handling tests
 
-### Section 12.3: Rule Aggregation and Priority System
+### Section 11.3: Rule Aggregation and Priority System
 - [ ] **Completed**
 
 Implementing the intelligent rule aggregation system that merges rules from multiple sources with priority-based conflict resolution. This section creates the core logic for determining which rules apply in specific contexts.
@@ -2047,7 +1757,7 @@ Implementing the intelligent rule aggregation system that merges rules from mult
 - [ ] Override inheritance chain tests
 - [ ] Performance tests for large rule sets
 
-### Section 12.4: Context Injection Pipeline
+### Section 11.4: Context Injection Pipeline
 - [ ] **Completed**
 
 Creating the sophisticated pipeline for injecting relevant rules into LLM prompts with intelligent selection and formatting. This section ensures rules are efficiently integrated into AI assistant contexts while managing token limits.
@@ -2072,7 +1782,7 @@ Creating the sophisticated pipeline for injecting relevant rules into LLM prompt
 - [ ] Provider-specific optimization tests
 - [ ] End-to-end prompt generation tests
 
-### Section 12.5: Performance Optimization and Caching
+### Section 11.5: Performance Optimization and Caching
 - [ ] **Completed**
 
 Implementing multi-layer caching strategies and performance optimizations to ensure sub-millisecond rule evaluation. This section creates the high-performance infrastructure needed for real-time rule application.
@@ -2097,7 +1807,7 @@ Implementing multi-layer caching strategies and performance optimizations to ens
 - [ ] Distributed cache consistency tests
 - [ ] Load testing with concurrent requests
 
-### Section 12.6: Integration with Existing Systems
+### Section 11.6: Integration with Existing Systems
 - [ ] **Completed**
 
 Seamlessly integrating the rule system with existing Context.Manager, LLM.ModelCoordinator, and other core systems. This section ensures rules enhance rather than complicate the existing architecture.
@@ -2122,7 +1832,7 @@ Seamlessly integrating the rule system with existing Context.Manager, LLM.ModelC
 - [ ] Health check reliability tests
 - [ ] Gradual rollout behavior tests
 
-**Phase 12 Integration Tests:**
+**Phase 11 Integration Tests:**
 - [ ] End-to-end rule discovery, aggregation, and application flow
 - [ ] Multi-node rule synchronization with Mnesia replication
 - [ ] Performance benchmarks meeting targets (<1ms hot path, <10ms cold path)
