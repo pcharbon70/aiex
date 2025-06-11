@@ -13,7 +13,13 @@ import (
 
 func main() {
 	// Initialize RPC client
-	rpcClient := rpc.NewClient([]string{"ws://localhost:4000/socket"})
+	rpcClient := rpc.NewClient([]string{"ws://localhost:4000/socket/websocket"})
+	
+	// Connect to backend
+	if err := rpcClient.Connect(); err != nil {
+		log.Printf("Warning: Could not connect to backend: %v", err)
+		log.Println("Running in offline mode with mock responses")
+	}
 	
 	// Create main application model
 	app := ui.NewApp(rpcClient)

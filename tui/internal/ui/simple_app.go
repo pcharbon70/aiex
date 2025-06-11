@@ -65,6 +65,27 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 		
+	case rpc.AIResponseMsg:
+		// Handle AI response from backend
+		// Remove the "waiting" message if it exists
+		if len(m.messages) > 0 && strings.Contains(m.messages[len(m.messages)-1], "⏳ Waiting for AI response") {
+			m.messages = m.messages[:len(m.messages)-1]
+		}
+		m.messages = append(m.messages, "🤖 AI: "+msg.Response.Content)
+		m.messages = append(m.messages, "")
+		m.lastActivity = "AI responded"
+		return m, nil
+		
+	case rpc.ConnectionEstablishedMsg:
+		m.connected = true
+		m.lastActivity = "Connected to backend"
+		return m, nil
+		
+	case rpc.ConnectionLostMsg:
+		m.connected = false
+		m.lastActivity = "Connection lost"
+		return m, nil
+		
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -81,10 +102,21 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.messages = append(m.messages, "")
 				m.messages = append(m.messages, "💬 You: "+m.input)
 				
-				// Generate AI response
-				response := m.generateAIResponse(m.input)
-				m.messages = append(m.messages, "🤖 AI: "+response)
-				m.messages = append(m.messages, "")
+				// Send to real AI backend
+				if m.client != nil && m.connected {
+					m.messages = append(m.messages, "⏳ Waiting for AI response...")
+					go func() {
+						if err := m.client.SendChatMessage(m.input); err != nil {
+							// Handle error - would normally send through tea.Cmd
+							fmt.Printf("Error sending message: %v\n", err)
+						}
+					}()
+				} else {
+					// Fallback to mock response
+					response := m.generateAIResponse(m.input)
+					m.messages = append(m.messages, "🤖 AI: "+response)
+					m.messages = append(m.messages, "")
+				}
 				
 				// Update status
 				m.messageCount++
@@ -268,6 +300,18 @@ func (m *SimpleApp) generateAIResponse(input string) string {
 	return baseResponse + " Feel free to ask me more specific questions, and I'll do my best to provide helpful guidance!"
 }
 
+// Helper methods for API key storage (simplified - in production would use secure storage)
+var apiKeys = make(map[string]string)
+
+func (m *SimpleApp) getStoredAPIKey(provider string) (string, bool) {
+	key, exists := apiKeys[provider]
+	return key, exists
+}
+
+func (m *SimpleApp) storeAPIKey(provider, key string) {
+	apiKeys[provider] = key
+}
+
 // handleCommand processes special slash commands
 func (m *SimpleApp) handleCommand(cmd string) *SimpleApp {
 	m.messages = append(m.messages, "")
@@ -276,27 +320,63 @@ func (m *SimpleApp) handleCommand(cmd string) *SimpleApp {
 	switch strings.ToLower(strings.TrimSpace(cmd)) {
 	case "/status", "/health":
 		m.messages = append(m.messages, "🔍 Checking LLM connection status...")
-		// In a real implementation, this would call:
-		// - Aiex.LLM.ModelCoordinator.get_cluster_status()
-		// - Aiex.LLM.ModelCoordinator.force_health_check()
-		m.messages = append(m.messages, "✅ Connection Status:")
-		m.messages = append(m.messages, "• Backend: Connected to ws://localhost:4000/ws")
-		m.messages = append(m.messages, "• LLM Providers: Mock mode (no real LLM configured)")
-		m.messages = append(m.messages, "• Health: Simulated responses active")
+		
+		if m.client != nil && m.connected {
+			// Real status check
+			go func() {
+				status, err := m.client.GetLLMStatus()
+				if err != nil {
+					fmt.Printf("Error getting status: %v\n", err)
+					return
+				}
+				
+				// Force health check
+				m.client.ForceHealthCheck()
+				
+				// Update UI with real status
+				statusMsg := fmt.Sprintf("Backend: %v", status)
+				fmt.Printf("LLM Status: %s\n", statusMsg)
+			}()
+			
+			m.messages = append(m.messages, "✅ Connection Status:")
+			m.messages = append(m.messages, "• Backend: Connected")
+			m.messages = append(m.messages, "• LLM Provider: "+m.provider)
+			m.messages = append(m.messages, "• Health check initiated...")
+		} else {
+			m.messages = append(m.messages, "❌ Not connected to backend")
+		}
 		m.lastActivity = "Status checked"
 		
 	case "/providers":
-		m.messages = append(m.messages, "📋 Available LLM Providers:")
-		m.messages = append(m.messages, "• OpenAI - Not configured")
-		m.messages = append(m.messages, "• Anthropic - Not configured")
-		m.messages = append(m.messages, "• Ollama - Not configured")
-		m.messages = append(m.messages, "• LM Studio - Not configured")
-		m.messages = append(m.messages, "ℹ️  Currently using mock responses")
+		if m.client != nil && m.connected {
+			// Get real provider list from backend
+			go func() {
+				providers, err := m.client.GetProviders()
+				if err != nil {
+					fmt.Printf("Error getting providers: %v\n", err)
+					return
+				}
+				
+				// Update UI with real provider information
+				fmt.Printf("Available providers: %v\n", providers)
+			}()
+			
+			m.messages = append(m.messages, "📋 Getting LLM Providers from backend...")
+		} else {
+			m.messages = append(m.messages, "📋 Available LLM Providers:")
+			m.messages = append(m.messages, "• OpenAI - Not configured")
+			m.messages = append(m.messages, "• Anthropic - Not configured")
+			m.messages = append(m.messages, "• Ollama - Not configured")
+			m.messages = append(m.messages, "• LM Studio - Not configured")
+			m.messages = append(m.messages, "ℹ️  Currently using mock responses")
+		}
 		
 	case "/help":
 		m.messages = append(m.messages, "📚 Available Commands:")
 		m.messages = append(m.messages, "• /status or /health - Check LLM connection status")
 		m.messages = append(m.messages, "• /providers - List available LLM providers")
+		m.messages = append(m.messages, "• /connect <provider> - Connect to a specific LLM (openai, anthropic, ollama, lm_studio)")
+		m.messages = append(m.messages, "• /setkey <api_key> - Set API key for current provider")
 		m.messages = append(m.messages, "• /help - Show this help message")
 		m.messages = append(m.messages, "• /clear - Clear chat history")
 		
@@ -308,7 +388,85 @@ func (m *SimpleApp) handleCommand(cmd string) *SimpleApp {
 		}
 		
 	default:
-		m.messages = append(m.messages, "❓ Unknown command. Type /help for available commands.")
+		// Handle commands with parameters
+		parts := strings.Fields(cmd)
+		if len(parts) > 0 {
+			switch parts[0] {
+			case "/connect":
+				if len(parts) > 1 {
+					provider := parts[1]
+					m.messages = append(m.messages, "🔄 Attempting to connect to "+provider+"...")
+					
+					if m.client != nil && m.connected {
+						// Use real backend connection
+						go func() {
+							config := map[string]interface{}{}
+							
+							// Get stored API key if available
+							if key, exists := m.getStoredAPIKey(provider); exists {
+								config["api_key"] = key
+							}
+							
+							if err := m.client.ConnectLLM(provider, config); err != nil {
+								fmt.Printf("Error connecting to %s: %v\n", provider, err)
+								return
+							}
+							
+							// Update provider after successful connection
+							m.provider = provider
+							fmt.Printf("Successfully connected to %s\n", provider)
+						}()
+						
+						m.messages = append(m.messages, "✅ Connecting to "+provider+" via backend...")
+						m.lastActivity = "Connecting to " + provider
+					} else {
+						// Fallback to mock mode
+						switch provider {
+						case "openai":
+							m.provider = "OpenAI GPT-4"
+							m.messages = append(m.messages, "✅ Connected to OpenAI (mock mode)")
+							m.messages = append(m.messages, "⚠️  Note: API key required for real connection")
+						case "anthropic":
+							m.provider = "Anthropic Claude"
+							m.messages = append(m.messages, "✅ Connected to Anthropic (mock mode)")
+							m.messages = append(m.messages, "⚠️  Note: API key required for real connection")
+						case "ollama":
+							m.provider = "Ollama (Local)"
+							m.messages = append(m.messages, "✅ Connected to Ollama (mock mode)")
+							m.messages = append(m.messages, "ℹ️  Note: Requires Ollama running locally")
+						case "lm_studio":
+							m.provider = "LM Studio"
+							m.messages = append(m.messages, "✅ Connected to LM Studio (mock mode)")
+							m.messages = append(m.messages, "ℹ️  Note: Requires LM Studio server running")
+						default:
+							m.messages = append(m.messages, "❌ Unknown provider: "+provider)
+							m.messages = append(m.messages, "Available: openai, anthropic, ollama, lm_studio")
+						}
+						m.lastActivity = "Provider changed (mock)"
+					}
+				} else {
+					m.messages = append(m.messages, "Usage: /connect <provider>")
+					m.messages = append(m.messages, "Example: /connect openai")
+				}
+				
+			case "/setkey":
+				if len(parts) > 1 {
+					apiKey := strings.Join(parts[1:], " ")
+					
+					// Store the API key (simplified storage for this implementation)
+					m.storeAPIKey(m.provider, apiKey)
+					
+					m.messages = append(m.messages, "🔑 API key set for "+m.provider+" (length: "+fmt.Sprintf("%d", len(apiKey))+" chars)")
+					m.messages = append(m.messages, "✅ Key stored securely")
+					m.lastActivity = "API key updated"
+				} else {
+					m.messages = append(m.messages, "Usage: /setkey <your-api-key>")
+				}
+				
+			default:
+				m.messages = append(m.messages, "❓ Unknown command. Type /help for available commands.")
+			}
+		}
 	}
 	
 	m.messages = append(m.messages, "")

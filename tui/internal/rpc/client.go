@@ -9,8 +9,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/creachadair/jrpc2"
-	"github.com/creachadair/jrpc2/channel"
 	"github.com/gorilla/websocket"
 	"aiex-tui/pkg/types"
 )
@@ -20,13 +18,14 @@ type Client struct {
 	nodes          []string
 	currentNode    int
 	conn           *websocket.Conn
-	rpcConn        *jrpc2.Client
+	channel        *PhoenixChannel
 	handlers       map[string]NotificationHandler
 	reconnector    *ReconnectionManager
 	circuitBreaker *CircuitBreaker
 	mutex          sync.RWMutex
 	connected      bool
 	program        *tea.Program
+	reading        bool
 }
 
 // NotificationHandler defines the interface for handling server notifications
@@ -54,7 +53,12 @@ func NewClient(nodes []string) *Client {
 }
 
 // Connect establishes connection to the Elixir backend
-func (c *Client) Connect(ctx context.Context) error {
+func (c *Client) Connect() error {
+	return c.ConnectWithContext(context.Background())
+}
+
+// ConnectWithContext establishes connection to the Elixir backend with context
+func (c *Client) ConnectWithContext(ctx context.Context) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -70,13 +74,38 @@ func (c *Client) Connect(ctx context.Context) error {
 
 	c.conn = conn
 	
-	// Create bidirectional RPC connection
+	// Create Phoenix channel connection
 	stream := &WebSocketStream{conn: conn}
-	ch := channel.RawJSON(stream, stream)
-	c.rpcConn = jrpc2.NewClient(ch, nil)
+	c.channel = NewPhoenixChannel(stream, "rpc:tui")
+	
+	// Join the channel
+	if err := c.channel.Join(map[string]interface{}{}); err != nil {
+		c.conn.Close()
+		return fmt.Errorf("failed to join channel: %w", err)
+	}
+	
+	// Register push event handlers
+	c.channel.OnPush("ai:response", func(payload json.RawMessage) {
+		if handler, ok := c.handlers["ai.response"]; ok {
+			if cmd := handler(payload); cmd != nil && c.program != nil {
+				c.program.Send(cmd)
+			}
+		}
+	})
+	
+	c.channel.OnPush("llm:status", func(payload json.RawMessage) {
+		if handler, ok := c.handlers["llm.status"]; ok {
+			if cmd := handler(payload); cmd != nil && c.program != nil {
+				c.program.Send(cmd)
+			}
+		}
+	})
 
 	c.connected = true
 	c.circuitBreaker.RecordSuccess()
+
+	// Start message reading loop
+	go c.readMessages()
 
 	// Send connection established message to UI
 	if c.program != nil {
@@ -92,10 +121,11 @@ func (c *Client) Disconnect() error {
 	defer c.mutex.Unlock()
 
 	c.connected = false
+	c.reading = false
 
-	if c.rpcConn != nil {
-		c.rpcConn.Close()
-		c.rpcConn = nil
+	if c.channel != nil {
+		c.channel.Leave()
+		c.channel = nil
 	}
 
 	if c.conn != nil {
@@ -111,7 +141,7 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}) (j
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	if !c.connected || c.rpcConn == nil {
+	if !c.connected || c.channel == nil {
 		return nil, fmt.Errorf("not connected")
 	}
 
@@ -119,13 +149,19 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}) (j
 		return nil, fmt.Errorf("circuit breaker is open")
 	}
 
-	var result json.RawMessage
-	err := c.rpcConn.CallResult(ctx, method, params, &result)
+	// Use Phoenix channel push
+	payload := map[string]interface{}{
+		"method": method,
+		"params": params,
+		"id":     fmt.Sprintf("%d", time.Now().UnixNano()),
+	}
+	
+	result, err := c.channel.Push("rpc:call", payload)
 	if err != nil {
 		c.circuitBreaker.RecordFailure()
 		return nil, err
 	}
-
+	
 	c.circuitBreaker.RecordSuccess()
 	return result, nil
 }
@@ -135,11 +171,16 @@ func (c *Client) Notify(ctx context.Context, method string, params interface{}) 
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	if !c.connected || c.rpcConn == nil {
+	if !c.connected || c.channel == nil {
 		return fmt.Errorf("not connected")
 	}
 
-	return c.rpcConn.Notify(ctx, method, params)
+	payload := map[string]interface{}{
+		"method": method,
+		"params": params,
+	}
+
+	return c.channel.PushAsync("rpc:notify", payload)
 }
 
 // RegisterHandler registers a notification handler
@@ -154,7 +195,7 @@ func (c *Client) StartEventStream(ctx context.Context, program *tea.Program) err
 	c.program = program
 
 	// Connect to backend
-	if err := c.Connect(ctx); err != nil {
+	if err := c.ConnectWithContext(ctx); err != nil {
 		return err
 	}
 
@@ -183,6 +224,91 @@ func (c *Client) handleNotification(method string, params json.RawMessage) {
 	if cmd := handler(params); cmd != nil && c.program != nil {
 		c.program.Send(cmd)
 	}
+}
+
+// LLM-specific methods
+
+// ConnectLLM connects to a specific LLM provider
+func (c *Client) ConnectLLM(provider string, config map[string]interface{}) error {
+	if !c.connected {
+		return fmt.Errorf("not connected to backend")
+	}
+	
+	payload := map[string]interface{}{
+		"provider": provider,
+		"config":   config,
+	}
+	
+	return c.channel.PushAsync("llm:connect", payload)
+}
+
+// GetLLMStatus gets the status of all LLM providers
+func (c *Client) GetLLMStatus() (map[string]interface{}, error) {
+	if !c.connected {
+		return nil, fmt.Errorf("not connected to backend")
+	}
+	
+	result, err := c.channel.Push("llm:status", map[string]interface{}{})
+	if err != nil {
+		return nil, err
+	}
+	
+	var status map[string]interface{}
+	if err := json.Unmarshal(result, &status); err != nil {
+		return nil, err
+	}
+	
+	return status, nil
+}
+
+// SendChatMessage sends a chat message to the AI
+func (c *Client) SendChatMessage(message string) error {
+	if !c.connected {
+		return fmt.Errorf("not connected to backend")
+	}
+	
+	payload := map[string]interface{}{
+		"message": message,
+	}
+	
+	_, err := c.channel.Push("ai:chat", payload)
+	return err
+}
+
+// RegisterProvider registers a new LLM provider
+func (c *Client) RegisterProvider(name, provider string, config map[string]interface{}) error {
+	params := map[string]interface{}{
+		"name":     name,
+		"provider": provider,
+		"config":   config,
+	}
+	
+	_, err := c.Call(context.Background(), "llm.register_provider", params)
+	return err
+}
+
+// GetProviders gets all available LLM providers
+func (c *Client) GetProviders() ([]map[string]interface{}, error) {
+	result, err := c.Call(context.Background(), "llm.get_providers", nil)
+	if err != nil {
+		return nil, err
+	}
+	
+	var response struct {
+		Providers []map[string]interface{} `json:"providers"`
+	}
+	
+	if err := json.Unmarshal(result, &response); err != nil {
+		return nil, err
+	}
+	
+	return response.Providers, nil
+}
+
+// ForceHealthCheck forces a health check on all providers
+func (c *Client) ForceHealthCheck() error {
+	_, err := c.Call(context.Background(), "llm.health_check", nil)
+	return err
 }
 
 // Default notification handlers
@@ -258,6 +384,49 @@ func (c *Client) handleContextUpdate(params json.RawMessage) tea.Cmd {
 	}
 }
 
+// readMessages continuously reads WebSocket messages and routes them through Phoenix channel
+func (c *Client) readMessages() {
+	c.mutex.Lock()
+	c.reading = true
+	c.mutex.Unlock()
+	
+	defer func() {
+		c.mutex.Lock()
+		c.reading = false
+		c.mutex.Unlock()
+	}()
+	
+	for {
+		c.mutex.RLock()
+		connected := c.connected && c.conn != nil && c.channel != nil
+		c.mutex.RUnlock()
+		
+		if !connected {
+			log.Println("Connection lost in message reader")
+			break
+		}
+		
+		// Read message from WebSocket
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			log.Printf("Error reading WebSocket message: %v", err)
+			c.mutex.Lock()
+			c.connected = false
+			c.mutex.Unlock()
+			
+			if c.program != nil {
+				c.program.Send(ConnectionLostMsg{})
+			}
+			break
+		}
+		
+		// Route message through Phoenix channel
+		if err := c.channel.HandleMessage(message); err != nil {
+			log.Printf("Error handling Phoenix message: %v", err)
+		}
+	}
+}
+
 // monitorConnection handles automatic reconnection
 func (c *Client) monitorConnection(ctx context.Context) {
 	ticker := time.NewTicker(30 * time.Second)
@@ -278,7 +447,7 @@ func (c *Client) monitorConnection(ctx context.Context) {
 					c.program.Send(ConnectionLostMsg{})
 				}
 
-				if err := c.Connect(ctx); err != nil {
+				if err := c.ConnectWithContext(ctx); err != nil {
 					log.Printf("Reconnection failed: %v", err)
 				}
 			}
