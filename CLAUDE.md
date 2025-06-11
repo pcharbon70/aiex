@@ -69,6 +69,16 @@ Aiex has completed 5 major phases and now has sophisticated distributed infrastr
 
 We use a structured approach combining todo tracking with documentation for implementing AI assistant features.
 
+### Dependency Management Rule
+
+**IMPORTANT**: Never modify or replace code to work around missing dependencies. If a dependency is not installed or there's a version mismatch:
+1. **Stop and inform the user** about the missing dependency
+2. **Provide clear installation instructions** for the dependency
+3. **Wait for the user to install it** before proceeding
+4. **Do NOT create mock implementations** or workarounds to bypass the dependency
+
+This ensures the codebase remains consistent and dependencies are properly managed.
+
 ### Current Phase 6 Workflow:
 
 1. **Todo Tracking**: Use TodoWrite/TodoRead tools to track AI assistant implementation progress

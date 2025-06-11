@@ -10,7 +10,8 @@ defmodule Aiex.Tui.LibvaxisTui do
   use GenServer
   require Logger
   
-  alias Aiex.Tui.LibvaxisNif
+  # Use minimal NIF for now (switch to LibvaxisNif when Vaxis is ready)
+  alias Aiex.Tui.LibvaxisNifMinimal, as: LibvaxisNif
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.LLM.ModelCoordinator
   alias Aiex.InterfaceGateway
@@ -285,20 +286,20 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   # Private functions
   
-  defp handle_key_press(%{codepoint: ?q, modifiers: %{ctrl: true}}, state) do
-    # Ctrl+Q to quit
+  defp handle_key_press(%{key: "escape", code: 27}, state) do
+    # Escape to quit
     Logger.info("Quitting TUI...")
     System.stop(0)
     state
   end
   
-  defp handle_key_press(%{codepoint: ?\r}, state) when state.input_buffer != "" do
+  defp handle_key_press(%{key: "enter", code: 13}, state) when state.input_buffer != "" do
     # Enter key - send message
     GenServer.call(self(), {:send_message, state.input_buffer})
     state
   end
   
-  defp handle_key_press(%{codepoint: ?\t}, state) do
+  defp handle_key_press(%{key: "tab", code: 9}, state) do
     # Tab - switch focus
     next_panel = case state.focused_panel do
       :input -> :chat
@@ -311,7 +312,7 @@ defmodule Aiex.Tui.LibvaxisTui do
     |> render()
   end
   
-  defp handle_key_press(%{codepoint: 127}, state) do
+  defp handle_key_press(%{key: "backspace", code: 127}, state) do
     # Backspace
     if state.cursor_pos > 0 do
       new_buffer = String.slice(state.input_buffer, 0, state.cursor_pos - 1) <>
@@ -324,9 +325,9 @@ defmodule Aiex.Tui.LibvaxisTui do
     end
   end
   
-  defp handle_key_press(%{codepoint: codepoint}, state) when codepoint >= 32 and codepoint < 127 do
+  defp handle_key_press(%{key: "char", code: code}, state) when code >= 32 and code < 127 do
     # Regular character input
-    char = <<codepoint::utf8>>
+    char = <<code::utf8>>
     new_buffer = String.slice(state.input_buffer, 0, state.cursor_pos) <>
                  char <>
                  String.slice(state.input_buffer, state.cursor_pos, String.length(state.input_buffer))
@@ -343,18 +344,45 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   defp render(%{vaxis: nil} = state), do: state
   defp render(state) do
-    # Prepare data for rendering
-    messages = prepare_messages(state.messages)
-    status_info = prepare_status(state.status)
+    # Simple rendering for minimal TUI
+    :ok = LibvaxisNif.clear_screen(state.vaxis)
     
-    # Call NIF to render
-    case LibvaxisNif.render(state.vaxis, messages, state.input_buffer, status_info) do
-      :ok -> :ok
-      {:error, reason} -> 
-        Logger.error("Render error: #{inspect(reason)}")
-    end
+    # Render header
+    :ok = LibvaxisNif.render_text(state.vaxis, 0, 0, "=== Aiex AI Assistant ===")
+    
+    # Render messages
+    Enum.with_index(state.messages, fn message, index ->
+      line = format_message_line(message)
+      :ok = LibvaxisNif.render_text(state.vaxis, 0, index + 2, line)
+    end)
+    
+    # Render input line
+    input_line = "> #{state.input_buffer}"
+    {:ok, {_width, height}} = LibvaxisNif.terminal_size(state.vaxis)
+    :ok = LibvaxisNif.render_text(state.vaxis, 0, height - 2, input_line)
+    
+    # Render status
+    status_line = format_status_line(state.status)
+    :ok = LibvaxisNif.render_text(state.vaxis, 0, height - 1, status_line)
     
     state
+  end
+  
+  defp format_message_line(message) do
+    time = Calendar.strftime(message.timestamp, "%H:%M")
+    type_icon = case message.type do
+      :user -> "👤"
+      :assistant -> "🤖"
+      :system -> "ℹ️"
+      :error -> "❌"
+    end
+    
+    "#{time} #{type_icon} #{String.slice(message.content, 0, 60)}"
+  end
+  
+  defp format_status_line(status) do
+    connected = if status.connected, do: "✅", else: "❌"
+    "Status: #{connected} Provider: #{status.provider || "None"}"
   end
   
   defp prepare_messages(messages) do
