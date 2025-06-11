@@ -26,6 +26,25 @@ func (ws *WebSocketStream) Recv() ([]byte, error) {
 	return data, nil
 }
 
+// Read implements the io.Reader interface
+func (ws *WebSocketStream) Read(p []byte) (n int, err error) {
+	data, err := ws.Recv()
+	if err != nil {
+		return 0, err
+	}
+	n = copy(p, data)
+	return n, nil
+}
+
+// Write implements the io.Writer interface
+func (ws *WebSocketStream) Write(p []byte) (n int, err error) {
+	err = ws.Send(p)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
 // Close implements the io.Closer interface
 func (ws *WebSocketStream) Close() error {
 	return ws.conn.Close()

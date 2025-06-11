@@ -7,7 +7,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"aiex-tui/pkg/types"
 )
 
 // EventStreamManager handles sophisticated event stream processing with buffering and rate limiting

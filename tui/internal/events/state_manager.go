@@ -227,7 +227,9 @@ func (dsm *DistributedStateManager) ApplyStateChange(component string, action st
 	// Store previous state for rollback
 	previousData := dsm.getComponentState(component)
 	if previousData != nil {
-		event.PreviousData = previousData
+		if prevMap, ok := previousData.(map[string]interface{}); ok {
+			event.PreviousData = prevMap
+		}
 	}
 	
 	// Apply optimistic update
@@ -327,8 +329,8 @@ func (dsm *DistributedStateManager) RollbackToVersion(version int64) error {
 	
 	// Notify subscribers of complete state change
 	for component := range dsm.localState.PanelStates {
-		oldComponentState := dsm.getComponentStateFromState(component, oldState)
-		newComponentState := dsm.getComponentState(component)
+		oldComponentState := dsm.getComponentStateFromState(string(component), oldState)
+		newComponentState := dsm.getComponentState(string(component))
 		dsm.notifyStateChange(string(component), oldComponentState, newComponentState)
 	}
 	

@@ -1,0 +1,134 @@
+package ui
+
+import (
+	"time"
+	"aiex-tui/pkg/types"
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// ViewportState represents the viewport state for scrollable content
+type ViewportState struct {
+	TopIndex    int
+	BottomIndex int
+	ScrollY     int
+	TotalLines  int
+}
+
+// CursorPosition represents cursor position in the editor
+type CursorPosition struct {
+	Line   int
+	Column int
+}
+
+// Selection represents text selection in the editor
+type Selection struct {
+	Start CursorPosition
+	End   CursorPosition
+	Active bool
+}
+
+// ContextPanelModel represents the context panel
+type ContextPanelModel struct {
+	width    int
+	height   int
+	content  string
+	focused  bool
+	viewport ViewportState
+}
+
+// EventStreamManager represents the event stream manager interface
+type EventStreamManager interface {
+	Subscribe(eventType string) <-chan interface{}
+	Publish(eventType string, data interface{})
+	Start() error
+	Stop()
+}
+
+// AppConfig represents application configuration
+type AppConfig struct {
+	Width             int
+	Height            int
+	DebugMode         bool
+	MaxFileSize       int64
+	AllowedExtensions []string
+}
+
+// FileOperationResult represents the result of a file operation
+type FileOperationResult struct {
+	Success bool
+	Message string
+	Data    interface{}
+}
+
+// ChatMessage represents a chat message (alias for types.ChatMessage)
+type ChatMessage = types.ChatMessage
+
+// MessageType represents message type (alias for types.MessageType)
+type MessageType = types.MessageType
+
+// Message constants
+const (
+	MessageInfo    = types.MessageInfo
+	MessageWarning = types.MessageWarning
+	MessageError   = types.MessageError
+	MessageSuccess = types.MessageSuccess
+)
+
+// UI Update Messages
+type FileSelectedMsg struct {
+	File types.FileInfo
+}
+
+type FileContentLoadedMsg struct {
+	Path    string
+	Content string
+}
+
+type ChatMessageSentMsg struct {
+	Message string
+}
+
+type ChatResponseReceivedMsg struct {
+	Response string
+	Timestamp time.Time
+}
+
+type ConnectionStatusMsg struct {
+	Connected bool
+	Backend   string
+}
+
+type ErrorMsg struct {
+	Error string
+}
+
+// UI Commands
+func LoadFileContent(path string) tea.Cmd {
+	return func() tea.Msg {
+		// In a real implementation, this would load file content
+		return FileContentLoadedMsg{
+			Path:    path,
+			Content: "// File content would be loaded here\n",
+		}
+	}
+}
+
+func SendChatMessage(message string) tea.Cmd {
+	return func() tea.Msg {
+		// In a real implementation, this would send to backend
+		return ChatResponseReceivedMsg{
+			Response:  "Simulated AI response to: " + message,
+			Timestamp: time.Now(),
+		}
+	}
+}
+
+func ConnectToBackend(url string) tea.Cmd {
+	return func() tea.Msg {
+		// In a real implementation, this would establish connection
+		return ConnectionStatusMsg{
+			Connected: true,
+			Backend:   url,
+		}
+	}
+}

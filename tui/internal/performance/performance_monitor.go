@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -750,4 +751,3 @@ func (pm *PerformanceMonitor) ExportMetrics() ([]byte, error) {
 	return json.MarshalIndent(metrics, "", "  ")
 }
 
-import "strings"

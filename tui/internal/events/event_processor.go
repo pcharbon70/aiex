@@ -1,7 +1,6 @@
 package events
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -362,7 +361,7 @@ func (eb *EventBatcher) AddToBatch(event StreamEvent) []StreamEvent {
 		eb.batches[batchKey] = batch
 		
 		// Start timeout timer
-		go eb.batchTimeout(batchKey, batch.ID)
+		go eb.handleBatchTimeout(batchKey, batch.ID)
 	}
 	
 	batch.Events = append(batch.Events, event)
@@ -378,8 +377,8 @@ func (eb *EventBatcher) AddToBatch(event StreamEvent) []StreamEvent {
 	return nil
 }
 
-// batchTimeout handles batch timeout
-func (eb *EventBatcher) batchTimeout(batchKey, batchID string) {
+// handleBatchTimeout handles batch timeout
+func (eb *EventBatcher) handleBatchTimeout(batchKey, batchID string) {
 	time.Sleep(eb.batchTimeout)
 	
 	eb.mutex.Lock()
@@ -396,12 +395,12 @@ func (eb *EventBatcher) batchTimeout(batchKey, batchID string) {
 }
 
 // UpdateConfig updates the batcher configuration
-func (eb *EventBatcher) UpdateConfig(batchSize int, batchTimeout time.Duration) {
+func (eb *EventBatcher) UpdateConfig(batchSize int, timeout time.Duration) {
 	eb.mutex.Lock()
 	defer eb.mutex.Unlock()
 	
 	eb.batchSize = batchSize
-	eb.batchTimeout = batchTimeout
+	eb.batchTimeout = timeout
 }
 
 // NewEventDebouncer creates a new event debouncer

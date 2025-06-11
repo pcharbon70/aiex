@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/url"
 	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/creachadair/jrpc2"
-	"github.com/creachadair/jrpc2/jhttp"
+	"github.com/creachadair/jrpc2/channel"
 	"github.com/gorilla/websocket"
 	"aiex-tui/pkg/types"
 )
@@ -21,7 +20,7 @@ type Client struct {
 	nodes          []string
 	currentNode    int
 	conn           *websocket.Conn
-	rpcConn        *jrpc2.Conn
+	rpcConn        *jrpc2.Client
 	handlers       map[string]NotificationHandler
 	reconnector    *ReconnectionManager
 	circuitBreaker *CircuitBreaker
@@ -73,12 +72,8 @@ func (c *Client) Connect(ctx context.Context) error {
 	
 	// Create bidirectional RPC connection
 	stream := &WebSocketStream{conn: conn}
-	c.rpcConn = jrpc2.NewConn(ctx, stream, &jrpc2.ConnOptions{
-		OnNotify: c.handleNotification,
-		OnCancel: func(req *jrpc2.Request) {
-			log.Printf("Request cancelled: %s", req.Method())
-		},
-	})
+	ch := channel.RawJSON(stream, stream)
+	c.rpcConn = jrpc2.NewClient(ch, nil)
 
 	c.connected = true
 	c.circuitBreaker.RecordSuccess()
@@ -124,14 +119,15 @@ func (c *Client) Call(ctx context.Context, method string, params interface{}) (j
 		return nil, fmt.Errorf("circuit breaker is open")
 	}
 
-	response, err := c.rpcConn.Call(ctx, method, params)
+	var result json.RawMessage
+	err := c.rpcConn.CallResult(ctx, method, params, &result)
 	if err != nil {
 		c.circuitBreaker.RecordFailure()
 		return nil, err
 	}
 
 	c.circuitBreaker.RecordSuccess()
-	return response, nil
+	return result, nil
 }
 
 // Notify sends a notification (fire-and-forget)
@@ -169,8 +165,8 @@ func (c *Client) StartEventStream(ctx context.Context, program *tea.Program) err
 }
 
 // handleNotification processes incoming notifications from the server
-func (c *Client) handleNotification(req *jrpc2.Request) {
-	method := req.Method()
+func (c *Client) handleNotification(method string, params json.RawMessage) {
+	// method parameter is already provided
 	
 	c.mutex.RLock()
 	handler, exists := c.handlers[method]
@@ -181,12 +177,7 @@ func (c *Client) handleNotification(req *jrpc2.Request) {
 		return
 	}
 
-	// Get raw parameters
-	var params json.RawMessage
-	if err := req.UnmarshalParams(&params); err != nil {
-		log.Printf("Failed to unmarshal notification params: %v", err)
-		return
-	}
+	// params are already provided as parameter
 
 	// Execute handler and send command to UI
 	if cmd := handler(params); cmd != nil && c.program != nil {

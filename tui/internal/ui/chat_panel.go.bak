@@ -1,0 +1,664 @@
+package ui
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"aiex-tui/pkg/types"
+)
+
+// ChatPanelModel represents an enhanced chat interface with streaming support
+type ChatPanelModel struct {
+	width         int
+	height        int
+	messages      []types.Message
+	input         string
+	focused       bool
+	viewport      ViewportState
+	typing        bool
+	streaming     bool
+	streamingMsg  *types.Message
+	inputHistory  []string
+	historyIndex  int
+	autoScroll    bool
+	showTimestamp bool
+	maxMessages   int
+	filterUser    string
+	searchQuery   string
+	searchMode    bool
+}
+
+// NewChatPanelModel creates a new chat panel
+func NewChatPanelModel() ChatPanelModel {
+	return ChatPanelModel{
+		messages:      make([]types.Message, 0),
+		inputHistory:  make([]string, 0, 50),
+		historyIndex:  -1,
+		autoScroll:    true,
+		showTimestamp: true,
+		maxMessages:   1000,
+		viewport: ViewportState{
+			offset: 0,
+			height: 0,
+		},
+	}
+}
+
+// Update handles chat panel updates
+func (cpm ChatPanelModel) Update(msg tea.Msg) (ChatPanelModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if !cpm.focused {
+			return cpm, nil
+		}
+		
+		// Handle search mode
+		if cpm.searchMode {
+			return cpm.handleSearchInput(msg)
+		}
+		
+		return cpm.handleChatInput(msg)
+		
+	case AIResponseMsg:
+		cpm.streaming = false
+		cpm.streamingMsg = nil
+		cpm.typing = false
+		message := types.Message{
+			ID:        msg.Response.ID,
+			Role:      msg.Response.Role,
+			Content:   msg.Response.Content,
+			Timestamp: msg.Response.Timestamp,
+			TokenCount: msg.Response.TokensUsed,
+			Metadata:  msg.Response.Metadata,
+		}
+		cpm = cpm.addMessage(message)
+		cpm = cpm.scrollToBottom()
+		return cpm, cpm.scrollToBottomCmd()
+		
+	case StreamingChunkMsg:
+		return cpm.handleStreamingChunk(msg.Chunk), nil
+		
+	case TypingIndicatorMsg:
+		cpm.typing = msg.Typing
+		return cpm, nil
+		
+	case ClearChatMsg:
+		cpm.messages = make([]types.Message, 0)
+		cpm.viewport.offset = 0
+		return cpm, nil
+	}
+	
+	return cpm, nil
+}
+
+// handleChatInput handles chat-specific input
+func (cpm ChatPanelModel) handleChatInput(msg tea.KeyMsg) (ChatPanelModel, tea.Cmd) {
+	switch msg.String() {
+	case "enter", "ctrl+enter":
+		if strings.TrimSpace(cpm.input) != "" {
+			return cpm.sendMessage()
+		}
+		return cpm, nil
+		
+	case "up":
+		if cpm.input == "" && len(cpm.inputHistory) > 0 {
+			return cpm.navigateHistory(-1), nil
+		}
+		return cpm.scrollUp(), nil
+		
+	case "down":
+		if cpm.input == "" && cpm.historyIndex >= 0 {
+			return cpm.navigateHistory(1), nil
+		}
+		return cpm.scrollDown(), nil
+		
+	case "pgup":
+		return cpm.scrollPageUp(), nil
+		
+	case "pgdown":
+		return cpm.scrollPageDown(), nil
+		
+	case "home":
+		return cpm.scrollToTop(), nil
+		
+	case "end":
+		cpm = cpm.scrollToBottom()
+		return cpm, cpm.scrollToBottomCmd()
+		
+	case "backspace":
+		if len(cpm.input) > 0 {
+			cpm.input = cpm.input[:len(cpm.input)-1]
+			cpm.historyIndex = -1
+		}
+		return cpm, nil
+		
+	case "ctrl+l":
+		return cpm, func() tea.Msg { return ClearChatMsg{} }
+		
+	case "ctrl+f":
+		cpm.searchMode = true
+		cpm.searchQuery = ""
+		return cpm, nil
+		
+	case "ctrl+s":
+		return cpm, cpm.saveConversation()
+		
+	case "ctrl+e":
+		return cpm, cpm.exportConversation()
+		
+	case "f5":
+		cpm.autoScroll = !cpm.autoScroll
+		return cpm, nil
+		
+	case "f6":
+		cpm.showTimestamp = !cpm.showTimestamp
+		return cpm, nil
+		
+	case "esc":
+		cpm.input = ""
+		cpm.historyIndex = -1
+		return cpm, nil
+		
+	default:
+		if len(msg.Runes) > 0 {
+			cpm.input += string(msg.Runes)
+			cpm.historyIndex = -1
+		}
+		return cpm, nil
+	}
+}
+
+// handleSearchInput handles search mode input
+func (cpm ChatPanelModel) handleSearchInput(msg tea.KeyMsg) (ChatPanelModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		cpm.searchMode = false
+		cpm.searchQuery = ""
+		return cpm, nil
+		
+	case "enter":
+		cpm.searchMode = false
+		return cpm.performSearch(), nil
+		
+	case "backspace":
+		if len(cpm.searchQuery) > 0 {
+			cpm.searchQuery = cpm.searchQuery[:len(cpm.searchQuery)-1]
+		}
+		return cpm, nil
+		
+	default:
+		if len(msg.Runes) > 0 {
+			cpm.searchQuery += string(msg.Runes)
+		}
+		return cpm, nil
+	}
+}
+
+// View renders the chat panel
+func (cpm ChatPanelModel) View() string {
+	if cpm.width == 0 || cpm.height == 0 {
+		return ""
+	}
+	
+	style := lipgloss.NewStyle().
+		Width(cpm.width).
+		Height(cpm.height).
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("255")).
+		Padding(0, 1)
+	
+	if cpm.focused {
+		style = style.
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("63"))
+	} else {
+		style = style.
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("241"))
+	}
+	
+	var content strings.Builder
+	
+	// Header
+	title := "💬 Chat"
+	if cpm.searchMode {
+		title += fmt.Sprintf(" (search: %s)", cpm.searchQuery)
+	} else if len(cpm.messages) > 0 {
+		title += fmt.Sprintf(" (%d messages)", len(cpm.messages))
+	}
+	
+	content.WriteString(cpm.renderTitle(title))
+	content.WriteString("\n")
+	content.WriteString(strings.Repeat("─", cpm.width-2))
+	content.WriteString("\n")
+	
+	// Messages area
+	messageLines := cpm.renderMessages()
+	inputAreaHeight := 3 // Input area + borders
+	maxMessageLines := cpm.height - 4 - inputAreaHeight // Account for header, separator, and input
+	
+	if len(messageLines) > maxMessageLines {
+		start := len(messageLines) - maxMessageLines + cpm.viewport.offset
+		if start < 0 {
+			start = 0
+		}
+		end := start + maxMessageLines
+		if end > len(messageLines) {
+			end = len(messageLines)
+		}
+		messageLines = messageLines[start:end]
+	}
+	
+	for i, line := range messageLines {
+		content.WriteString(line)
+		if i < len(messageLines)-1 {
+			content.WriteString("\n")
+		}
+	}
+	
+	// Typing indicator
+	if cpm.typing {
+		content.WriteString("\n")
+		content.WriteString(cpm.renderTypingIndicator())
+	}
+	
+	// Input area
+	content.WriteString("\n")
+	content.WriteString(strings.Repeat("─", cpm.width-2))
+	content.WriteString("\n")
+	content.WriteString(cpm.renderInputArea())
+	
+	return style.Render(content.String())
+}
+
+// renderMessages renders all chat messages
+func (cpm ChatPanelModel) renderMessages() []string {
+	var lines []string
+	
+	for _, message := range cpm.messages {
+		messageLines := cpm.renderMessage(message)
+		lines = append(lines, messageLines...)
+	}
+	
+	// Add streaming message if active
+	if cpm.streaming && cpm.streamingMsg != nil {
+		messageLines := cpm.renderMessage(*cpm.streamingMsg)
+		lines = append(lines, messageLines...)
+	}
+	
+	return lines
+}
+
+// renderMessage renders a single message
+func (cpm ChatPanelModel) renderMessage(message types.Message) []string {
+	var lines []string
+	
+	// Message header with role and timestamp
+	header := cpm.renderMessageHeader(message)
+	lines = append(lines, header)
+	
+	// Message content with word wrapping
+	contentLines := cpm.wrapMessageContent(message.Content)
+	for _, line := range contentLines {
+		styledLine := cpm.styleMessageContent(line, message.Role)
+		lines = append(lines, styledLine)
+	}
+	
+	// Metadata (tokens, model, etc.)
+	if message.Metadata != nil && len(message.Metadata) > 0 {
+		metadata := cpm.renderMessageMetadata(message)
+		lines = append(lines, metadata)
+	}
+	
+	// Add spacing between messages
+	lines = append(lines, "")
+	
+	return lines
+}
+
+// renderMessageHeader renders the message header with role and timestamp
+func (cpm ChatPanelModel) renderMessageHeader(message types.Message) string {
+	role := "👤 You"
+	if message.Role == "assistant" {
+		role = "🤖 AI Assistant"
+	} else if message.Role == "system" {
+		role = "🔧 System"
+	}
+	
+	timestamp := ""
+	if cpm.showTimestamp {
+		timestamp = fmt.Sprintf(" • %s", message.Timestamp.Format("15:04:05"))
+	}
+	
+	header := fmt.Sprintf("%s%s", role, timestamp)
+	
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("63")).
+		Bold(true).
+		Render(header)
+}
+
+// renderMessageMetadata renders message metadata
+func (cpm ChatPanelModel) renderMessageMetadata(message types.Message) string {
+	var parts []string
+	
+	if message.TokenCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d tokens", message.TokenCount))
+	}
+	
+	if model, ok := message.Metadata["model"].(string); ok {
+		parts = append(parts, model)
+	}
+	
+	if duration, ok := message.Metadata["duration"].(int64); ok {
+		parts = append(parts, fmt.Sprintf("%dms", duration))
+	}
+	
+	if len(parts) > 0 {
+		metadata := strings.Join(parts, " • ")
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Italic(true).
+			Render(fmt.Sprintf("(%s)", metadata))
+	}
+	
+	return ""
+}
+
+// wrapMessageContent wraps message content to fit panel width
+func (cpm ChatPanelModel) wrapMessageContent(content string) []string {
+	maxWidth := cpm.width - 6 // Account for padding and borders
+	if maxWidth <= 0 {
+		return []string{content}
+	}
+	
+	lines := strings.Split(content, "\n")
+	var wrappedLines []string
+	
+	for _, line := range lines {
+		if len(line) <= maxWidth {
+			wrappedLines = append(wrappedLines, line)
+		} else {
+			// Word wrap
+			words := strings.Fields(line)
+			currentLine := ""
+			
+			for _, word := range words {
+				if len(currentLine)+len(word)+1 <= maxWidth {
+					if currentLine != "" {
+						currentLine += " "
+					}
+					currentLine += word
+				} else {
+					if currentLine != "" {
+						wrappedLines = append(wrappedLines, currentLine)
+						currentLine = word
+					} else {
+						// Word is longer than max width, split it
+						for len(word) > maxWidth {
+							wrappedLines = append(wrappedLines, word[:maxWidth])
+							word = word[maxWidth:]
+						}
+						currentLine = word
+					}
+				}
+			}
+			
+			if currentLine != "" {
+				wrappedLines = append(wrappedLines, currentLine)
+			}
+		}
+	}
+	
+	return wrappedLines
+}
+
+// styleMessageContent applies styling based on message role
+func (cpm ChatPanelModel) styleMessageContent(content string, role string) string {
+	style := lipgloss.NewStyle()
+	
+	switch role {
+	case "user":
+		style = style.Foreground(lipgloss.Color("255"))
+	case "assistant":
+		style = style.Foreground(lipgloss.Color("250"))
+	case "system":
+		style = style.Foreground(lipgloss.Color("214")).Italic(true)
+	default:
+		style = style.Foreground(lipgloss.Color("245"))
+	}
+	
+	return style.Render(content)
+}
+
+// renderTypingIndicator renders the typing indicator
+func (cpm ChatPanelModel) renderTypingIndicator() string {
+	dots := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	// This would normally use a ticker for animation
+	dot := dots[0]
+	
+	indicator := fmt.Sprintf("🤖 AI is typing %s", dot)
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true).
+		Render(indicator)
+}
+
+// renderInputArea renders the input area
+func (cpm ChatPanelModel) renderInputArea() string {
+	prompt := "> "
+	input := cpm.input
+	cursor := ""
+	
+	if cpm.focused {
+		cursor = "█"
+	}
+	
+	inputLine := prompt + input + cursor
+	
+	// Truncate if too long
+	maxWidth := cpm.width - 4
+	if len(inputLine) > maxWidth {
+		inputLine = inputLine[:maxWidth-3] + "..."
+	}
+	
+	return inputLine
+}
+
+// Message management methods
+func (cpm ChatPanelModel) addMessage(message types.Message) ChatPanelModel {
+	cpm.messages = append(cpm.messages, message)
+	
+	// Limit message history
+	if len(cpm.messages) > cpm.maxMessages {
+		cpm.messages = cpm.messages[len(cpm.messages)-cpm.maxMessages:]
+	}
+	
+	if cpm.autoScroll {
+		cpm.viewport.offset = 0 // Reset to show latest messages
+	}
+	
+	return cpm
+}
+
+func (cpm ChatPanelModel) sendMessage() (ChatPanelModel, tea.Cmd) {
+	if strings.TrimSpace(cpm.input) == "" {
+		return cpm, nil
+	}
+	
+	// Add to history
+	cpm.inputHistory = append(cpm.inputHistory, cpm.input)
+	if len(cpm.inputHistory) > 50 {
+		cpm.inputHistory = cpm.inputHistory[1:]
+	}
+	
+	// Create user message
+	userMessage := types.Message{
+		ID:        fmt.Sprintf("msg_%d", time.Now().UnixNano()),
+		Role:      "user",
+		Content:   cpm.input,
+		Timestamp: time.Now(),
+	}
+	
+	cpm = cpm.addMessage(userMessage)
+	content := cpm.input
+	cpm.input = ""
+	cpm.historyIndex = -1
+	cpm.typing = true
+	
+	return cpm, func() tea.Msg {
+		return SendMessageMsg{Content: content}
+	}
+}
+
+func (cpm ChatPanelModel) handleStreamingChunk(chunk types.StreamingChunk) ChatPanelModel {
+	if !cpm.streaming {
+		// Start new streaming message
+		cpm.streaming = true
+		cpm.streamingMsg = &types.Message{
+			ID:        chunk.ID,
+			Role:      "assistant",
+			Content:   "",
+			Timestamp: chunk.Timestamp,
+		}
+	}
+	
+	if cpm.streamingMsg != nil && cpm.streamingMsg.ID == chunk.ID {
+		// Update streaming message content
+		if chunk.Delta != "" {
+			cpm.streamingMsg.Content += chunk.Delta
+		} else {
+			cpm.streamingMsg.Content = chunk.Content
+		}
+		
+		// Check if streaming is complete
+		if chunk.IsComplete {
+			cpm = cpm.addMessage(*cpm.streamingMsg)
+			cpm.streaming = false
+			cpm.streamingMsg = nil
+			cpm.typing = false
+		}
+	}
+	
+	return cpm
+}
+
+// Navigation methods
+func (cpm ChatPanelModel) scrollUp() ChatPanelModel {
+	if cpm.viewport.offset < 0 {
+		cpm.viewport.offset++
+	}
+	cpm.autoScroll = false
+	return cpm
+}
+
+func (cpm ChatPanelModel) scrollDown() ChatPanelModel {
+	if cpm.viewport.offset > -10 { // Limit scroll
+		cpm.viewport.offset--
+	}
+	return cpm
+}
+
+func (cpm ChatPanelModel) scrollPageUp() ChatPanelModel {
+	pageSize := (cpm.height - 6) / 2
+	cpm.viewport.offset += pageSize
+	if cpm.viewport.offset > 0 {
+		cpm.viewport.offset = 0
+	}
+	cpm.autoScroll = false
+	return cpm
+}
+
+func (cpm ChatPanelModel) scrollPageDown() ChatPanelModel {
+	pageSize := (cpm.height - 6) / 2
+	cpm.viewport.offset -= pageSize
+	return cpm
+}
+
+func (cpm ChatPanelModel) scrollToTop() ChatPanelModel {
+	cpm.viewport.offset = len(cpm.messages) * 5 // Rough estimate
+	cpm.autoScroll = false
+	return cpm
+}
+
+func (cpm ChatPanelModel) scrollToBottom() ChatPanelModel {
+	cpm.viewport.offset = 0
+	cpm.autoScroll = true
+	return cpm
+}
+
+func (cpm ChatPanelModel) navigateHistory(direction int) ChatPanelModel {
+	if len(cpm.inputHistory) == 0 {
+		return cpm
+	}
+	
+	newIndex := cpm.historyIndex + direction
+	
+	if newIndex < -1 {
+		newIndex = -1
+	} else if newIndex >= len(cpm.inputHistory) {
+		newIndex = len(cpm.inputHistory) - 1
+	}
+	
+	cpm.historyIndex = newIndex
+	
+	if cpm.historyIndex == -1 {
+		cpm.input = ""
+	} else {
+		cpm.input = cpm.inputHistory[len(cpm.inputHistory)-1-cpm.historyIndex]
+	}
+	
+	return cpm
+}
+
+// Search functionality
+func (cpm ChatPanelModel) performSearch() ChatPanelModel {
+	// Implement search through messages
+	// This would highlight matching messages or scroll to them
+	return cpm
+}
+
+// Utility methods
+func (cpm ChatPanelModel) renderTitle(title string) string {
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("63")).
+		Bold(true).
+		Render(title)
+}
+
+func (cpm ChatPanelModel) scrollToBottomCmd() tea.Cmd {
+	return func() tea.Msg {
+		return ScrollToBottomMsg{}
+	}
+}
+
+// Command methods
+func (cpm ChatPanelModel) saveConversation() tea.Cmd {
+	return func() tea.Msg {
+		return SaveConversationMsg{Messages: cpm.messages}
+	}
+}
+
+func (cpm ChatPanelModel) exportConversation() tea.Cmd {
+	return func() tea.Msg {
+		return ExportConversationMsg{Messages: cpm.messages}
+	}
+}
+
+// Additional message types
+type TypingIndicatorMsg struct {
+	Typing bool
+}
+
+type ClearChatMsg struct{}
+
+type SaveConversationMsg struct {
+	Messages []types.Message
+}
+
+type ExportConversationMsg struct {
+	Messages []types.Message
+}

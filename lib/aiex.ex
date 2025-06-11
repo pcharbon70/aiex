@@ -171,9 +171,6 @@ defmodule Aiex do
         Aiex.AI.Coordinators.CodingAssistant,
         Aiex.AI.Coordinators.ConversationManager,
 
-        # TUI communication infrastructure
-        Aiex.TUI.Supervisor,
-
         # Phoenix PubSub
         {Phoenix.PubSub, name: Aiex.PubSub},
 
