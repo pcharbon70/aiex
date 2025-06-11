@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,6 +17,12 @@ type SimpleApp struct {
 	// Chat functionality
 	messages []string
 	input    string
+	
+	// Status information
+	connected    bool
+	provider     string
+	messageCount int
+	lastActivity string
 	
 	// RPC client
 	client   *rpc.Client
@@ -38,8 +45,12 @@ func NewApp(client *rpc.Client) *SimpleApp {
 			"• Debugging help and suggestions",
 			"• Architecture and design patterns",
 		},
-		input:   "",
-		client:  client,
+		input:        "",
+		connected:    true,  // Assume connected initially
+		provider:     "Mock AI",
+		messageCount: 0,
+		lastActivity: "Just started",
+		client:       client,
 	}
 }
 
@@ -61,6 +72,11 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			
 		case "enter":
 			if m.input != "" {
+				// Check for special commands
+				if strings.HasPrefix(m.input, "/") {
+					return m.handleCommand(m.input), nil
+				}
+				
 				// Send message
 				m.messages = append(m.messages, "")
 				m.messages = append(m.messages, "💬 You: "+m.input)
@@ -69,6 +85,10 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				response := m.generateAIResponse(m.input)
 				m.messages = append(m.messages, "🤖 AI: "+response)
 				m.messages = append(m.messages, "")
+				
+				// Update status
+				m.messageCount++
+				m.lastActivity = "Message sent"
 				
 				m.input = ""
 				return m, nil
@@ -79,6 +99,12 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.input) > 0 {
 				m.input = m.input[:len(m.input)-1]
 			}
+			return m, nil
+			
+		case "esc":
+			// Clear input
+			m.input = ""
+			m.lastActivity = "Input cleared"
 			return m, nil
 			
 		default:
@@ -93,67 +119,117 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SimpleApp) View() string {
-	// Calculate chat dimensions - use full width and height minus space for input and header
-	chatHeight := m.height - 6 // Reserve space for header, input area, and borders
+	// Calculate dimensions - reserve space for status bars
+	chatHeight := m.height - 8 // Top status + bottom status + input + borders
 	
-	// Styles
+	// Define styles
+	topStatusStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("62")).
+		Foreground(lipgloss.Color("230")).
+		Bold(true).
+		Width(m.width).
+		Padding(0, 1)
+	
+	bottomStatusStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("240")).
+		Foreground(lipgloss.Color("15")).
+		Width(m.width).
+		Padding(0, 1)
+	
 	chatStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
 		Padding(1)
-	
-	titleStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
-		Padding(0, 1).
-		Bold(true).
-		Width(m.width - 4) // Account for border padding
 	
 	inputStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1)
 	
-	// Header
-	header := titleStyle.Render("🤖 Aiex AI Assistant - Interactive Chat")
+	// Build top status bar with multiple sections
+	connectionStatus := "🔌 Disconnected"
+	connectionColor := "196" // Red
+	if m.connected {
+		connectionStatus = "🟢 Connected"
+		connectionColor = "46" // Green
+	}
+	
+	connectionIndicator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color(connectionColor)).
+		Render(connectionStatus)
+	
+	// Create status sections
+	leftStatus := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Left).
+		Render("🤖 Aiex AI Assistant")
+	
+	centerStatus := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Center).
+		Render(connectionIndicator + " • " + m.provider)
+	
+	rightStatus := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Right).
+		Render("💬 " + fmt.Sprintf("%d messages", m.messageCount))
+	
+	// Combine top status sections
+	topBar := topStatusStyle.Render(
+		lipgloss.JoinHorizontal(lipgloss.Top, leftStatus, centerStatus, rightStatus),
+	)
 	
 	// Limit messages to fit in chat area
 	displayMessages := m.messages
-	if len(displayMessages) > chatHeight {
-		displayMessages = displayMessages[len(displayMessages)-chatHeight:]
+	if len(displayMessages) > chatHeight-2 {
+		displayMessages = displayMessages[len(displayMessages)-(chatHeight-2):]
 	}
 	
 	// Chat content
 	chatContent := strings.Join(displayMessages, "\n")
-	
 	chatPanel := chatStyle.
 		Width(m.width - 2).
 		Height(chatHeight).
 		Render(chatContent)
 	
-	// Input area
-	inputContent := "💬 Type your message: " + m.input + "█"
+	// Input area with character count
+	charCount := len(m.input)
+	inputPrompt := "💬 Type your message"
+	if charCount > 0 {
+		inputPrompt += fmt.Sprintf(" (%d chars)", charCount)
+	}
+	inputContent := inputPrompt + ": " + m.input + "█"
 	inputPanel := inputStyle.
 		Width(m.width - 2).
 		Render(inputContent)
 	
-	// Status/help bar
-	statusBar := lipgloss.NewStyle().
-		Background(lipgloss.Color("240")).
-		Foreground(lipgloss.Color("15")).
-		Width(m.width).
-		Align(lipgloss.Center).
-		Render("Enter: send message | Ctrl+C/q: quit")
+	// Build bottom status bar
+	leftBottom := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Left).
+		Render("📊 " + m.lastActivity)
 	
-	// Combine everything vertically
+	centerBottom := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Center).
+		Render("Press /help for commands")
+	
+	rightBottom := lipgloss.NewStyle().
+		Width(m.width / 3).
+		Align(lipgloss.Right).
+		Render("ESC: clear • Ctrl+C: quit")
+	
+	bottomBar := bottomStatusStyle.Render(
+		lipgloss.JoinHorizontal(lipgloss.Top, leftBottom, centerBottom, rightBottom),
+	)
+	
+	// Combine all elements
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		header,
-		"",
+		topBar,
 		chatPanel,
-		"",
 		inputPanel,
-		statusBar,
+		bottomBar,
 	)
 }
 
@@ -190,4 +266,52 @@ func (m *SimpleApp) generateAIResponse(input string) string {
 	}
 	
 	return baseResponse + " Feel free to ask me more specific questions, and I'll do my best to provide helpful guidance!"
+}
+
+// handleCommand processes special slash commands
+func (m *SimpleApp) handleCommand(cmd string) *SimpleApp {
+	m.messages = append(m.messages, "")
+	m.messages = append(m.messages, "💬 You: "+cmd)
+	
+	switch strings.ToLower(strings.TrimSpace(cmd)) {
+	case "/status", "/health":
+		m.messages = append(m.messages, "🔍 Checking LLM connection status...")
+		// In a real implementation, this would call:
+		// - Aiex.LLM.ModelCoordinator.get_cluster_status()
+		// - Aiex.LLM.ModelCoordinator.force_health_check()
+		m.messages = append(m.messages, "✅ Connection Status:")
+		m.messages = append(m.messages, "• Backend: Connected to ws://localhost:4000/ws")
+		m.messages = append(m.messages, "• LLM Providers: Mock mode (no real LLM configured)")
+		m.messages = append(m.messages, "• Health: Simulated responses active")
+		m.lastActivity = "Status checked"
+		
+	case "/providers":
+		m.messages = append(m.messages, "📋 Available LLM Providers:")
+		m.messages = append(m.messages, "• OpenAI - Not configured")
+		m.messages = append(m.messages, "• Anthropic - Not configured")
+		m.messages = append(m.messages, "• Ollama - Not configured")
+		m.messages = append(m.messages, "• LM Studio - Not configured")
+		m.messages = append(m.messages, "ℹ️  Currently using mock responses")
+		
+	case "/help":
+		m.messages = append(m.messages, "📚 Available Commands:")
+		m.messages = append(m.messages, "• /status or /health - Check LLM connection status")
+		m.messages = append(m.messages, "• /providers - List available LLM providers")
+		m.messages = append(m.messages, "• /help - Show this help message")
+		m.messages = append(m.messages, "• /clear - Clear chat history")
+		
+	case "/clear":
+		m.messages = []string{
+			"🤖 Welcome to Aiex AI Assistant!",
+			"",
+			"Chat history cleared. How can I help you today?",
+		}
+		
+	default:
+		m.messages = append(m.messages, "❓ Unknown command. Type /help for available commands.")
+	}
+	
+	m.messages = append(m.messages, "")
+	m.input = ""
+	return m
 }
