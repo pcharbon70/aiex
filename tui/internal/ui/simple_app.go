@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,18 +12,10 @@ import (
 type SimpleApp struct {
 	width    int
 	height   int
-	focused  string // "files", "editor", "chat"
 	
-	// Simple chat functionality
+	// Chat functionality
 	messages []string
 	input    string
-	
-	// Simple file list
-	files    []string
-	fileIdx  int
-	
-	// Simple editor content
-	content  string
 	
 	// RPC client
 	client   *rpc.Client
@@ -35,20 +26,19 @@ func NewApp(client *rpc.Client) *SimpleApp {
 	return &SimpleApp{
 		width:   80,
 		height:  24,
-		focused: "chat",
 		messages: []string{
-			"Welcome to Aiex TUI!",
-			"This is a chat interface with the AI assistant.",
-			"Type your message and press Enter to send.",
+			"🤖 Welcome to Aiex AI Assistant!",
+			"",
+			"I'm here to help you with coding, explanations, and analysis.",
+			"Type your message below and press Enter to chat with me.",
+			"",
+			"Try asking me about:",
+			"• Code explanations and reviews",
+			"• Programming concepts and best practices", 
+			"• Debugging help and suggestions",
+			"• Architecture and design patterns",
 		},
-		files: []string{
-			"main.go",
-			"app.go",
-			"types.go",
-			"README.md",
-		},
-		fileIdx: 0,
-		content: "// Select a file to view its content\n",
+		input:   "",
 		client:  client,
 	}
 }
@@ -69,56 +59,31 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 			
-		case "tab":
-			// Switch focus between panels
-			switch m.focused {
-			case "files":
-				m.focused = "editor"
-			case "editor":
-				m.focused = "chat"
-			case "chat":
-				m.focused = "files"
-			}
-			return m, nil
-			
 		case "enter":
-			if m.focused == "chat" && m.input != "" {
+			if m.input != "" {
 				// Send message
-				m.messages = append(m.messages, "You: "+m.input)
-				response := "AI: I received your message: " + m.input
-				m.messages = append(m.messages, response)
+				m.messages = append(m.messages, "")
+				m.messages = append(m.messages, "💬 You: "+m.input)
+				
+				// Generate AI response
+				response := m.generateAIResponse(m.input)
+				m.messages = append(m.messages, "🤖 AI: "+response)
+				m.messages = append(m.messages, "")
+				
 				m.input = ""
 				return m, nil
-			} else if m.focused == "files" {
-				// Load file content
-				if m.fileIdx < len(m.files) {
-					filename := m.files[m.fileIdx]
-					m.content = fmt.Sprintf("// Content of %s\n// This would load actual file content\n", filename)
-				}
-				return m, nil
-			}
-			
-		case "up":
-			if m.focused == "files" && m.fileIdx > 0 {
-				m.fileIdx--
-			}
-			return m, nil
-			
-		case "down":
-			if m.focused == "files" && m.fileIdx < len(m.files)-1 {
-				m.fileIdx++
 			}
 			return m, nil
 			
 		case "backspace":
-			if m.focused == "chat" && len(m.input) > 0 {
+			if len(m.input) > 0 {
 				m.input = m.input[:len(m.input)-1]
 			}
 			return m, nil
 			
 		default:
 			// Add character to input
-			if m.focused == "chat" && len(msg.String()) == 1 {
+			if len(msg.String()) == 1 {
 				m.input += msg.String()
 			}
 			return m, nil
@@ -128,95 +93,101 @@ func (m *SimpleApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *SimpleApp) View() string {
-	// Calculate panel dimensions
-	panelWidth := m.width / 3
-	panelHeight := m.height - 3 // Reserve space for status bar
+	// Calculate chat dimensions - use full width and height minus space for input and header
+	chatHeight := m.height - 6 // Reserve space for header, input area, and borders
 	
 	// Styles
-	focusedStyle := lipgloss.NewStyle().
+	chatStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62"))
-	
-	unfocusedStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240"))
+		BorderForeground(lipgloss.Color("62")).
+		Padding(1)
 	
 	titleStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("62")).
 		Foreground(lipgloss.Color("230")).
 		Padding(0, 1).
-		Bold(true)
+		Bold(true).
+		Width(m.width - 4) // Account for border padding
 	
-	// File Explorer Panel
-	var fileStyle lipgloss.Style
-	if m.focused == "files" {
-		fileStyle = focusedStyle
-	} else {
-		fileStyle = unfocusedStyle
-	}
+	inputStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1)
 	
-	fileList := []string{}
-	for i, file := range m.files {
-		if i == m.fileIdx {
-			fileList = append(fileList, "> "+file)
-		} else {
-			fileList = append(fileList, "  "+file)
-		}
-	}
+	// Header
+	header := titleStyle.Render("🤖 Aiex AI Assistant - Interactive Chat")
 	
-	fileContent := titleStyle.Render("Files") + "\n\n" + strings.Join(fileList, "\n")
-	filePanel := fileStyle.
-		Width(panelWidth).
-		Height(panelHeight).
-		Render(fileContent)
-	
-	// Code Editor Panel
-	var editorStyle lipgloss.Style
-	if m.focused == "editor" {
-		editorStyle = focusedStyle
-	} else {
-		editorStyle = unfocusedStyle
-	}
-	
-	editorContent := titleStyle.Render("Editor") + "\n\n" + m.content
-	editorPanel := editorStyle.
-		Width(panelWidth).
-		Height(panelHeight).
-		Render(editorContent)
-	
-	// Chat Panel
-	var chatStyle lipgloss.Style
-	if m.focused == "chat" {
-		chatStyle = focusedStyle
-	} else {
-		chatStyle = unfocusedStyle
-	}
-	
-	// Limit messages to fit in panel
+	// Limit messages to fit in chat area
 	displayMessages := m.messages
-	if len(displayMessages) > panelHeight-6 {
-		displayMessages = displayMessages[len(displayMessages)-(panelHeight-6):]
+	if len(displayMessages) > chatHeight {
+		displayMessages = displayMessages[len(displayMessages)-chatHeight:]
 	}
 	
-	chatContent := titleStyle.Render("AI Chat") + "\n\n" + 
-		strings.Join(displayMessages, "\n") + "\n\n" +
-		"Input: " + m.input + "█"
+	// Chat content
+	chatContent := strings.Join(displayMessages, "\n")
 	
 	chatPanel := chatStyle.
-		Width(panelWidth).
-		Height(panelHeight).
+		Width(m.width - 2).
+		Height(chatHeight).
 		Render(chatContent)
 	
-	// Combine panels horizontally
-	panels := lipgloss.JoinHorizontal(lipgloss.Top, filePanel, editorPanel, chatPanel)
+	// Input area
+	inputContent := "💬 Type your message: " + m.input + "█"
+	inputPanel := inputStyle.
+		Width(m.width - 2).
+		Render(inputContent)
 	
-	// Status bar
+	// Status/help bar
 	statusBar := lipgloss.NewStyle().
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("230")).
+		Background(lipgloss.Color("240")).
+		Foreground(lipgloss.Color("15")).
 		Width(m.width).
-		Render(fmt.Sprintf(" Focused: %s | Tab: switch panels | Enter: select/send | q: quit ", m.focused))
+		Align(lipgloss.Center).
+		Render("Enter: send message | Ctrl+C/q: quit")
 	
 	// Combine everything vertically
-	return lipgloss.JoinVertical(lipgloss.Left, panels, statusBar)
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		header,
+		"",
+		chatPanel,
+		"",
+		inputPanel,
+		statusBar,
+	)
+}
+
+// generateAIResponse creates a simulated AI response
+func (m *SimpleApp) generateAIResponse(input string) string {
+	// This is a simplified response generator
+	// In a real implementation, this would call the RPC client to get AI responses
+	
+	responses := []string{
+		"That's an interesting question! Let me help you with that.",
+		"I understand what you're asking. Here's my take on it...",
+		"Great question! This is a common topic in software development.",
+		"I'd be happy to explain that concept to you.",
+		"That's a good observation. Let me break it down for you.",
+		"I can definitely help you with that problem.",
+		"This is a fascinating area of programming. Here's what I think...",
+		"Let me analyze that for you and provide some insights.",
+	}
+	
+	// Simple response selection based on input length
+	idx := len(input) % len(responses)
+	baseResponse := responses[idx]
+	
+	// Add some context based on keywords
+	lowerInput := strings.ToLower(input)
+	if strings.Contains(lowerInput, "code") || strings.Contains(lowerInput, "program") {
+		return baseResponse + " When it comes to coding, it's important to write clean, maintainable code that follows best practices."
+	} else if strings.Contains(lowerInput, "debug") || strings.Contains(lowerInput, "error") {
+		return baseResponse + " Debugging is a crucial skill. I recommend using systematic approaches like logging and step-by-step analysis."
+	} else if strings.Contains(lowerInput, "design") || strings.Contains(lowerInput, "architecture") {
+		return baseResponse + " Good software design involves considering scalability, maintainability, and separation of concerns."
+	} else if strings.Contains(lowerInput, "help") || strings.Contains(lowerInput, "how") {
+		return baseResponse + " I'm here to assist you with any programming questions or challenges you might have."
+	}
+	
+	return baseResponse + " Feel free to ask me more specific questions, and I'll do my best to provide helpful guidance!"
 }
