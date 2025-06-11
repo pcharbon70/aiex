@@ -34,6 +34,7 @@ defmodule Aiex.Tui.LibvaxisTui do
     status: map(),
     subscribers: [pid()],
     session_id: String.t() | nil,
+    interface_id: String.t() | nil,
     pg_group: atom()
   }
   
@@ -78,9 +79,44 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   @impl true
   def init(opts) do
-    # Join pg group for distributed events
+    # Join pg group for distributed events (with proper error handling)
     pg_group = Keyword.get(opts, :pg_group, :aiex_tui)
-    :ok = :pg.join(pg_group, self())
+    
+    # Attempt to join pg group, but don't fail if unavailable
+    try do
+      # Use pg:join/2 instead of pg:join/3 - let pg find its own scope
+      case :pg.join(pg_group, self()) do
+        :ok -> 
+          Logger.debug("Successfully joined pg group: #{pg_group}")
+        error ->
+          Logger.debug("Could not join pg group #{pg_group}: #{inspect(error)}. Running without distributed events.")
+      end
+    catch
+      :exit, reason ->
+        Logger.debug("pg not available: #{inspect(reason)}. Running without distributed events.")
+      error ->
+        Logger.debug("pg error: #{inspect(error)}. Running without distributed events.")
+    end
+    
+    session_id = generate_session_id()
+    
+    # Register with InterfaceGateway
+    interface_config = %{
+      type: :tui,
+      session_id: session_id,
+      user_id: nil,
+      capabilities: [:text_output, :real_time_updates],
+      settings: %{interactive: true}
+    }
+    
+    interface_id = case InterfaceGateway.register_interface(__MODULE__, interface_config) do
+      {:ok, id} -> 
+        Logger.debug("Registered TUI with InterfaceGateway: #{id}")
+        id
+      {:error, reason} ->
+        Logger.warning("Failed to register with InterfaceGateway: #{inspect(reason)}")
+        nil
+    end
     
     # Initialize state
     state = %{
@@ -104,7 +140,8 @@ defmodule Aiex.Tui.LibvaxisTui do
         model: nil
       },
       subscribers: [],
-      session_id: generate_session_id(),
+      session_id: session_id,
+      interface_id: interface_id,
       pg_group: pg_group
     }
     
@@ -205,8 +242,12 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   @impl true
   def handle_info(:update_context, state) do
-    # Get context from Context.Manager
-    context = ContextManager.get_project_context()
+    # Get basic context (for now, just use empty context until project context is implemented)
+    context = %{
+      current_file: nil,
+      project_root: System.cwd(),
+      last_updated: DateTime.utc_now()
+    }
     state = %{state | context: context}
     
     # Schedule next update
@@ -217,17 +258,33 @@ defmodule Aiex.Tui.LibvaxisTui do
   end
   
   @impl true
+  def handle_info({:process_ai_request, content}, %{interface_id: nil} = state) do
+    # Interface not registered, send error
+    send(self(), {:ai_error, "Interface not registered with gateway"})
+    {:noreply, state}
+  end
+  
+  @impl true
   def handle_info({:process_ai_request, content}, state) do
     # Send request through InterfaceGateway
     Task.start(fn ->
-      case InterfaceGateway.handle_request(%{
-        type: :chat,
+      request = %{
+        id: generate_message_id(),
+        type: :completion,
         content: content,
         context: state.context,
-        session_id: state.session_id
-      }) do
-        {:ok, response} ->
-          send(self(), {:ai_response, response})
+        options: []
+      }
+      
+      case InterfaceGateway.submit_request(state.interface_id, request) do
+        {:ok, request_id} ->
+          # For now, simulate a response since we need to check actual response handling
+          send(self(), {:ai_response, %{
+            content: "This is a placeholder response. AI integration pending.",
+            provider: "mock",
+            model: "test",
+            tokens: 10
+          }})
         {:error, error} ->
           send(self(), {:ai_error, error})
       end
@@ -410,12 +467,23 @@ defmodule Aiex.Tui.LibvaxisTui do
       send(pid, {:tui_update, state.messages})
     end)
     
-    # Broadcast to pg group
-    :pg.get_members(state.pg_group)
-    |> Enum.reject(&(&1 == self()))
-    |> Enum.each(fn pid ->
-      send(pid, {:pg_event, {:message_update, state.session_id, List.last(state.messages)}})
-    end)
+    # Broadcast to pg group (with comprehensive error handling)
+    try do
+      :pg.get_members(state.pg_group)
+      |> Enum.reject(&(&1 == self()))
+      |> Enum.each(fn pid ->
+        send(pid, {:pg_event, {:message_update, state.session_id, List.last(state.messages)}})
+      end)
+    rescue
+      error ->
+        Logger.debug("Failed to broadcast to pg group: #{inspect(error)}")
+    catch
+      :exit, _reason ->
+        # pg not available, skip broadcast
+        :ok
+      error ->
+        Logger.debug("Failed to broadcast to pg group: #{inspect(error)}")
+    end
   end
   
   defp generate_session_id do

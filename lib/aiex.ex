@@ -109,7 +109,14 @@ defmodule Aiex do
 
   @impl true
   def start(_type, _args) do
-    # pg is started automatically by OTP, no need to start it manually
+    # Ensure :pg is started for distributed process groups
+    case :application.ensure_started(:pg) do
+      :ok -> :ok
+      {:error, {:already_started, :pg}} -> :ok
+      {:error, reason} -> 
+        require Logger
+        Logger.warning("Failed to start :pg application: #{inspect(reason)}")
+    end
 
     children =
       [
