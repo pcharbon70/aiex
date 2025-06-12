@@ -184,8 +184,10 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   
   @impl GenServer
   def handle_call(:cleanup, _from, state) do
-    # Clean up cache and resources
-    :ets.delete(state.analysis_cache)
+    # Clean up cache and resources safely
+    if :ets.info(state.analysis_cache) != :undefined do
+      :ets.delete(state.analysis_cache)
+    end
     
     EventBus.publish("ai.engine.code_analyzer.stopped", %{
       session_id: state.session_id,
@@ -450,7 +452,6 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
   defp prepare_analysis_engine(_options, _state) do
     # Warm up LLM connections and validate dependencies
     case ModelCoordinator.force_health_check() do
-      :ok -> {:ok, "healthy"}
       :ok -> :ok
       {:error, reason} -> {:error, "LLM coordinator not ready: #{reason}"}
     end

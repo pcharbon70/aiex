@@ -1098,7 +1098,6 @@ defmodule Aiex.AI.Engines.TestGenerator do
   
   defp prepare_test_generator(options, state) do
     case ModelCoordinator.force_health_check() do
-      :ok -> {:ok, "healthy"}
       :ok ->
         updated_state = if Keyword.get(options, :reload_templates, false) do
           %{state | 

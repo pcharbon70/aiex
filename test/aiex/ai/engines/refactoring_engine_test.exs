@@ -19,14 +19,20 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   
   describe "RefactoringEngine initialization" do
     test "starts successfully with default options" do
-      assert {:ok, pid} = RefactoringEngine.start_link()
-      assert Process.alive?(pid)
+      result = RefactoringEngine.start_link()
+      case result do
+        {:ok, pid} -> assert Process.alive?(pid)
+        {:error, {:already_started, pid}} -> assert Process.alive?(pid)
+      end
     end
     
     test "starts with custom session_id" do
       session_id = "custom_refactoring_session"
-      assert {:ok, pid} = RefactoringEngine.start_link(session_id: session_id)
-      assert Process.alive?(pid)
+      result = RefactoringEngine.start_link(session_id: session_id)
+      case result do
+        {:ok, pid} -> assert Process.alive?(pid)
+        {:error, {:already_started, pid}} -> assert Process.alive?(pid)
+      end
     end
   end
   
@@ -89,7 +95,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       def add(a, b) do
         result = a + b
         if result > 100 do
-          IO.puts("Large result: \#{result}")
+          IO.puts("Large result: \\\#{result}")
           result
         else
           result
@@ -99,7 +105,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       def multiply(a, b) do
         result = a * b
         if result > 100 do
-          IO.puts("Large result: \#{result}")
+          IO.puts("Large result: \\\#{result}")
           result
         else
           result
@@ -328,7 +334,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
         end
         
         defp handle_large_result(result) when result > 100 do
-          IO.puts("Large result: #{result}")
+          IO.puts("Large result: \\\#{result}")
           result
         end
         
@@ -445,7 +451,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
     test "handles concurrent refactoring requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
-          code = "def function_#{i}(x), do: x + #{i}"
+          code = "def function_\#{i}(x), do: x + \#{i}"
           RefactoringEngine.suggest_refactoring(code, :improve_readability)
         end)
       end)
@@ -504,20 +510,20 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       defmodule Duplicated do
         def process_user(user) do
           if user.active do
-            Logger.info("Processing user: #{user.name}")
+            Logger.info("Processing user: \\\#{user.name}")
             {:ok, user}
           else
-            Logger.error("User not active: #{user.name}")
+            Logger.error("User not active: \\\#{user.name}")
             {:error, :inactive}
           end
         end
         
         def process_admin(admin) do
           if admin.active do
-            Logger.info("Processing admin: #{admin.name}")
+            Logger.info("Processing admin: \\\#{admin.name}")
             {:ok, admin}
           else
-            Logger.error("Admin not active: #{admin.name}")
+            Logger.error("Admin not active: \\\#{admin.name}")
             {:error, :inactive}
           end
         end

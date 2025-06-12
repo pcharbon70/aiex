@@ -49,6 +49,18 @@ defmodule Aiex.Semantic.Chunker do
   end
 
   @doc """
+  Chunks all files in a directory.
+
+  Options:
+  - `extensions: list` - File extensions to process (default: [".ex", ".exs"])
+  - `recursive: boolean` - Process subdirectories (default: true)
+  - `max_files: integer` - Limit number of files processed
+  """
+  def chunk_directory(path, opts \\ []) do
+    GenServer.call(__MODULE__, {:chunk_directory, path, opts})
+  end
+
+  @doc """
   Gets chunking statistics.
   """
   def get_stats do
@@ -90,6 +102,17 @@ defmodule Aiex.Semantic.Chunker do
       e ->
         Logger.error("Failed to chunk code: #{inspect(e)}")
         {:reply, {:error, :chunking_failed}, state}
+    end
+  end
+
+  def handle_call({:chunk_directory, path, opts}, _from, state) do
+    try do
+      {file_chunks, new_state} = do_chunk_directory(path, opts, state)
+      {:reply, {:ok, file_chunks}, new_state}
+    rescue
+      e ->
+        Logger.error("Failed to chunk directory #{path}: #{inspect(e)}")
+        {:reply, {:error, :directory_chunking_failed}, state}
     end
   end
 
@@ -136,6 +159,55 @@ defmodule Aiex.Semantic.Chunker do
 
         {chunks, new_state}
     end
+  end
+
+  defp do_chunk_directory(path, opts, state) do
+    # Check if directory exists
+    unless File.exists?(path) do
+      raise ArgumentError, "Directory does not exist: #{path}"
+    end
+
+    unless File.dir?(path) do
+      raise ArgumentError, "Path is not a directory: #{path}"
+    end
+
+    # Get options
+    extensions = Keyword.get(opts, :extensions, [".ex", ".exs"])
+    recursive = Keyword.get(opts, :recursive, true)
+    max_files = Keyword.get(opts, :max_files, 100)
+
+    # Find files to process
+    files = find_files(path, extensions, recursive, max_files)
+
+    # Process each file
+    {file_chunks, final_state} = Enum.reduce(files, {[], state}, fn file_path, {chunks_acc, state_acc} ->
+      case File.read(file_path) do
+        {:ok, content} ->
+          {file_chunks, new_state} = do_chunk_code(content, opts, state_acc)
+          file_result = %{
+            file: file_path,
+            chunks: file_chunks
+          }
+          {[file_result | chunks_acc], new_state}
+
+        {:error, reason} ->
+          Logger.warning("Could not read file #{file_path}: #{reason}")
+          {chunks_acc, state_acc}
+      end
+    end)
+
+    {Enum.reverse(file_chunks), final_state}
+  end
+
+  defp find_files(path, extensions, recursive, max_files) do
+    pattern = if recursive, do: "**/*", else: "*"
+    
+    Path.wildcard(Path.join(path, pattern))
+    |> Enum.filter(fn file_path ->
+      File.regular?(file_path) and 
+      Path.extname(file_path) in extensions
+    end)
+    |> Enum.take(max_files)
   end
 
   defp chunk_content(content, opts, state) do

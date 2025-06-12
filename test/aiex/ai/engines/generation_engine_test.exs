@@ -389,13 +389,13 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
     end
     
     test "applies formatting to generated code" do
-      # Test that Code.format_string is available for formatting
+      # Test that Code.format_string! is available for formatting
       sample_code = "def test(a,b),do: a+b"
       
-      assert is_function(&Code.format_string/1)
+      assert is_function(&Code.format_string!/1)
       
       # Verify formatting works
-      formatted = Code.format_string(sample_code)
+      formatted = Code.format_string!(sample_code)
       assert is_binary(formatted)
       assert String.contains?(formatted, "def test(a, b), do: a + b")
     end

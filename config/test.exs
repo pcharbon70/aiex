@@ -1,5 +1,8 @@
 import Config
 
+# Configure logger to be quieter during tests
+config :logger, level: :warning
+
 # Disable libcluster for tests
 config :libcluster,
   topologies: []

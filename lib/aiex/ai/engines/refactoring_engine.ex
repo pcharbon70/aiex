@@ -224,8 +224,14 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   
   @impl GenServer
   def handle_call(:cleanup, _from, state) do
-    :ets.delete(state.refactoring_cache)
-    :ets.delete(state.code_metrics_cache)
+    # Safely delete ETS tables if they exist
+    if :ets.info(state.refactoring_cache) != :undefined do
+      :ets.delete(state.refactoring_cache)
+    end
+    
+    if :ets.info(state.code_metrics_cache) != :undefined do
+      :ets.delete(state.code_metrics_cache)
+    end
     
     EventBus.publish("ai.engine.refactoring_engine.stopped", %{
       session_id: state.session_id,
@@ -780,11 +786,13 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   defp generate_refactoring_summary(results_by_type) do
     total_suggestions = results_by_type
     |> Map.values()
-    |> Enum.sum(fn result -> length(result.suggestions || []) end)
+    |> Enum.map(fn result -> length(result.suggestions || []) end)
+    |> Enum.sum()
     
     high_priority = results_by_type
     |> Map.values()
-    |> Enum.sum(fn result -> result[:high_priority_count] || 0 end)
+    |> Enum.map(fn result -> result[:high_priority_count] || 0 end)
+    |> Enum.sum()
     
     %{
       total_suggestions: total_suggestions,
@@ -955,7 +963,6 @@ defmodule Aiex.AI.Engines.RefactoringEngine do
   
   defp prepare_refactoring_engine(options, state) do
     case ModelCoordinator.force_health_check() do
-      :ok -> {:ok, "healthy"}
       :ok ->
         updated_state = if Keyword.get(options, :reload_templates, false) do
           %{state | refactoring_templates: initialize_refactoring_templates()}

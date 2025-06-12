@@ -614,7 +614,6 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   defp prepare_generation_engine(options, state) do
     # Validate LLM coordinator readiness
     case ModelCoordinator.force_health_check() do
-      :ok -> {:ok, "healthy"}
       :ok ->
         # Reload project conventions if requested
         updated_state = if Keyword.get(options, :reload_conventions, false) do

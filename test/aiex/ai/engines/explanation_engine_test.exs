@@ -188,7 +188,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
     
     @tag :requires_llm
     test "explain_function/4 handles simple functions" do
-      simple_function = "def greet(name), do: \"Hello, #{name}!\""
+      simple_function = "def greet(name), do: \"Hello, \#{name}!\""
       
       result = ExplanationEngine.explain_function(simple_function, "greet", :brief)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
@@ -206,7 +206,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       end
       
       def handle_response({:error, reason}) do
-        {:error, "Request failed: #{reason}"}
+        {:error, "Request failed: \#{reason}"}
       end
       """
       
@@ -530,15 +530,15 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       result2 = ExplanationEngine.explain_code(code, :brief, :beginner)
       
       # Both should succeed (or both fail consistently)
-      assert match?({:ok, _} | {:error, _}, result1)
-      assert match?({:ok, _} | {:error, _}, result2)
+      assert match?({:ok, _}, result1) or match?({:error, _}, result1)
+      assert match?({:ok, _}, result2) or match?({:error, _}, result2)
     end
     
     @tag :requires_llm
     test "handles concurrent explanation requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
-          code = "def function_#{i}(x), do: x + #{i}"
+          code = "def function_\#{i}(x), do: x + \#{i}"
           ExplanationEngine.explain_code(code, :brief, :intermediate)
         end)
       end)
