@@ -401,26 +401,11 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   defp render(%{vaxis: nil} = state), do: state
   defp render(state) do
-    # Simple rendering for minimal TUI
-    :ok = LibvaxisNif.clear_screen(state.vaxis)
+    # Create a simple multi-panel display using IO
+    output = create_tui_display(state)
     
-    # Render header
-    :ok = LibvaxisNif.render_text(state.vaxis, 0, 0, "=== Aiex AI Assistant ===")
-    
-    # Render messages
-    Enum.with_index(state.messages, fn message, index ->
-      line = format_message_line(message)
-      :ok = LibvaxisNif.render_text(state.vaxis, 0, index + 2, line)
-    end)
-    
-    # Render input line
-    input_line = "> #{state.input_buffer}"
-    {:ok, {_width, height}} = LibvaxisNif.terminal_size(state.vaxis)
-    :ok = LibvaxisNif.render_text(state.vaxis, 0, height - 2, input_line)
-    
-    # Render status
-    status_line = format_status_line(state.status)
-    :ok = LibvaxisNif.render_text(state.vaxis, 0, height - 1, status_line)
+    # Clear screen and display
+    IO.write("\e[2J\e[H#{output}")
     
     state
   end
@@ -492,5 +477,118 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   defp generate_message_id do
     :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+  end
+  
+  # Simple TUI display creation
+  
+  defp create_tui_display(state) do
+    width = 80  # Standard terminal width
+    height = 24  # Standard terminal height
+    
+    # Build display sections
+    header = create_header(width)
+    chat_section = create_chat_section(state.messages, height - 6, width)
+    input_section = create_input_section(state.input_buffer, state.focused_panel, width)
+    status_section = create_status_section(state.status, state.context, width)
+    
+    [header, chat_section, input_section, status_section]
+    |> Enum.join("\n")
+  end
+  
+  defp create_header(width) do
+    title = " Aiex AI Assistant "
+    border = String.duplicate("═", width)
+    title_line = center_text(title, width, "═")
+    
+    "#{border}\n#{title_line}\n#{border}"
+  end
+  
+  defp create_chat_section(messages, height, width) do
+    border = "├" <> String.duplicate("─", width - 2) <> "┤"
+    
+    # Get last few messages that fit
+    visible_messages = messages
+    |> Enum.take(-height + 2)
+    |> Enum.map(&format_message_simple/1)
+    |> Enum.map(&truncate_line(&1, width - 4))
+    
+    # Pad with empty lines if needed
+    padding_lines = max(0, height - 2 - length(visible_messages))
+    empty_lines = List.duplicate("", padding_lines)
+    
+    message_lines = (visible_messages ++ empty_lines)
+    |> Enum.map(&("│ #{String.pad_trailing(&1, width - 4)} │"))
+    
+    ([border] ++ message_lines ++ [border])
+    |> Enum.join("\n")
+  end
+  
+  defp create_input_section(input_buffer, focused_panel, width) do
+    focus_indicator = if focused_panel == :input, do: "►", else: " "
+    input_line = "#{focus_indicator} #{input_buffer}"
+    truncated_input = truncate_line(input_line, width - 4)
+    
+    border = "├" <> String.duplicate("─", width - 2) <> "┤"
+    input_display = "│ #{String.pad_trailing(truncated_input, width - 4)} │"
+    hint = "│ #{String.pad_trailing("Tab: switch, Enter: send, Esc: quit", width - 4)} │"
+    
+    [border, input_display, hint, border]
+    |> Enum.join("\n")
+  end
+  
+  defp create_status_section(status, context, width) do
+    provider_info = case {status.connected, status.provider} do
+      {true, provider} when not is_nil(provider) -> "#{provider}"
+      {true, _} -> "Connected"
+      {false, _} -> "Disconnected"
+    end
+    
+    project_info = case context[:project_root] do
+      nil -> "No project"
+      path -> "Project: #{Path.basename(path)}"
+    end
+    
+    status_line = "Status: #{provider_info} | #{project_info}"
+    truncated_status = truncate_line(status_line, width - 4)
+    
+    border = "└" <> String.duplicate("─", width - 2) <> "┘"
+    status_display = "│ #{String.pad_trailing(truncated_status, width - 4)} │"
+    
+    [status_display, border]
+    |> Enum.join("\n")
+  end
+  
+  defp format_message_simple(message) do
+    time = Calendar.strftime(message.timestamp, "%H:%M")
+    type_icon = case message.type do
+      :user -> "👤"
+      :assistant -> "🤖"
+      :system -> "ℹ️"
+      :error -> "❌"
+    end
+    
+    content = String.replace(message.content, ~r/\s+/, " ")
+    "#{time} #{type_icon} #{content}"
+  end
+  
+  defp center_text(text, width, fill_char \\ " ") do
+    text_length = String.length(text)
+    if text_length >= width do
+      String.slice(text, 0, width)
+    else
+      padding = width - text_length
+      left_padding = div(padding, 2)
+      right_padding = padding - left_padding
+      
+      String.duplicate(fill_char, left_padding) <> text <> String.duplicate(fill_char, right_padding)
+    end
+  end
+  
+  defp truncate_line(text, max_length) do
+    if String.length(text) > max_length do
+      String.slice(text, 0, max_length - 3) <> "..."
+    else
+      text
+    end
   end
 end

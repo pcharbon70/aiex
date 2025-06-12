@@ -4,22 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Aiex is a sophisticated distributed AI-powered Elixir coding assistant currently in Phase 6 of a 9-phase development roadmap. The project has built extensive distributed infrastructure using pure OTP primitives and is now implementing the core AI assistant application logic that provides actual coding assistance capabilities. Aiex leverages Elixir's strengths in concurrency, fault tolerance, and distributed computing to create a production-ready AI coding assistant.
+Aiex is a sophisticated distributed AI-powered Elixir coding assistant currently in Phase 4 of an 11-phase development roadmap. The project has built extensive distributed infrastructure using pure OTP primitives and core AI assistant logic, and is now implementing a modern Zig/Libvaxis terminal interface. Aiex leverages Elixir's strengths in concurrency, fault tolerance, and distributed computing to create a production-ready AI coding assistant.
 
-## Current State (End of Phase 5)
+## Current State (Phase 4 Active, Phase 5 Complete)
 
-Aiex has completed 5 major phases and now has sophisticated distributed infrastructure in place:
+Aiex has completed the distributed infrastructure and core AI assistant logic, and is now implementing the Zig/Libvaxis terminal interface:
 
 - **Distributed OTP Architecture**: Complete with pg process group coordination, Mnesia persistence, and event sourcing
 - **Multi-LLM Integration**: 4 providers (OpenAI, Anthropic, Ollama, LM Studio) with intelligent coordination, circuit breakers, and health monitoring
 - **Advanced Context Management**: Semantic chunking, context compression, and distributed synchronization across nodes
-- **Sophisticated TUI**: Rust-based terminal interface with real-time OTP communication via TCP/MessagePack
+- **Core AI Engines**: Complete implementation of CodeAnalyzer, GenerationEngine, ExplanationEngine, RefactoringEngine, and TestGenerator
+- **AI Coordinators**: CodingAssistant and ConversationManager fully integrated with distributed infrastructure
 - **Event Sourcing System**: Complete audit trail with distributed event bus using pg module
-- **Multiple Interfaces**: CLI, TUI, Mix tasks with unified business logic through InterfaceGateway
+- **Multiple Interfaces**: CLI, Mix tasks with unified business logic through InterfaceGateway
 - **Security & Sandboxing**: Path validation, audit logging, and secure file operations
 - **Rich Terminal Features**: Syntax highlighting, real-time context awareness, and multi-panel layouts
 
-**What's Missing**: The actual AI assistant logic that provides coding assistance (analysis, generation, explanation, refactoring).
+**Current Work**: Implementing the Zig/Libvaxis TUI with direct BEAM integration using Zigler NIFs (Phase 4, 20% complete).
 
 ## Common Development Commands
 
@@ -48,11 +49,10 @@ Aiex has completed 5 major phases and now has sophisticated distributed infrastr
 - `./aiex help` - Test escript CLI interface
 
 ### TUI Development
-- `cd tui && cargo run` - Run Rust TUI client
-- `cd tui && cargo run -- --debug` - Run TUI with debug logging
-- `cd tui && cargo test` - Run TUI unit tests
-- `cd tui && cargo fmt` - Format Rust code
-- `cd tui && cargo clippy` - Run Rust linting
+- `iex -S mix` then `Aiex.Tui.LibvaxisTui.start()` - Start TUI interface
+- `./aiex tui` - Launch TUI from CLI (when implemented)
+- `elixir test_tui_display.exs` - Test TUI layout without full app
+- `mix test test/aiex/tui/` - Run TUI-related tests
 
 ### AI Assistant Testing
 - `mix ai.explain lib/aiex.ex` - Test AI explanation functionality
@@ -79,13 +79,13 @@ We use a structured approach combining todo tracking with documentation for impl
 
 This ensures the codebase remains consistent and dependencies are properly managed.
 
-### Current Phase 6 Workflow:
+### Current Phase 4 Workflow:
 
-1. **Todo Tracking**: Use TodoWrite/TodoRead tools to track AI assistant implementation progress
+1. **Todo Tracking**: Use TodoWrite/TodoRead tools to track TUI implementation progress
 2. **Plan Before Implementation**: Always create and review plans before coding (NO EXCEPTIONS!)
-3. **Test-Driven Development**: Write comprehensive tests for all AI functionality
-4. **Integration Testing**: Ensure AI engines work with existing distributed infrastructure
-5. **Documentation**: Document AI assistant patterns and integration points
+3. **Test-Driven Development**: Write comprehensive tests for all Zig/Elixir integration
+4. **Integration Testing**: Ensure TUI works with existing distributed infrastructure
+5. **Documentation**: Document Zigler patterns and BEAM integration points
 
 ### Feature Implementation Workflow:
 
@@ -107,12 +107,12 @@ This ensures the codebase remains consistent and dependencies are properly manag
 - **Comprehensive testing**: Test AI functionality, performance, and integration
 - **Never commit without approval**: Wait for explicit commit instructions
 
-**IMPORTANT**: For Phase 6 AI assistant work, always integrate with existing `LLM.ModelCoordinator`, `Context.Manager`, and `InterfaceGateway`.
+**IMPORTANT**: For Phase 4 TUI work, always integrate with existing `InterfaceGateway`, `Context.Manager`, and event sourcing system.
 
 
-## Phase 6: AI Assistant Development Guidelines
+## Phase 5: AI Assistant Development Guidelines (Completed)
 
-When implementing AI engines for the core assistant functionality:
+These guidelines were used when implementing the AI engines for core assistant functionality:
 
 ### Integration with Existing Infrastructure:
 - **Use `LLM.ModelCoordinator`**: For distributed AI processing across nodes with circuit breakers
@@ -157,7 +157,7 @@ end
 
 The architecture follows a distributed OTP design with six main subsystems:
 
-1. **AI Assistant Engines** - Core logic for analysis, generation, explanation, refactoring (Phase 6 focus)
+1. **AI Assistant Engines** - Core logic for analysis, generation, explanation, refactoring (Phase 5 complete)
 2. **Multi-Interface Layer** - CLI, TUI, Mix tasks, future LiveView with unified business logic
 3. **LLM Integration Layer** - 4 providers with intelligent coordination and circuit breakers
 4. **Context Management Engine** - Semantic chunking, compression, distributed synchronization
@@ -175,8 +175,10 @@ Key architectural principles:
 
 The project follows a 32-week roadmap (see `planning/detailed_implementation_plan.md`):
 
-- **Phase 1-5**: ✅ **Completed** - Distributed infrastructure, TUI, context management, event sourcing
-- **Phase 6**: ⏳ **Current** - Core AI assistant application logic (analysis, generation, explanation)
+- **Phase 1-3**: ✅ **Completed** - Distributed infrastructure, context management, event sourcing
+- **Phase 4**: ⏳ **Current** - Zig/Libvaxis terminal interface with BEAM integration  
+- **Phase 5**: ✅ **Completed** - Core AI assistant application logic (analysis, generation, explanation)
+- **Phase 6**: Advanced multi-LLM coordination and optimization
 - **Phase 7**: Production distributed deployment and Kubernetes integration
 - **Phase 8**: Distributed AI intelligence and response comparison
 - **Phase 9**: AI techniques abstraction layer (self-refinement, multi-agent, RAG)
@@ -190,15 +192,15 @@ The project follows a 32-week roadmap (see `planning/detailed_implementation_pla
 - **Semantic Processing**: Pure Elixir AST-based chunking with Tree-sitter integration ready
 - **Multi-LLM Coordination**: Intelligent provider selection with load balancing and circuit protection
 - **Distributed Architecture**: pg process groups for pure OTP clustering without external dependencies
-- **Rich TUI**: Rust-based terminal interface with real-time syntax highlighting and context awareness
+- **Rich TUI**: Zig/Libvaxis terminal interface with direct BEAM integration via Zigler NIFs
 - **Security**: Comprehensive path validation, audit logging, and sandboxed file operations
 
-### Phase 6 Implementation Focus:
-- **AI Engine Architecture**: GenServer-based engines following existing supervision patterns
-- **Prompt Templates**: Structured, reusable templates with context injection
-- **Integration Points**: Leverage existing LLM coordination, context management, and event sourcing
-- **Testing Strategy**: Comprehensive AI functionality testing with mocked LLM responses
-- **Performance**: Memory-efficient processing for large codebases with distributed coordination
+### Phase 4 Implementation Focus:
+- **Zigler NIF Integration**: Building robust Zig-Elixir bridge for terminal UI
+- **Libvaxis Event Loop**: Integrating terminal events with BEAM scheduler
+- **Multi-Panel Layout**: Implementing chat interface using Libvaxis widgets
+- **Virtual Scrolling**: Efficient rendering for large message histories
+- **Testing Strategy**: Comprehensive testing of NIF reliability and UI responsiveness
 
 ## Git Commit Guidelines
 
