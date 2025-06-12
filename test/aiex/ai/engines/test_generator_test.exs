@@ -4,22 +4,29 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   alias Aiex.AI.Engines.TestGenerator
   
   setup do
-    # Start the TestGenerator for testing
-    {:ok, pid} = start_supervised({TestGenerator, [session_id: "test_generator_session"]})
-    
-    %{engine_pid: pid}
+    # Check if TestGenerator is already running
+    case Process.whereis(TestGenerator) do
+      nil ->
+        # Start the TestGenerator for testing if not already running
+        {:ok, pid} = start_supervised({TestGenerator, [session_id: "test_generator_session"]})
+        %{engine_pid: pid}
+      
+      pid ->
+        # Use the existing process
+        %{engine_pid: pid}
+    end
   end
   
   describe "TestGenerator initialization" do
-    test "starts successfully with default options" do
-      assert {:ok, pid} = TestGenerator.start_link()
+    test "is started and alive", %{engine_pid: pid} do
       assert Process.alive?(pid)
+      assert pid == Process.whereis(TestGenerator)
     end
     
-    test "starts with custom session_id" do
-      session_id = "custom_test_generator_session"
-      assert {:ok, pid} = TestGenerator.start_link(session_id: session_id)
-      assert Process.alive?(pid)
+    test "responds to basic GenServer calls", %{engine_pid: _pid} do
+      # Test that the engine responds to calls
+      assert TestGenerator.can_handle?(:unit_tests)
+      assert is_map(TestGenerator.get_metadata())
     end
   end
   
@@ -102,6 +109,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
     end
     """
     
+    @tag :requires_llm
     test "generate_tests/3 handles unit test generation" do
       result = TestGenerator.generate_tests(@sample_code, :unit_tests)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
@@ -119,21 +127,25 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       end
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles integration test generation" do
       result = TestGenerator.generate_tests(@sample_code, :integration_tests)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles property-based test generation" do
       result = TestGenerator.generate_tests(@sample_code, :property_tests)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles edge case test generation" do
       result = TestGenerator.generate_tests(@sample_code, :edge_case_tests)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 accepts coverage options" do
       options = [
         coverage: :comprehensive,
@@ -145,11 +157,13 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles empty code" do
       result = TestGenerator.generate_tests("", :unit_tests)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles complex code patterns" do
       complex_code = """
       defmodule PaymentProcessor do
@@ -206,6 +220,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "function-specific test generation" do
+    @tag :requires_llm
     test "generate_function_tests/3 generates tests for specific functions" do
       function_code = """
       def process_order(order_data) do
@@ -228,13 +243,15 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_function_tests/3 handles simple functions" do
-      simple_function = "def greet(name), do: \"Hello, #{name}!\""
+      simple_function = "def greet(name), do: \"Hello, \#{name}!\""
       
       result = TestGenerator.generate_function_tests(simple_function, "greet")
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_function_tests/3 handles functions with pattern matching" do
       pattern_function = """
       def handle_response({:ok, %{"data" => data}}), do: {:ok, data}
@@ -253,6 +270,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "module test generation" do
+    @tag :requires_llm
     test "generate_module_tests/2 creates comprehensive module test suite" do
       result = TestGenerator.generate_module_tests(@sample_code)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
@@ -268,6 +286,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       end
     end
     
+    @tag :requires_llm
     test "generate_module_tests/2 with specific test types" do
       options = [test_types: [:unit_tests, :edge_case_tests]]
       
@@ -275,6 +294,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_module_tests/2 handles GenServer modules" do
       genserver_code = """
       defmodule Counter do
@@ -312,6 +332,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "test coverage analysis" do
+    @tag :requires_llm
     test "analyze_test_coverage/3 analyzes existing test files" do
       code_file = "/tmp/test_code.ex"
       test_file = "/tmp/test_code_test.exs"
@@ -361,6 +382,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "test data generation" do
+    @tag :requires_llm
     test "generate_test_data/3 creates test data from schemas" do
       user_schema = %{
         name: :string,
@@ -383,6 +405,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       end
     end
     
+    @tag :requires_llm
     test "generate_test_data/3 with generation options" do
       product_schema = %{
         id: :uuid,
@@ -401,6 +424,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_test_data/3 handles different data types" do
       api_spec = """
       {
@@ -419,6 +443,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "project test generation" do
+    @tag :requires_llm
     test "generate_project_tests/2 handles small project analysis" do
       # Use test directory as a small project
       options = [max_files: 3, test_types: [:unit_tests]]
@@ -445,6 +470,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "process/2 AIEngine interface" do
+    @tag :requires_llm
     test "processes test generation requests through unified interface" do
       request = %{
         type: :test_generation,
@@ -474,6 +500,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert {:error, _error_msg} = result
     end
     
+    @tag :requires_llm
     test "processes property test generation requests" do
       request = %{
         type: :test_generation,
@@ -488,6 +515,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "processes integration test requests" do
       request = %{
         type: :test_generation,
@@ -504,6 +532,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "caching and performance" do
+    @tag :requires_llm
     test "caches test generation results for identical requests" do
       code = "def simple(x), do: x * 2"
       
@@ -514,10 +543,11 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       result2 = TestGenerator.generate_tests(code, :unit_tests)
       
       # Both should succeed (or both fail consistently)
-      assert match?({:ok, _} | {:error, _}, result1)
-      assert match?({:ok, _} | {:error, _}, result2)
+      assert match?({:ok, _}, result1) or match?({:error, _}, result1)
+      assert match?({:ok, _}, result2) or match?({:error, _}, result2)
     end
     
+    @tag :requires_llm
     test "handles concurrent test generation requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
@@ -537,6 +567,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "test quality and validation" do
+    @tag :requires_llm
     test "generates appropriate tests for error handling" do
       error_code = """
       defmodule FileProcessor do
@@ -561,6 +592,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generates performance tests for computationally intensive code" do
       performance_code = """
       defmodule DataProcessor do
@@ -585,6 +617,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generates doctests for well-documented code" do
       documented_code = """
       defmodule MathUtils do
@@ -612,12 +645,14 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "error handling" do
+    @tag :requires_llm
     test "handles invalid test types gracefully" do
       result = TestGenerator.generate_tests(@sample_code, :invalid_test_type)
       # Should return error for unsupported type or handle gracefully
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles malformed code inputs" do
       malformed_code = "this is not valid elixir code {"
       
@@ -626,6 +661,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles very large code inputs" do
       large_code = String.duplicate(@sample_code, 20)
       
@@ -634,6 +670,7 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles special characters in code" do
       special_code = """
       defmodule UnicodeModule do
@@ -653,16 +690,19 @@ defmodule Aiex.AI.Engines.TestGeneratorTest do
   end
   
   describe "test framework integration" do
+    @tag :requires_llm
     test "generates ExUnit-compatible tests" do
       result = TestGenerator.generate_tests(@sample_code, :unit_tests, [framework: :ex_unit])
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generates property-based tests with StreamData" do
       result = TestGenerator.generate_tests(@sample_code, :property_tests, [framework: :stream_data])
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generates mock tests with appropriate mocking library" do
       mock_code = """
       defmodule EmailService do

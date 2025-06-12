@@ -11,7 +11,7 @@ defmodule Aiex.CLI.Commands.AI do
 
   alias Aiex.AI.Coordinators.{CodingAssistant, ConversationManager}
   alias Aiex.AI.WorkflowOrchestrator
-  alias Aiex.CLI.Commands.AI.{ProgressReporter, OutputFormatter}
+  alias Aiex.CLI.Commands.AI.ProgressReporter
   alias Aiex.LLM.Templates.{TemplateRegistry, TemplateEngine}
   alias Aiex.LLM.ModelCoordinator
 

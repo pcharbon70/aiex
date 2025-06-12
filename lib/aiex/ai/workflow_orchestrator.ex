@@ -24,7 +24,6 @@ defmodule Aiex.AI.WorkflowOrchestrator do
     TestGenerator
   }
   alias Aiex.Events.EventBus
-  alias Aiex.Context.Manager, as: ContextManager
   
   # Workflow execution modes
   @execution_modes [:sequential, :parallel, :conditional, :pipeline]

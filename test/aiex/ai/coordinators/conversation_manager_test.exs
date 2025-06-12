@@ -131,6 +131,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       %{conversation_id: conversation_id}
     end
     
+    @tag :requires_llm
     test "continue_conversation/3 processes user messages", %{conversation_id: conversation_id} do
       message = "Can you help me implement a user authentication system?"
       user_context = %{urgency: :high}
@@ -150,6 +151,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "continue_conversation/3 maintains conversation history", %{conversation_id: conversation_id} do
       # Send first message
       message1 = "I need help with Elixir functions"
@@ -176,6 +178,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "continue_conversation/3 handles coding requests", %{conversation_id: conversation_id} do
       coding_message = "Help me fix this bug: def add(a, b), do: a + c"
       
@@ -192,6 +195,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "continue_conversation/3 handles general conversation", %{conversation_id: conversation_id} do
       general_message = "What's the weather like today?"
       
@@ -344,6 +348,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       %{conversation_id: conversation_id}
     end
     
+    @tag :requires_llm
     test "search_conversation_history/3 finds relevant messages", %{conversation_id: conversation_id} do
       result = ConversationManager.search_conversation_history(conversation_id, "authentication")
       
@@ -364,6 +369,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "search_conversation_history/3 respects limit parameter", %{conversation_id: conversation_id} do
       result = ConversationManager.search_conversation_history(conversation_id, "the", 2)
       
@@ -389,6 +395,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       %{conversation_id: conversation_id}
     end
     
+    @tag :requires_llm
     test "get_conversation_summary/1 generates summary", %{conversation_id: conversation_id} do
       # Add some conversation content
       messages = [
@@ -418,6 +425,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "get_conversation_summary/1 handles empty conversation", %{conversation_id: conversation_id} do
       result = ConversationManager.get_conversation_summary(conversation_id)
       
@@ -438,6 +446,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       %{conversation_id: conversation_id}
     end
     
+    @tag :requires_llm
     test "classifies coding requests correctly", %{conversation_id: conversation_id} do
       coding_messages = [
         "Help me implement a function",
@@ -460,6 +469,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end)
     end
     
+    @tag :requires_llm
     test "classifies general conversation correctly", %{conversation_id: conversation_id} do
       general_messages = [
         "Hello, how are you?",
@@ -481,6 +491,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end)
     end
     
+    @tag :requires_llm
     test "handles follow-up messages in context", %{conversation_id: conversation_id} do
       # Start with coding request
       ConversationManager.continue_conversation(conversation_id, "Help me with functions")
@@ -500,6 +511,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
   end
   
   describe "handle_request/3 Assistant interface" do
+    @tag :requires_llm
     test "processes conversation requests through Assistant interface" do
       request = %{
         type: :conversation,
@@ -531,6 +543,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end
     end
     
+    @tag :requires_llm
     test "creates conversation automatically if not exists" do
       request = %{
         type: :conversation,
@@ -559,6 +572,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
   end
   
   describe "error handling and edge cases" do
+    @tag :requires_llm
     test "handles malformed messages gracefully" do
       conversation_id = "error_test"
       {:ok, _} = ConversationManager.start_conversation(conversation_id, :general_conversation)
@@ -577,6 +591,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end)
     end
     
+    @tag :requires_llm
     test "handles concurrent conversation operations" do
       # Start multiple conversations concurrently
       tasks = Enum.map(1..3, fn i ->
@@ -596,6 +611,7 @@ defmodule Aiex.AI.Coordinators.ConversationManagerTest do
       end)
     end
     
+    @tag :requires_llm
     test "handles conversation state corruption gracefully" do
       conversation_id = "corruption_test"
       {:ok, _} = ConversationManager.start_conversation(conversation_id, :coding_conversation)

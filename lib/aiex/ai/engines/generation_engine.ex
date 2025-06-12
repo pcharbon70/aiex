@@ -16,8 +16,6 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
-  alias Aiex.Semantic.Chunker
-  alias Aiex.Sandbox.PathValidator
   
   # Generation types supported by this engine
   @supported_types [

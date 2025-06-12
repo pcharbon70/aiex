@@ -4,10 +4,17 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   alias Aiex.AI.Engines.RefactoringEngine
   
   setup do
-    # Start the RefactoringEngine for testing
-    {:ok, pid} = start_supervised({RefactoringEngine, [session_id: "test_refactoring_session"]})
-    
-    %{engine_pid: pid}
+    # Check if RefactoringEngine is already running
+    case Process.whereis(RefactoringEngine) do
+      nil ->
+        # Start the RefactoringEngine for testing if not already running
+        {:ok, pid} = start_supervised({RefactoringEngine, [session_id: "test_refactoring_session"]})
+        %{engine_pid: pid}
+      
+      pid ->
+        # Use the existing process
+        %{engine_pid: pid}
+    end
   end
   
   describe "RefactoringEngine initialization" do
@@ -117,6 +124,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
     end
     """
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles extract_function refactoring" do
       result = RefactoringEngine.suggest_refactoring(@sample_code, :extract_function)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
@@ -134,21 +142,25 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       end
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles simplify_logic refactoring" do
       result = RefactoringEngine.suggest_refactoring(@sample_code, :simplify_logic)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles eliminate_duplication refactoring" do
       result = RefactoringEngine.suggest_refactoring(@sample_code, :eliminate_duplication)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles all refactoring types" do
       result = RefactoringEngine.suggest_refactoring(@sample_code, :all)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 accepts options" do
       options = [
         focus_on: :performance,
@@ -160,11 +172,13 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles empty code" do
       result = RefactoringEngine.suggest_refactoring("", :extract_function)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggest_refactoring/3 handles complex nested code" do
       complex_code = """
       defmodule ComplexModule do
@@ -197,6 +211,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "file analysis functionality" do
+    @tag :requires_llm
     test "analyze_file/3 handles existing files" do
       # Create a temporary file for testing
       temp_file = "/tmp/test_refactoring_file.ex"
@@ -215,6 +230,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert String.contains?(error_msg, "Failed to read file")
     end
     
+    @tag :requires_llm
     test "analyze_file/3 with all refactoring types" do
       temp_file = "/tmp/test_refactoring_all.ex"
       File.write!(temp_file, @sample_code)
@@ -227,6 +243,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "project analysis functionality" do
+    @tag :requires_llm
     test "analyze_project/3 handles directory analysis" do
       # Use the lib directory as a test case
       result = RefactoringEngine.analyze_project("lib", [:extract_function], max_files: 2)
@@ -251,6 +268,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "refactoring application functionality" do
+    @tag :requires_llm
     test "apply_refactoring/3 processes refactoring suggestions" do
       suggestion = %{
         description: "Extract common logging logic into a function",
@@ -275,6 +293,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       end
     end
     
+    @tag :requires_llm
     test "apply_refactoring/3 with options" do
       suggestion = %{
         description: "Simplify nested conditionals",
@@ -292,6 +311,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "refactoring validation functionality" do
+    @tag :requires_llm
     test "validate_refactoring/3 compares original and refactored code" do
       original_code = @sample_code
       
@@ -346,6 +366,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       end
     end
     
+    @tag :requires_llm
     test "validate_refactoring/3 with validation options" do
       original = "def simple(x), do: x + 1"
       refactored = "def simple(x) when is_number(x), do: x + 1"
@@ -358,6 +379,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "process/2 AIEngine interface" do
+    @tag :requires_llm
     test "processes refactoring requests through unified interface" do
       request = %{
         type: :refactoring,
@@ -387,6 +409,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert {:error, _error_msg} = result
     end
     
+    @tag :requires_llm
     test "processes extract_module refactoring requests" do
       request = %{
         type: :refactoring,
@@ -403,6 +426,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "caching and performance" do
+    @tag :requires_llm
     test "caches refactoring suggestions for identical requests" do
       code = "def simple(x), do: x * 2"
       
@@ -417,6 +441,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result2) or match?({:error, _}, result2)
     end
     
+    @tag :requires_llm
     test "handles concurrent refactoring requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
@@ -436,6 +461,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "code metrics and analysis" do
+    @tag :requires_llm
     test "analyzes code complexity correctly" do
       complex_code = """
       defmodule Complex do
@@ -472,6 +498,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "detects code duplication patterns" do
       duplicate_code = """
       defmodule Duplicated do
@@ -503,12 +530,14 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "error handling" do
+    @tag :requires_llm
     test "handles invalid refactoring types gracefully" do
       result = RefactoringEngine.suggest_refactoring(@sample_code, :invalid_type)
       # Should return error for unsupported type
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles malformed code inputs" do
       malformed_code = "this is not valid elixir code {"
       
@@ -517,6 +546,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles very large code inputs" do
       large_code = String.duplicate(@sample_code, 50)
       
@@ -525,6 +555,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles special characters in code" do
       special_code = """
       defmodule SpecialChars do
@@ -544,6 +575,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
   end
   
   describe "refactoring suggestion quality" do
+    @tag :requires_llm
     test "suggests appropriate refactoring for performance issues" do
       performance_code = """
       defmodule SlowCode do
@@ -568,6 +600,7 @@ defmodule Aiex.AI.Engines.RefactoringEngineTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "suggests pattern improvements for OTP code" do
       otp_code = """
       defmodule BasicWorker do

@@ -230,7 +230,10 @@ defmodule Aiex.AI.Engines.TestGenerator do
   
   @impl GenServer
   def handle_call(:cleanup, _from, state) do
-    :ets.delete(state.test_cache)
+    # Only delete if table exists
+    if :ets.info(state.test_cache) != :undefined do
+      :ets.delete(state.test_cache)
+    end
     
     EventBus.publish("ai.engine.test_generator.stopped", %{
       session_id: state.session_id,
@@ -248,7 +251,13 @@ defmodule Aiex.AI.Engines.TestGenerator do
     # Check cache for similar test generation
     cache_key = generate_cache_key(code_content, test_type, options)
     
-    case :ets.lookup(state.test_cache, cache_key) do
+    lookup_result = if :ets.info(state.test_cache) != :undefined do
+      :ets.lookup(state.test_cache, cache_key)
+    else
+      []
+    end
+    
+    case lookup_result do
       [{^cache_key, cached_result}] ->
         Logger.debug("Cache hit for test generation: #{test_type}")
         {:ok, cached_result}
@@ -256,8 +265,10 @@ defmodule Aiex.AI.Engines.TestGenerator do
       [] ->
         case execute_test_generation(code_content, test_type, options, state) do
           {:ok, result} ->
-            # Cache the result
-            :ets.insert(state.test_cache, {cache_key, result})
+            # Cache the result if table exists
+            if :ets.info(state.test_cache) != :undefined do
+              :ets.insert(state.test_cache, {cache_key, result})
+            end
             
             # Record metrics
             duration = System.monotonic_time(:millisecond) - start_time
@@ -343,7 +354,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
     }}
   end
   
-  defp perform_coverage_analysis(code_path, test_path, options, state) do
+  defp perform_coverage_analysis(code_path, test_path, _options, _state) do
     # Analyze existing test coverage
     with {:ok, code_content} <- File.read(code_path),
          {:ok, test_content} <- File.read(test_path) do
@@ -366,7 +377,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
     end
   end
   
-  defp perform_test_data_generation(schema_or_spec, data_type, options, state) do
+  defp perform_test_data_generation(schema_or_spec, data_type, options, _state) do
     # Generate test data based on schema or specification
     data_prompt = generate_test_data_prompt(schema_or_spec, data_type, options)
     
@@ -400,24 +411,31 @@ defmodule Aiex.AI.Engines.TestGenerator do
   end
   
   defp perform_project_test_generation(project_path, options, state) do
-    # Use semantic chunker to process project files
-    case Chunker.chunk_directory(project_path, options) do
-      {:ok, file_chunks} ->
-        # Generate tests for each significant file
-        file_test_results = Enum.map(file_chunks, fn chunk ->
-          case generate_module_test_suite(chunk.content, options, state) do
-            {:ok, result} -> Map.put(result, :file_path, chunk.file_path)
-            {:error, reason} -> %{file_path: chunk.file_path, error: reason}
+    # Get Elixir files from project directory
+    max_files = Keyword.get(options, :max_files, 10)
+    
+    case list_elixir_files(project_path, max_files) do
+      {:ok, file_paths} ->
+        # Generate tests for each file
+        file_test_results = Enum.map(file_paths, fn file_path ->
+          case File.read(file_path) do
+            {:ok, content} ->
+              case generate_module_test_suite(content, options, state) do
+                {:ok, result} -> Map.put(result, :file_path, file_path)
+                {:error, reason} -> %{file_path: file_path, error: reason}
+              end
+            {:error, reason} ->
+              %{file_path: file_path, error: "File read error: #{reason}"}
           end
         end)
         
         # Generate project-wide integration tests
-        integration_tests = generate_project_integration_tests(file_chunks, options, state)
+        integration_tests = generate_project_integration_tests(file_test_results, options, state)
         
         project_summary = generate_project_test_summary(file_test_results, integration_tests)
         
         {:ok, %{
-          files_processed: length(file_chunks),
+          files_processed: length(file_paths),
           file_test_results: file_test_results,
           integration_tests: integration_tests,
           project_summary: project_summary,
@@ -860,7 +878,8 @@ defmodule Aiex.AI.Engines.TestGenerator do
   defp estimate_test_coverage(test_results) do
     total_tests = test_results
     |> Map.values()
-    |> Enum.sum(fn result -> count_test_cases(result.generated_tests || %{}) end)
+    |> Enum.map(fn result -> count_test_cases(result.generated_tests || %{}) end)
+    |> Enum.sum()
     
     %{
       total_test_cases: total_tests,
@@ -869,9 +888,9 @@ defmodule Aiex.AI.Engines.TestGenerator do
     }
   end
   
-  defp generate_project_integration_tests(file_chunks, options, state) do
+  defp generate_project_integration_tests(file_test_results, options, _state) do
     # Generate integration tests that span multiple modules
-    integration_prompt = generate_integration_test_prompt(file_chunks, options)
+    integration_prompt = generate_integration_test_prompt(file_test_results, options)
     
     llm_request = %{
       type: :integration_test_generation,
@@ -893,9 +912,14 @@ defmodule Aiex.AI.Engines.TestGenerator do
     end
   end
   
-  defp generate_integration_test_prompt(file_chunks, _options) do
-    module_summaries = Enum.map(file_chunks, fn chunk ->
-      "#{chunk.file_path}: #{extract_module_summary(chunk.content)}"
+  defp generate_integration_test_prompt(file_test_results, _options) do
+    module_summaries = Enum.map(file_test_results, fn result ->
+      case result do
+        %{file_path: path, module_tests: tests} ->
+          "#{path}: #{length(Map.keys(tests))} modules tested"
+        %{file_path: path} ->
+          "#{path}: test generation failed"
+      end
     end) |> Enum.join("\n")
     
     """
@@ -928,13 +952,14 @@ defmodule Aiex.AI.Engines.TestGenerator do
     successful_files = Enum.count(file_test_results, fn result -> not Map.has_key?(result, :error) end)
     
     total_test_cases = file_test_results
-    |> Enum.sum(fn result ->
+    |> Enum.map(fn result ->
       case result do
         %{module_tests: tests} -> 
-          tests |> Map.values() |> Enum.sum(fn test -> count_test_cases(test.generated_tests || %{}) end)
+          tests |> Map.values() |> Enum.map(fn test -> count_test_cases(test.generated_tests || %{}) end) |> Enum.sum()
         _ -> 0
       end
     end)
+    |> Enum.sum()
     
     %{
       total_files_processed: total_files,
@@ -1005,6 +1030,9 @@ defmodule Aiex.AI.Engines.TestGenerator do
   end
   
   defp get_enhanced_project_context(options, _state) do
+    # Convert keyword list to map if needed
+    options_map = if is_list(options), do: Enum.into(options, %{}), else: options
+    
     # Get base project context
     base_context = case ContextManager.get_context("default") do
       {:ok, ctx} -> ctx
@@ -1012,7 +1040,7 @@ defmodule Aiex.AI.Engines.TestGenerator do
     end
     
     # Add test-specific context
-    Map.merge(base_context, Map.get(options, :context, %{}))
+    Map.merge(base_context, Map.get(options_map, :context, %{}))
   end
   
   defp format_context_for_prompt(context) when is_map(context) do
@@ -1111,5 +1139,17 @@ defmodule Aiex.AI.Engines.TestGenerator do
   
   defp generate_session_id do
     "test_generator_" <> Base.encode16(:crypto.strong_rand_bytes(8))
+  end
+  
+  defp list_elixir_files(directory, max_files) do
+    try do
+      files = Path.wildcard(Path.join(directory, "**/*.ex"))
+              |> Enum.filter(&File.regular?/1)
+              |> Enum.take(max_files)
+      
+      {:ok, files}
+    rescue
+      e -> {:error, "Failed to list files: #{Exception.message(e)}"}
+    end
   end
 end

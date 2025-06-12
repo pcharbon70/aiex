@@ -4,22 +4,29 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
   alias Aiex.AI.Engines.GenerationEngine
   
   setup do
-    # Start the GenerationEngine for testing
-    {:ok, pid} = start_supervised({GenerationEngine, [session_id: "test_generation_session"]})
-    
-    %{engine_pid: pid}
+    # Check if GenerationEngine is already running
+    case Process.whereis(GenerationEngine) do
+      nil ->
+        # Start the GenerationEngine for testing if not already running
+        {:ok, pid} = start_supervised({GenerationEngine, [session_id: "test_generation_session"]})
+        %{engine_pid: pid}
+      
+      pid ->
+        # Use the existing process
+        %{engine_pid: pid}
+    end
   end
   
   describe "GenerationEngine initialization" do
-    test "starts successfully with default options" do
-      assert {:ok, pid} = GenerationEngine.start_link()
+    test "is started and alive", %{engine_pid: pid} do
       assert Process.alive?(pid)
+      assert pid == Process.whereis(GenerationEngine)
     end
     
-    test "starts with custom session_id" do
-      session_id = "custom_generation_session"
-      assert {:ok, pid} = GenerationEngine.start_link(session_id: session_id)
-      assert Process.alive?(pid)
+    test "responds to basic GenServer calls", %{engine_pid: _pid} do
+      # Test that the engine responds to calls
+      assert GenerationEngine.can_handle?(:module_generation)
+      assert is_map(GenerationEngine.get_metadata())
     end
   end
   
@@ -60,6 +67,7 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
   end
   
   describe "module generation" do
+    @tag :requires_llm
     test "generate_module/3 accepts module parameters" do
       module_name = "Calculator"
       description = "A simple calculator module with basic arithmetic operations"
@@ -68,16 +76,18 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       result = GenerationEngine.generate_module(module_name, description, options)
       
       # Test that the interface works (actual generation depends on LLM)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_module/3 handles empty module name" do
       result = GenerationEngine.generate_module("", "Some description")
       
       # Should handle empty module name appropriately
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_module/3 handles complex descriptions" do
       module_name = "ComplexDataProcessor"
       description = """
@@ -91,11 +101,12 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_module(module_name, description)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "function generation" do
+    @tag :requires_llm
     test "generate_function/4 creates functions with parameters" do
       function_name = "calculate_tax"
       description = "Calculate tax amount based on income and tax rate"
@@ -104,18 +115,20 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_function(function_name, description, parameters, options)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_function/4 handles functions without parameters" do
       function_name = "current_timestamp"
       description = "Get the current UTC timestamp"
       
       result = GenerationEngine.generate_function(function_name, description)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_function/4 handles complex function signatures" do
       function_name = "process_user_data"
       description = "Process user data with validation and transformation"
@@ -128,7 +141,7 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_function(function_name, description, parameters, options)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
@@ -145,24 +158,28 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
     end
     """
     
+    @tag :requires_llm
     test "generate_tests/3 creates unit tests" do
       result = GenerationEngine.generate_tests(@sample_code, :unit_tests)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 creates property tests" do
       result = GenerationEngine.generate_tests(@sample_code, :property_tests)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 creates integration tests" do
       result = GenerationEngine.generate_tests(@sample_code, :integration_tests)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_tests/3 handles complex code structures" do
       complex_code = """
       defmodule UserService do
@@ -185,19 +202,21 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_tests(complex_code, :unit_tests, [mocking: true])
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "documentation generation" do
+    @tag :requires_llm
     test "generate_documentation/3 creates module documentation" do
       code_content = @sample_code
       
       result = GenerationEngine.generate_documentation(code_content, :module_docs)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_documentation/3 creates function documentation" do
       function_code = """
       def process_payment(amount, payment_method, user_id) do
@@ -207,9 +226,10 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_documentation(function_code, :function_docs)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_documentation/3 creates API documentation" do
       api_code = """
       defmodule MyAppWeb.UserController do
@@ -227,11 +247,12 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.generate_documentation(api_code, :api_docs)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "code generation with context" do
+    @tag :requires_llm
     test "generate_code/3 uses project context" do
       context = %{
         project_name: "MyApp",
@@ -247,9 +268,10 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
         context
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "generate_code/3 handles missing context gracefully" do
       result = GenerationEngine.generate_code(
         :function_generation,
@@ -257,11 +279,12 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
         %{}
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "process/2 AIEngine interface" do
+    @tag :requires_llm
     test "processes generation requests through unified interface" do
       request = %{
         type: :code_generation,
@@ -280,7 +303,7 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.process(request, context)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "handles malformed generation requests" do
@@ -296,6 +319,7 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       assert {:error, _error_msg} = result
     end
     
+    @tag :requires_llm
     test "processes function generation requests" do
       request = %{
         type: :code_generation,
@@ -312,11 +336,12 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       
       result = GenerationEngine.process(request, context)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "caching and performance" do
+    @tag :requires_llm
     test "caches generation results for identical requests" do
       specification = "Create a simple greeting function"
       context = %{function_name: "greet"}
@@ -328,10 +353,11 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       result2 = GenerationEngine.generate_code(:function_generation, specification, context)
       
       # Both should succeed (or both fail consistently)
-      assert match?({:ok, _} | {:error, _}, result1)
-      assert match?({:ok, _} | {:error, _}, result2)
+      assert match?({:ok, _}, result1) or match?({:error, _}, result1)
+      assert match?({:ok, _}, result2) or match?({:error, _}, result2)
     end
     
+    @tag :requires_llm
     test "handles concurrent generation requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
@@ -348,7 +374,7 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
       # All should complete
       assert length(results) == 3
       Enum.each(results, fn result ->
-        assert match?({:ok, _} | {:error, _}, result)
+        assert match?({:ok, _}, result) or match?({:error, _}, result)
       end)
     end
   end
@@ -376,25 +402,28 @@ defmodule Aiex.AI.Engines.GenerationEngineTest do
   end
   
   describe "error handling" do
+    @tag :requires_llm
     test "handles invalid generation types gracefully" do
       result = GenerationEngine.generate_code(:invalid_type, "Some specification", %{})
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles empty specifications" do
       result = GenerationEngine.generate_code(:module_generation, "", %{})
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles very long specifications" do
       long_spec = String.duplicate("This is a very long specification. ", 1000)
       
       result = GenerationEngine.generate_code(:function_generation, long_spec, %{})
       
       # Should handle large inputs without crashing
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   

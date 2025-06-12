@@ -4,10 +4,17 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
   alias Aiex.AI.Engines.ExplanationEngine
   
   setup do
-    # Start the ExplanationEngine for testing
-    {:ok, pid} = start_supervised({ExplanationEngine, [session_id: "test_explanation_session"]})
-    
-    %{engine_pid: pid}
+    # Check if ExplanationEngine is already running
+    case Process.whereis(ExplanationEngine) do
+      nil ->
+        # Start the ExplanationEngine for testing if not already running
+        {:ok, pid} = start_supervised({ExplanationEngine, [session_id: "test_explanation_session"]})
+        %{engine_pid: pid}
+      
+      pid ->
+        # Use the existing process
+        %{engine_pid: pid}
+    end
   end
   
   describe "ExplanationEngine initialization" do
@@ -90,42 +97,45 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
     end
     """
     
+    @tag :requires_llm
     test "explain_code/4 handles different detail levels" do
       # Test brief explanation
       result_brief = ExplanationEngine.explain_code(@sample_code, :brief, :beginner)
-      assert match?({:ok, _} | {:error, _}, result_brief)
+      assert match?({:ok, _}, result_brief) or match?({:error, _}, result_brief)
       
       # Test detailed explanation
       result_detailed = ExplanationEngine.explain_code(@sample_code, :detailed, :intermediate)
-      assert match?({:ok, _} | {:error, _}, result_detailed)
+      assert match?({:ok, _}, result_detailed) or match?({:error, _}, result_detailed)
       
       # Test comprehensive explanation
       result_comprehensive = ExplanationEngine.explain_code(@sample_code, :comprehensive, :advanced)
-      assert match?({:ok, _} | {:error, _}, result_comprehensive)
+      assert match?({:ok, _}, result_comprehensive) or match?({:error, _}, result_comprehensive)
       
       # Test tutorial explanation
       result_tutorial = ExplanationEngine.explain_code(@sample_code, :tutorial, :beginner)
-      assert match?({:ok, _} | {:error, _}, result_tutorial)
+      assert match?({:ok, _}, result_tutorial) or match?({:error, _}, result_tutorial)
     end
     
+    @tag :requires_llm
     test "explain_code/4 handles different audience levels" do
       # Test beginner audience
       result_beginner = ExplanationEngine.explain_code(@sample_code, :detailed, :beginner)
-      assert match?({:ok, _} | {:error, _}, result_beginner)
+      assert match?({:ok, _}, result_beginner) or match?({:error, _}, result_beginner)
       
       # Test intermediate audience
       result_intermediate = ExplanationEngine.explain_code(@sample_code, :detailed, :intermediate)
-      assert match?({:ok, _} | {:error, _}, result_intermediate)
+      assert match?({:ok, _}, result_intermediate) or match?({:error, _}, result_intermediate)
       
       # Test advanced audience
       result_advanced = ExplanationEngine.explain_code(@sample_code, :detailed, :advanced)
-      assert match?({:ok, _} | {:error, _}, result_advanced)
+      assert match?({:ok, _}, result_advanced) or match?({:error, _}, result_advanced)
       
       # Test expert audience
       result_expert = ExplanationEngine.explain_code(@sample_code, :detailed, :expert)
-      assert match?({:ok, _} | {:error, _}, result_expert)
+      assert match?({:ok, _}, result_expert) or match?({:error, _}, result_expert)
     end
     
+    @tag :requires_llm
     test "explain_code/4 accepts options" do
       options = [
         focus_on: :patterns,
@@ -134,22 +144,25 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       ]
       
       result = ExplanationEngine.explain_code(@sample_code, :detailed, :intermediate, options)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_code/4 handles empty code" do
       result = ExplanationEngine.explain_code("", :brief, :beginner)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_code/4 handles invalid Elixir syntax" do
       invalid_code = "this is not valid elixir code {"
       result = ExplanationEngine.explain_code(invalid_code, :brief, :beginner)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "function explanation" do
+    @tag :requires_llm
     test "explain_function/4 explains specific functions" do
       function_code = """
       def process_payment(amount, payment_method, user_id) do
@@ -170,16 +183,18 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
         [focus_on: :with_statement]
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_function/4 handles simple functions" do
       simple_function = "def greet(name), do: \"Hello, #{name}!\""
       
       result = ExplanationEngine.explain_function(simple_function, "greet", :brief)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_function/4 handles complex functions with pattern matching" do
       complex_function = """
       def handle_response({:ok, %{"data" => data, "status" => "success"}}) do
@@ -201,11 +216,12 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
         :comprehensive
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "module explanation" do
+    @tag :requires_llm
     test "explain_module/3 explains module structure" do
       module_code = """
       defmodule UserService do
@@ -236,9 +252,10 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       """
       
       result = ExplanationEngine.explain_module(module_code, :detailed, :intermediate)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_module/3 handles GenServer modules" do
       genserver_code = """
       defmodule MyWorker do
@@ -263,11 +280,12 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       """
       
       result = ExplanationEngine.explain_module(genserver_code, :comprehensive, :intermediate)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "pattern explanation" do
+    @tag :requires_llm
     test "explain_patterns/3 explains design patterns" do
       pattern_code = """
       defmodule PaymentProcessor do
@@ -299,9 +317,10 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       """
       
       result = ExplanationEngine.explain_patterns(pattern_code, :pipeline_pattern, :detailed)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "explain_patterns/3 explains OTP patterns" do
       supervisor_code = """
       defmodule MyApp.Supervisor do
@@ -324,11 +343,12 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       """
       
       result = ExplanationEngine.explain_patterns(supervisor_code, :supervisor_pattern, :detailed)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "tutorial creation" do
+    @tag :requires_llm
     test "create_tutorial/3 creates step-by-step explanations" do
       tutorial_code = """
       defmodule Counter do
@@ -368,9 +388,10 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
         :beginner
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "create_tutorial/3 handles complex tutorials" do
       phoenix_code = """
       defmodule MyAppWeb.UserController do
@@ -403,11 +424,12 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
         :intermediate
       )
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   
   describe "process/2 AIEngine interface" do
+    @tag :requires_llm
     test "processes explanation requests through unified interface" do
       request = %{
         type: :code_explanation,
@@ -425,7 +447,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       
       result = ExplanationEngine.process(request, context)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "handles malformed explanation requests" do
@@ -441,6 +463,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       assert {:error, _error_msg} = result
     end
     
+    @tag :requires_llm
     test "processes function explanation requests" do
       request = %{
         type: :code_explanation,
@@ -455,7 +478,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       
       result = ExplanationEngine.process(request, context)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "validates explanation context" do
@@ -496,6 +519,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
   end
   
   describe "caching and performance" do
+    @tag :requires_llm
     test "caches explanation results for identical requests" do
       code = "def simple(x), do: x * 2"
       
@@ -510,6 +534,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       assert match?({:ok, _} | {:error, _}, result2)
     end
     
+    @tag :requires_llm
     test "handles concurrent explanation requests" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
@@ -523,7 +548,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       # All should complete
       assert length(results) == 3
       Enum.each(results, fn result ->
-        assert match?({:ok, _} | {:error, _}, result)
+        assert match?({:ok, _}, result) or match?({:error, _}, result)
       end)
     end
   end
@@ -550,22 +575,25 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
   end
   
   describe "error handling" do
+    @tag :requires_llm
     test "handles invalid explanation types gracefully" do
       result = ExplanationEngine.explain_code(@sample_code, :detailed, :beginner)
       
       # Should work with valid parameters
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles very long code inputs" do
       long_code = String.duplicate(@sample_code, 100)
       
       result = ExplanationEngine.explain_code(long_code, :brief, :intermediate)
       
       # Should handle large inputs without crashing
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles special characters in code" do
       special_code = """
       defmodule Test do
@@ -576,7 +604,7 @@ defmodule Aiex.AI.Engines.ExplanationEngineTest do
       """
       
       result = ExplanationEngine.explain_code(special_code, :brief, :beginner)
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
   end
   

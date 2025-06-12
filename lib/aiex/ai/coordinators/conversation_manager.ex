@@ -18,7 +18,6 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
   @behaviour Aiex.AI.Behaviours.Assistant
   
   alias Aiex.AI.Coordinators.CodingAssistant
-  alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   alias Aiex.LLM.ModelCoordinator
   
@@ -509,7 +508,7 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
     end
   end
   
-  defp route_to_assistant(:coding_assistant, request, context, state) do
+  defp route_to_assistant(:coding_assistant, request, context, _state) do
     # Route to CodingAssistant
     case CodingAssistant.handle_request(request, context, %{}) do
       {:ok, response, _updated_context} ->
@@ -609,7 +608,7 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
     end
   end
   
-  defp generate_and_store_summary(conversation_id, conversation, state) do
+  defp generate_and_store_summary(conversation_id, _conversation, state) do
     case generate_conversation_summary(conversation_id, state) do
       {:ok, summary} ->
         updated_summaries = Map.put(state.conversation_summaries, conversation_id, summary)
@@ -719,7 +718,9 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
     conversation_id = Map.get(conversation_context, :conversation_id, generate_conversation_id())
     
     # Start conversation if it doesn't exist
-    unless Map.has_key?(state.conversations, conversation_id) do
+    state = if Map.has_key?(state.conversations, conversation_id) do
+      state
+    else
       conversation_type = determine_conversation_type(request)
       {:ok, _conversation, updated_state} = create_new_conversation(
         conversation_id, 
@@ -727,7 +728,7 @@ defmodule Aiex.AI.Coordinators.ConversationManager do
         Map.merge(conversation_context, project_context), 
         state
       )
-      state = updated_state
+      updated_state
     end
     
     # Process the message

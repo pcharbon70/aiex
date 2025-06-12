@@ -16,7 +16,6 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   alias Aiex.LLM.Templates.TemplateEngine
   alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
-  alias Aiex.Semantic.Chunker
   
   # Explanation types and detail levels supported
   @supported_types [
@@ -325,7 +324,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   end
   
   # Fallback to legacy prompt generation if template system fails
-  defp generate_legacy_explanation_prompt(code_content, context, project_context, state) do
+  defp generate_legacy_explanation_prompt(code_content, context, project_context, _state) do
     explanation_type = Map.get(context, :explanation_type, :code_explanation)
     detail_level = Map.get(context, :detail_level, :detailed)
     audience = Map.get(context, :audience, :intermediate)
@@ -422,7 +421,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
     """
   end
   
-  defp get_base_explanation_prompt(:pattern_explanation, detail_level, audience) do
+  defp get_base_explanation_prompt(:pattern_explanation, _detail_level, audience) do
     """
     Explain the design patterns and architectural concepts in this code for #{audience} developers.
     Focus on:
@@ -435,7 +434,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
     """
   end
   
-  defp get_base_explanation_prompt(:tutorial_explanation, detail_level, audience) do
+  defp get_base_explanation_prompt(:tutorial_explanation, _detail_level, audience) do
     """
     Create a step-by-step tutorial explanation of this code for #{audience} developers.
     Structure as:
@@ -448,7 +447,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
     """
   end
   
-  defp get_base_explanation_prompt(:architecture_explanation, detail_level, audience) do
+  defp get_base_explanation_prompt(:architecture_explanation, _detail_level, audience) do
     """
     Explain the high-level architecture and design of this code for #{audience} developers.
     Cover:
@@ -539,7 +538,7 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
     """
   end
   
-  defp post_process_explanation(llm_response, context, state) do
+  defp post_process_explanation(llm_response, context, _state) do
     # Clean up and structure the explanation
     cleaned_explanation = clean_explanation_text(llm_response)
     
@@ -708,7 +707,6 @@ defmodule Aiex.AI.Engines.ExplanationEngine do
   
   defp prepare_explanation_engine(options, state) do
     case ModelCoordinator.force_health_check() do
-      :ok -> {:ok, "healthy"}
       :ok ->
         # Load any custom templates or preferences
         updated_state = if Keyword.get(options, :reload_templates, false) do

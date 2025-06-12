@@ -107,6 +107,16 @@ This ensures the codebase remains consistent and dependencies are properly manag
 - **Comprehensive testing**: Test AI functionality, performance, and integration
 - **Never commit without approval**: Wait for explicit commit instructions
 
+### Elixir Code Quality Rules:
+
+- **Unused Variables**: ALWAYS prefix unused variables with underscore (`_`). This includes:
+  - Function parameters: `def process(_unused_param, data)`
+  - Pattern matches: `{:ok, _result} = call()` 
+  - Case clauses: `{:error, _reason} ->`
+  - Anonymous function args: `Enum.map(list, fn _item -> :ok end)`
+  - GenServer callbacks: `def handle_info(_msg, state)`
+- **Check Before Submitting**: Before finalizing any Elixir code, scan for variables that are defined but never used and ensure they start with `_`
+
 **IMPORTANT**: For Phase 4 TUI work, always integrate with existing `InterfaceGateway`, `Context.Manager`, and event sourcing system.
 
 

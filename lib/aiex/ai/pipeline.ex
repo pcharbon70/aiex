@@ -7,9 +7,9 @@ defmodule Aiex.AI.Pipeline do
   for complex workflows and analysis.
   """
 
-  alias Aiex.AI.Coordinators.{CodingAssistant, ConversationManager}
+  alias Aiex.AI.Coordinators.CodingAssistant
   alias Aiex.AI.WorkflowOrchestrator
-  alias Aiex.CLI.Commands.AI.{ProgressReporter, OutputFormatter}
+  alias Aiex.CLI.Commands.AI.ProgressReporter
 
   require Logger
 

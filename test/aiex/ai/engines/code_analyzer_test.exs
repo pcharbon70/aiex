@@ -47,13 +47,17 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
   end
   
   setup do
-    # Start the CodeAnalyzer for testing
-    {:ok, pid} = start_supervised({CodeAnalyzer, [session_id: "test_session"]})
-    
-    # Mock dependencies
-    # In a real test, we'd use Mox or similar for proper mocking
-    
-    %{analyzer_pid: pid}
+    # Check if CodeAnalyzer is already running
+    case Process.whereis(CodeAnalyzer) do
+      nil ->
+        # Start the CodeAnalyzer for testing if not already running
+        {:ok, pid} = start_supervised({CodeAnalyzer, [session_id: "test_session"]})
+        %{analyzer_pid: pid}
+      
+      pid ->
+        # Use the existing process
+        %{analyzer_pid: pid}
+    end
   end
   
   describe "CodeAnalyzer initialization" do
@@ -124,6 +128,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
     end
     """
     
+    @tag :requires_llm
     test "analyze_code/3 performs structure analysis", %{analyzer_pid: _pid} do
       # Mock the ModelCoordinator for this test
       # In practice, we'd use proper mocking libraries
@@ -132,23 +137,26 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       result = CodeAnalyzer.analyze_code(@sample_code, :structure_analysis)
       
       # Since we can't easily mock in this test, we'll test error handling
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "analyze_code/3 validates analysis type" do
       result = CodeAnalyzer.analyze_code(@sample_code, :invalid_analysis_type)
       
       # Should either work or return an appropriate error
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "analyze_code/3 handles empty code" do
       result = CodeAnalyzer.analyze_code("", :structure_analysis)
       
       # Should handle empty input gracefully
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "analyze_file/3 handles file operations" do
       # Create a temporary file for testing
       file_path = "/tmp/test_code_#{System.unique_integer()}.ex"
@@ -159,7 +167,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       # Clean up
       File.rm(file_path)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "analyze_file/3 handles missing files" do
@@ -171,6 +179,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
   end
   
   describe "caching functionality" do
+    @tag :requires_llm
     test "caches analysis results" do
       # This would test that identical analyses are cached
       # Implementation depends on the actual caching mechanism
@@ -183,12 +192,13 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       result2 = CodeAnalyzer.analyze_code(code, :structure_analysis)
       
       # Both should succeed (or both fail consistently)
-      assert match?({:ok, _} | {:error, _}, result1)
-      assert match?({:ok, _} | {:error, _}, result2)
+      assert match?({:ok, _}, result1) or match?({:error, _}, result1)
+      assert match?({:ok, _}, result2) or match?({:error, _}, result2)
     end
   end
   
   describe "project analysis" do
+    @tag :requires_llm
     test "analyze_project/3 handles directory analysis" do
       # Create a temporary directory with test files
       temp_dir = "/tmp/test_project_#{System.unique_integer()}"
@@ -203,7 +213,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       # Clean up
       File.rm_rf!(temp_dir)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "analyze_project/3 handles nonexistent directory" do
@@ -215,6 +225,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
   end
   
   describe "process/2 AIEngine interface" do
+    @tag :requires_llm
     test "processes analysis requests through unified interface" do
       request = %{
         type: :code_analysis,
@@ -230,7 +241,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       
       result = CodeAnalyzer.process(request, context)
       
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
     test "handles malformed requests" do
@@ -248,15 +259,17 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
   end
   
   describe "error handling and edge cases" do
+    @tag :requires_llm
     test "handles invalid Elixir code gracefully" do
       invalid_code = "this is not valid elixir code {"
       
       result = CodeAnalyzer.analyze_code(invalid_code, :structure_analysis)
       
       # Should handle syntax errors gracefully
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles very large code files" do
       # Generate a large code string
       large_code = String.duplicate(@sample_code, 100)
@@ -264,9 +277,10 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       result = CodeAnalyzer.analyze_code(large_code, :structure_analysis)
       
       # Should handle large inputs without crashing
-      assert match?({:ok, _} | {:error, _}, result)
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles concurrent analysis requests" do
       # Test multiple concurrent requests
       tasks = Enum.map(1..5, fn i ->
@@ -281,7 +295,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzerTest do
       # All should complete (successfully or with consistent errors)
       assert length(results) == 5
       Enum.each(results, fn result ->
-        assert match?({:ok, _} | {:error, _}, result)
+        assert match?({:ok, _}, result) or match?({:error, _}, result)
       end)
     end
   end

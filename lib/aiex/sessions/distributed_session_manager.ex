@@ -36,7 +36,7 @@ defmodule Aiex.Sessions.DistributedSessionManager do
   use GenServer
   require Logger
   
-  alias Aiex.Context.{SessionSupervisor, Session}
+  alias Aiex.Context.SessionSupervisor
   alias Aiex.Events.OTPEventBus
   
   @session_registry :session_registry

@@ -9,7 +9,6 @@ defmodule Aiex.CLI.Commands.Pipeline do
   @behaviour Aiex.CLI.Commands.CommandBehaviour
 
   alias Aiex.AI.Pipeline
-  alias Aiex.CLI.Commands.AI.OutputFormatter
 
   @impl true
   def execute({[:pipeline], %Optimus.ParseResult{options: options, flags: flags}}) do

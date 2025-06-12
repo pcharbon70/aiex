@@ -228,7 +228,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     end
   end
   
-  defp execute_analysis(code_content, analysis_type, options, state) do
+  defp execute_analysis(code_content, analysis_type, options, _state) do
     # Get project context for better analysis
     project_context = get_project_context(options)
     
@@ -255,12 +255,12 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     end
   end
   
-  defp perform_project_analysis(path, analysis_types, options, state) do
+  defp perform_project_analysis(path, analysis_types, options, _state) do
     # Use existing semantic chunker to process project files
     case Chunker.chunk_directory(path, options) do
       {:ok, file_chunks} ->
         results = Enum.map(analysis_types, fn analysis_type ->
-          analyze_project_chunks(file_chunks, analysis_type, options, state)
+          analyze_project_chunks(file_chunks, analysis_type, options, _state)
         end)
         
         # Combine and summarize results
@@ -272,9 +272,9 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     end
   end
   
-  defp analyze_project_chunks(file_chunks, analysis_type, options, state) do
+  defp analyze_project_chunks(file_chunks, analysis_type, options, _state) do
     chunk_results = Enum.map(file_chunks, fn chunk ->
-      case execute_analysis(chunk.content, analysis_type, options, state) do
+      case execute_analysis(chunk.content, analysis_type, options, _state) do
         {:ok, result} -> Map.put(result, :file_path, chunk.file_path)
         {:error, _} -> nil
       end
@@ -430,7 +430,7 @@ defmodule Aiex.AI.Engines.CodeAnalyzer do
     }
   end
   
-  defp get_project_context(options) do
+  defp get_project_context(_options) do
     # Leverage existing context management
     case ContextManager.get_context("default") do
       {:ok, context} -> context

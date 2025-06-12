@@ -12,7 +12,6 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   # Use minimal NIF for now (switch to LibvaxisNif when Vaxis is ready)
   alias Aiex.Tui.LibvaxisNifMinimal, as: LibvaxisNif
-  alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.LLM.ModelCoordinator
   alias Aiex.InterfaceGateway
   

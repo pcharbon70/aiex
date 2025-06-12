@@ -95,6 +95,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
     end
     """
     
+    @tag :requires_llm
     test "handle_coding_request/2 processes feature implementation requests" do
       request = %{
         intent: :implement_feature,
@@ -121,6 +122,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 processes bug fix requests" do
       request = %{
         intent: :fix_bug,
@@ -145,6 +147,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 processes refactoring requests" do
       request = %{
         intent: :refactor_code,
@@ -166,6 +169,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 processes code explanation requests" do
       request = %{
         intent: :explain_codebase,
@@ -187,6 +191,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 processes test generation requests" do
       request = %{
         intent: :generate_tests,
@@ -208,6 +213,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 handles code improvement requests" do
       request = %{
         intent: :improve_code,
@@ -219,6 +225,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 handles code review requests" do
       request = %{
         intent: :code_review,
@@ -230,6 +237,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 handles documentation generation requests" do
       request = %{
         intent: :generate_docs,
@@ -241,6 +249,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 with conversation context" do
       request = %{
         intent: :implement_feature,
@@ -257,6 +266,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handle_coding_request/2 infers workflow from description" do
       test_cases = [
         {%{description: "implement user authentication"}, :implement_feature},
@@ -351,6 +361,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
   end
   
   describe "handle_request/3 Assistant behavior" do
+    @tag :requires_llm
     test "processes requests through Assistant interface" do
       request = %{
         type: :coding_task,
@@ -384,6 +395,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "integrates project context into processing" do
       request = %{
         type: :coding_task,
@@ -405,6 +417,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
   end
   
   describe "workflow orchestration" do
+    @tag :requires_llm
     test "orchestrates multiple engines for feature implementation" do
       request = %{
         intent: :implement_feature,
@@ -436,6 +449,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "provides appropriate next steps for each workflow" do
       workflows_and_expected_steps = [
         {:implement_feature, ["Run the test suite", "Deploy to staging"]},
@@ -473,6 +487,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
   end
   
   describe "error handling and edge cases" do
+    @tag :requires_llm
     test "handles malformed requests gracefully" do
       malformed_requests = [
         %{},  # Empty request
@@ -488,6 +503,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end)
     end
     
+    @tag :requires_llm
     test "handles very large code inputs" do
       large_code = String.duplicate(@sample_code, 100)
       
@@ -502,6 +518,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles special characters and unicode" do
       unicode_code = """
       defmodule UnicodeModule do
@@ -525,6 +542,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
     
+    @tag :requires_llm
     test "handles concurrent requests safely" do
       tasks = Enum.map(1..3, fn i ->
         Task.async(fn ->
@@ -549,6 +567,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
   end
   
   describe "response quality and format" do
+    @tag :requires_llm
     test "response format includes all required fields" do
       request = %{
         intent: :implement_feature,
@@ -594,6 +613,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistantTest do
       end
     end
     
+    @tag :requires_llm
     test "responses are contextually appropriate" do
       test_cases = [
         {:implement_feature, "code", "Implementation"},

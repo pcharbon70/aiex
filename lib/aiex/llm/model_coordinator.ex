@@ -10,7 +10,6 @@ defmodule Aiex.LLM.ModelCoordinator do
   use GenServer
   require Logger
   alias Aiex.Context.Compressor
-  alias Aiex.Semantic.Chunker
 
   @pg_scope :llm_coordination
   @health_check_interval 30_000

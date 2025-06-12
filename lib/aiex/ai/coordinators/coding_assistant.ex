@@ -26,7 +26,6 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     TestGenerator
   }
   
-  alias Aiex.Context.Manager, as: ContextManager
   alias Aiex.Events.EventBus
   
   # Supported workflow types
@@ -644,7 +643,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     }
   end
   
-  defp identify_required_components(analysis) do
+  defp identify_required_components(_analysis) do
     # Identify what components need to be created
     [
       %{type: :module, name: "NewFeatureModule", purpose: "Main feature implementation"},
@@ -652,7 +651,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     ]
   end
   
-  defp identify_integration_points(analysis) do
+  defp identify_integration_points(_analysis) do
     # Find where the feature needs to integrate
     [
       %{module: "ExistingModule", function: "handle_request", integration_type: :call},
@@ -660,12 +659,12 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     ]
   end
   
-  defp infer_root_cause(quality_analysis, bug_analysis) do
+  defp infer_root_cause(_quality_analysis, _bug_analysis) do
     # Infer the root cause from analysis results
     "Type mismatch in pattern matching causing runtime error"
   end
   
-  defp identify_required_changes(root_cause) do
+  defp identify_required_changes(_root_cause) do
     # Determine what changes are needed
     [
       %{file: "lib/module.ex", line: 42, change: "Fix pattern matching"},
@@ -673,7 +672,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     ]
   end
   
-  defp assess_fix_risk(root_cause) do
+  defp assess_fix_risk(_root_cause) do
     # Assess the risk of the fix
     %{
       risk_level: :low,
@@ -682,12 +681,12 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     }
   end
   
-  defp extract_functional_requirements(description) do
+  defp extract_functional_requirements(_description) do
     # Extract functional requirements from description
     ["Process user input", "Validate data", "Return formatted response"]
   end
   
-  defp extract_non_functional_requirements(description) do
+  defp extract_non_functional_requirements(_description) do
     # Extract non-functional requirements
     ["Performance: < 100ms response time", "Security: Input validation required"]
   end
@@ -842,7 +841,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     "Generated #{Map.get(tests, :test_count, "multiple")} tests with #{tests.coverage}% estimated coverage"
   end
   
-  defp summarize_documentation(documentation) do
+  defp summarize_documentation(_documentation) do
     "Created comprehensive documentation explaining the feature implementation"
   end
   
@@ -859,11 +858,11 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     "Planned #{length(improvements)} improvements focusing on code quality and maintainability"
   end
   
-  defp summarize_refactoring_changes(refactored_code) do
+  defp summarize_refactoring_changes(_refactored_code) do
     "Refactored code with improved structure and readability"
   end
   
-  defp summarize_validation(validation) do
+  defp summarize_validation(_validation) do
     "All refactoring changes validated - functionality preserved"
   end
   
@@ -875,27 +874,27 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     diagrams.visualizations |> Enum.take(2) |> Enum.join("\n\n")
   end
   
-  defp summarize_unit_tests(unit_tests) do
+  defp summarize_unit_tests(_unit_tests) do
     "Generated comprehensive unit test suite"
   end
   
-  defp summarize_integration_tests(integration_tests) do
+  defp summarize_integration_tests(_integration_tests) do
     "Created integration tests for component interactions"
   end
   
-  defp summarize_test_data(test_data) do
+  defp summarize_test_data(_test_data) do
     "Generated test fixtures and data generators"
   end
   
-  defp summarize_improvements(improvements) do
+  defp summarize_improvements(_improvements) do
     "Identified opportunities for performance, readability, and maintainability improvements"
   end
   
-  defp summarize_improvement_implementation(implementation) do
+  defp summarize_improvement_implementation(_implementation) do
     "Successfully applied all recommended improvements"
   end
   
-  defp summarize_improvement_validation(validation) do
+  defp summarize_improvement_validation(_validation) do
     "Validated that improvements maintain correctness and enhance quality"
   end
   
@@ -903,23 +902,23 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     "Found #{length(issues.items || [])} code quality issues"
   end
   
-  defp summarize_suggestions(suggestions) do
+  defp summarize_suggestions(_suggestions) do
     "Provided actionable suggestions for code improvement"
   end
   
-  defp summarize_fixes(fixes) do
+  defp summarize_fixes(_fixes) do
     "Generated specific fixes for identified issues"
   end
   
-  defp summarize_api_docs(api_docs) do
+  defp summarize_api_docs(_api_docs) do
     "Created detailed API documentation for all public functions"
   end
   
-  defp summarize_doc_examples(examples) do
+  defp summarize_doc_examples(_examples) do
     "Added practical examples demonstrating usage patterns"
   end
   
-  defp summarize_readme(readme) do
+  defp summarize_readme(_readme) do
     "Generated comprehensive README with setup and usage instructions"
   end
   
@@ -1220,7 +1219,7 @@ defmodule Aiex.AI.Coordinators.CodingAssistant do
     }
   end
   
-  defp suggest_next_steps(workflow_type, result) do
+  defp suggest_next_steps(workflow_type, _result) do
     case workflow_type do
       :feature_implementation ->
         ["Run the test suite", "Deploy to staging", "Update documentation"]
