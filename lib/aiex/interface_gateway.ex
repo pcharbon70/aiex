@@ -547,13 +547,16 @@ defmodule Aiex.InterfaceGateway do
   defp route_to_llm_coordinator(request, request_info) do
     # Submit to ModelCoordinator asynchronously
     Task.start(fn ->
+      # Ensure options exist with defaults
+      options = Map.get(request, :options, %{})
+      
       llm_request = %{
         messages: [%{role: :user, content: request.content}],
-        model: request.options[:model],
-        temperature: request.options[:temperature]
+        model: options[:model],
+        temperature: options[:temperature]
       }
 
-      case ModelCoordinator.select_provider(llm_request, request.options) do
+      case ModelCoordinator.select_provider(llm_request, options) do
         {:ok, {provider, adapter}} ->
           # Simulate processing (in real implementation, would call LLM)
           :timer.sleep(100)

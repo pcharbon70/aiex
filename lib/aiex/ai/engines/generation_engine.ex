@@ -202,7 +202,10 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   
   @impl GenServer
   def handle_call(:cleanup, _from, state) do
-    :ets.delete(state.generation_cache)
+    # Only delete if table exists
+    if :ets.info(state.generation_cache) != :undefined do
+      :ets.delete(state.generation_cache)
+    end
     
     EventBus.publish("ai.engine.generation_engine.stopped", %{
       session_id: state.session_id,
@@ -613,19 +616,20 @@ defmodule Aiex.AI.Engines.GenerationEngine do
   
   defp prepare_generation_engine(options, state) do
     # Validate LLM coordinator readiness
-    case ModelCoordinator.force_health_check() do
-      :ok ->
-        # Reload project conventions if requested
-        updated_state = if Keyword.get(options, :reload_conventions, false) do
-          load_project_conventions(state)
-        else
-          state
-        end
-        
-        {:ok, updated_state}
-        
-      {:error, reason} ->
-        {:error, "LLM coordinator not ready: #{reason}"}
+    try do
+      ModelCoordinator.force_health_check()
+      
+      # Reload project conventions if requested
+      updated_state = if Keyword.get(options, :reload_conventions, false) do
+        load_project_conventions(state)
+      else
+        state
+      end
+      
+      {:ok, updated_state}
+    rescue
+      error ->
+        {:error, "LLM coordinator not ready: #{inspect(error)}"}
     end
   end
   

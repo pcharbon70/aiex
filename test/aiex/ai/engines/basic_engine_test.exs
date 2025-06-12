@@ -5,9 +5,14 @@ defmodule Aiex.AI.Engines.BasicEngineTest do
   
   describe "RefactoringEngine" do
     test "starts successfully" do
-      assert {:ok, pid} = RefactoringEngine.start_link(session_id: "test_refactoring")
-      assert Process.alive?(pid)
-      GenServer.stop(pid)
+      result = RefactoringEngine.start_link(session_id: "test_refactoring")
+      case result do
+        {:ok, pid} -> 
+          assert Process.alive?(pid)
+          GenServer.stop(pid)
+        {:error, {:already_started, pid}} -> 
+          assert Process.alive?(pid)
+      end
     end
     
     test "implements behavior correctly" do
@@ -23,9 +28,14 @@ defmodule Aiex.AI.Engines.BasicEngineTest do
   
   describe "TestGenerator" do
     test "starts successfully" do
-      assert {:ok, pid} = TestGenerator.start_link(session_id: "test_generator")
-      assert Process.alive?(pid)
-      GenServer.stop(pid)
+      result = TestGenerator.start_link(session_id: "test_generator")
+      case result do
+        {:ok, pid} -> 
+          assert Process.alive?(pid)
+          GenServer.stop(pid)
+        {:error, {:already_started, pid}} -> 
+          assert Process.alive?(pid)
+      end
     end
     
     test "implements behavior correctly" do

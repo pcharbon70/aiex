@@ -176,7 +176,7 @@ defmodule AiexWeb.ChatLiveTest do
       {:ok, _index_live, _html} = live(conn, "/")
 
       # Should have active conversations
-      conversations = ConversationManager.list_conversations()
+      {:ok, conversations} = ConversationManager.list_conversations()
       assert length(conversations) > 0
     end
   end
