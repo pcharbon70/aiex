@@ -173,6 +173,15 @@ defmodule Aiex do
 
         # Performance monitoring and optimization
         Aiex.Performance.Supervisor,
+        
+        # Telemetry and monitoring
+        Aiex.Telemetry.Supervisor,
+        
+        # Release management
+        Aiex.Release.Supervisor,
+        
+        # Developer tools and operational utilities
+        Aiex.DevTools.Supervisor,
 
         # Kubernetes production supervision (if in K8s)
         kubernetes_supervisor(),

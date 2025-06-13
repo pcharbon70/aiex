@@ -23,6 +23,22 @@ config :aiex,
     monitoring_enabled: System.get_env("PERFORMANCE_MONITORING_ENABLED", "true") == "true",
     dashboard_update_interval: String.to_integer(System.get_env("PERFORMANCE_DASHBOARD_UPDATE_INTERVAL", "5000")),
     benchmarking_enabled: System.get_env("BENCHMARKING_ENABLED", "true") == "true"
+  ],
+  telemetry: [
+    prometheus_enabled: System.get_env("PROMETHEUS_ENABLED", "true") == "true",
+    prometheus_port: String.to_integer(System.get_env("PROMETHEUS_PORT", "9090")),
+    tracing_enabled: System.get_env("TRACING_ENABLED", "true") == "true",
+    tracing_sampling_rate: String.to_float(System.get_env("TRACING_SAMPLING_RATE", "1.0")),
+    tracing_export_endpoint: System.get_env("TRACING_EXPORT_ENDPOINT"),
+    dashboard_enabled: System.get_env("DASHBOARD_ENABLED", "true") == "true",
+    dashboard_port: String.to_integer(System.get_env("DASHBOARD_PORT", "8080"))
+  ],
+  release: [
+    health_endpoint_enabled: System.get_env("HEALTH_ENDPOINT_ENABLED", "true") == "true",
+    health_port: String.to_integer(System.get_env("HEALTH_PORT", "8090")),
+    deployment_automation_enabled: System.get_env("DEPLOYMENT_AUTOMATION_ENABLED", "false") == "true",
+    auto_rollback_enabled: System.get_env("AUTO_ROLLBACK_ENABLED", "false") == "true",
+    deployment_timeout_ms: String.to_integer(System.get_env("DEPLOYMENT_TIMEOUT_MS", "300000"))
   ]
 
 # Kubernetes-specific configuration

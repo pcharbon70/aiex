@@ -108,6 +108,12 @@ config :aiex,
     max_concurrent_requests: 100,
     request_timeout: 60_000,
     event_buffer_size: 1000
+  ],
+  
+  # Developer tools configuration
+  dev_tools: [
+    enabled: true,
+    console_enabled: false  # Enable in dev/test environments
   ]
 
 # Import environment specific config. This must remain at the bottom

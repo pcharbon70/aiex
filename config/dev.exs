@@ -31,6 +31,12 @@ config :aiex,
       System.user_home!() <> "/projects"
     ],
     audit_log_enabled: true
+  ],
+  
+  # Enable developer tools in development
+  dev_tools: [
+    enabled: true,
+    console_enabled: true
   ]
 
 # Configure Phoenix for development
