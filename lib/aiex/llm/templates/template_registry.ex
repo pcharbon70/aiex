@@ -841,6 +841,37 @@ defmodule Aiex.LLM.Templates.TemplateRegistry do
   
   defp get_operation_template_conditions(_type), do: []
   
-  defp get_system_template_content(_type), do: "System template placeholder."
-  defp get_system_template_variables(_type), do: []
+  defp get_system_template_content(type) do
+    case type do
+      :error_handling ->
+        """
+        Handle the following error gracefully and provide helpful guidance:
+
+        ## Error Details
+        {{error_type}}: {{error_message}}
+
+        ## Context
+        {{error_context}}
+
+        ## User Request
+        {{user_request}}
+
+        Provide a clear explanation and suggest next steps.
+        """
+      _ -> "System template placeholder."
+    end
+  end
+  
+  defp get_system_template_variables(type) do
+    case type do
+      :error_handling ->
+        [
+          %{name: "error_type", type: :string, required: true},
+          %{name: "error_message", type: :string, required: true},
+          %{name: "error_context", type: :string, required: false},
+          %{name: "user_request", type: :string, required: false}
+        ]
+      _ -> []
+    end
+  end
 end
