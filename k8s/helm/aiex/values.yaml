@@ -1,0 +1,253 @@
+# Default values for aiex
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Image configuration
+image:
+  registry: docker.io
+  repository: aiex/aiex
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Deployment configuration
+replicaCount: 3
+
+# Cluster configuration
+cluster:
+  name: "aiex-cluster"
+  strategy: "kubernetes_dns"
+  serviceName: "aiex-headless"
+  erlangCookie: "aiex_cluster_cookie"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 4000
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: aiex.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Resource configuration
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+    ephemeral-storage: "1Gi"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+    ephemeral-storage: "2Gi"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  customMetrics:
+    - name: aiex_active_connections
+      targetAverageValue: 100
+    - name: aiex_request_rate
+      targetAverageValue: 50
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: "fast-ssd"
+  accessMode: ReadWriteMany
+  size: 10Gi
+  
+logs:
+  persistence:
+    enabled: true
+    storageClass: "standard"
+    accessMode: ReadWriteMany
+    size: 5Gi
+
+# Security configuration
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+podSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# RBAC
+rbac:
+  create: true
+  clusterRole: true
+
+# Network Policy
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    allowedNamespaces:
+      - ingress-nginx
+      - istio-system
+  egress:
+    enabled: true
+    allowExternal: true
+
+# Health checks
+healthChecks:
+  readiness:
+    enabled: true
+    port: 8080
+    path: "/health/ready"
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  
+  liveness:
+    enabled: true
+    port: 8081
+    path: "/health/alive"
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 3
+
+# Application configuration
+config:
+  # LLM providers
+  llm:
+    defaultProvider: "ollama"
+    distributedCoordination: true
+    providerAffinity: "local_preferred"
+  
+  # Performance monitoring
+  performance:
+    monitoringEnabled: true
+    dashboardUpdateInterval: 5000
+    benchmarkingEnabled: true
+  
+  # Database
+  database:
+    mnesia:
+      discCopies: true
+      ramCopies: false
+  
+  # Logging
+  logging:
+    level: "info"
+    structured: true
+  
+  # Security
+  security:
+    sandboxEnabled: true
+    auditLogging: true
+  
+  # Resource limits
+  resources:
+    maxConnections: 1000
+    maxProcesses: 32768
+    maxAtoms: 1048576
+
+# Environment variables
+env: []
+
+# Secrets
+secrets:
+  # LLM API keys (should be provided during deployment)
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  
+  # Database credentials (if using external database)
+  dbUsername: ""
+  dbPassword: ""
+  
+  # TLS certificates
+  tlsCert: ""
+  tlsKey: ""
+  
+  # JWT signing key
+  jwtSecret: ""
+  
+  # Encryption key
+  encryptionKey: ""
+
+# Pod scheduling
+affinity:
+  podAntiAffinity:
+    enabled: true
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: ["aiex"]
+          topologyKey: kubernetes.io/hostname
+
+nodeSelector: {}
+tolerations: []
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 8080
+    path: "/metrics"
+    scrapeInterval: "30s"
+  
+  grafana:
+    enabled: false
+    dashboards: []
+
+# Additional labels and annotations
+commonLabels: {}
+commonAnnotations: {}
+
+# Pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# Termination grace period
+terminationGracePeriodSeconds: 30
+
+# DNS configuration
+dnsPolicy: ClusterFirst
+dnsConfig:
+  options:
+    - name: ndots
+      value: "1"

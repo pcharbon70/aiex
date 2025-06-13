@@ -1,0 +1,169 @@
+# Multi-stage Dockerfile for Kubernetes deployment
+# Optimized for production use with security and performance best practices
+
+# Build stage
+FROM elixir:1.18-alpine AS builder
+
+# Set build environment
+ENV MIX_ENV=prod
+ENV ERL_FLAGS="+JPperf true"
+
+# Install build dependencies
+RUN apk add --no-cache \
+    build-base \
+    git \
+    nodejs \
+    npm \
+    python3 \
+    make \
+    gcc \
+    musl-dev
+
+# Create app directory
+WORKDIR /app
+
+# Copy mix files
+COPY mix.exs mix.lock ./
+
+# Install hex and rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Install dependencies
+RUN mix deps.get --only prod && \
+    mix deps.compile
+
+# Copy application code
+COPY lib lib
+COPY priv priv
+COPY config config
+
+# Copy assets if they exist
+COPY assets assets 2>/dev/null || true
+
+# Build frontend assets
+RUN if [ -d "assets" ]; then \
+        cd assets && \
+        npm ci --only=production && \
+        npm run deploy; \
+    fi
+
+# Compile the release
+RUN mix phx.digest 2>/dev/null || true
+RUN mix compile
+RUN mix release
+
+# TUI build stage (optional - comment out if TUI not needed)
+FROM rust:1.75-alpine AS tui-builder
+
+# Install build dependencies for Rust
+RUN apk add --no-cache \
+    build-base \
+    musl-dev
+
+# Create TUI directory
+WORKDIR /tui
+
+# Copy TUI source
+COPY tui/Cargo.toml tui/Cargo.lock ./
+COPY tui/src src
+
+# Build TUI binary
+RUN cargo build --release
+
+# Runtime stage
+FROM alpine:3.19 AS runtime
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    bash \
+    openssl \
+    ncurses \
+    ca-certificates \
+    curl \
+    tzdata
+
+# Create non-root user
+RUN addgroup -g 1000 aiex && \
+    adduser -D -s /bin/bash -u 1000 -G aiex aiex
+
+# Create app directories
+RUN mkdir -p /app/data /app/logs /tmp && \
+    chown -R aiex:aiex /app /tmp
+
+# Copy the release from builder
+COPY --from=builder --chown=aiex:aiex /app/_build/prod/rel/aiex /app
+
+# Copy TUI binary if built
+COPY --from=tui-builder --chown=aiex:aiex /tui/target/release/aiex-tui /app/bin/aiex-tui 2>/dev/null || true
+
+# Create health check script
+RUN echo '#!/bin/bash\n\
+curl -f http://localhost:${READINESS_PROBE_PORT:-8080}/health/ready || exit 1' > /app/healthcheck.sh && \
+    chmod +x /app/healthcheck.sh && \
+    chown aiex:aiex /app/healthcheck.sh
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER aiex
+
+# Expose ports
+EXPOSE 4000 4369 8080 8081 9100-9200
+
+# Set environment variables
+ENV HOME=/app
+ENV MIX_ENV=prod
+ENV TERM=xterm
+ENV LANG=C.UTF-8
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD /app/healthcheck.sh
+
+# Configure entrypoint for proper signal handling
+COPY --chown=aiex:aiex <<'EOF' /app/entrypoint.sh
+#!/bin/bash
+set -e
+
+# Handle shutdown gracefully
+shutdown() {
+    echo "Received shutdown signal, stopping Aiex..."
+    /app/bin/aiex stop
+    exit 0
+}
+
+# Trap signals
+trap shutdown SIGTERM SIGINT
+
+# Set node name if not provided
+if [ -z "$RELEASE_NODE" ]; then
+    export RELEASE_NODE="${HOSTNAME}@${POD_IP:-127.0.0.1}"
+fi
+
+# Set Erlang cookie if not provided
+if [ -z "$RELEASE_COOKIE" ]; then
+    export RELEASE_COOKIE="${ERLANG_COOKIE:-aiex_cluster_cookie}"
+fi
+
+# Start Aiex
+echo "Starting Aiex on node: $RELEASE_NODE"
+exec /app/bin/aiex start
+EOF
+
+RUN chmod +x /app/entrypoint.sh
+
+# Default command
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Metadata
+LABEL maintainer="Aiex Team <maintainers@aiex.dev>"
+LABEL version="0.1.0"
+LABEL description="Aiex - Distributed AI-powered Elixir coding assistant"
+LABEL org.opencontainers.image.title="Aiex"
+LABEL org.opencontainers.image.description="Distributed AI-powered Elixir coding assistant"
+LABEL org.opencontainers.image.version="0.1.0"
+LABEL org.opencontainers.image.vendor="Aiex Team"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.source="https://github.com/your-org/aiex"

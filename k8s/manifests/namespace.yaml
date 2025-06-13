@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aiex
+  labels:
+    name: aiex
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: aiex-platform
+    app.kubernetes.io/managed-by: kubectl
+  annotations:
+    description: "Aiex distributed AI-powered Elixir coding assistant"

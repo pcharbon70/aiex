@@ -1,0 +1,279 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aiex.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aiex.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "aiex.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "aiex.selectorLabels" . | nindent 8 }}
+        {{- with .Values.commonLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.commonAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "aiex.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+            - name: epmd
+              containerPort: 4369
+              protocol: TCP
+            - name: cluster-min
+              containerPort: 9100
+              protocol: TCP
+            - name: cluster-max
+              containerPort: 9200
+              protocol: TCP
+            {{- if .Values.healthChecks.readiness.enabled }}
+            - name: readiness
+              containerPort: {{ .Values.healthChecks.readiness.port }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.healthChecks.liveness.enabled }}
+            - name: liveness
+              containerPort: {{ .Values.healthChecks.liveness.port }}
+              protocol: TCP
+            {{- end }}
+            {{- if .Values.monitoring.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.monitoring.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          env:
+            # Pod identification
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            
+            # Kubernetes service discovery
+            - name: KUBERNETES_SERVICE_HOST
+              value: kubernetes.default.svc.cluster.local
+            - name: KUBERNETES_SERVICE_PORT
+              value: "443"
+            
+            # Erlang cluster configuration
+            - name: ERLANG_COOKIE
+              value: {{ .Values.cluster.erlangCookie | quote }}
+            - name: NODE_NAME
+              value: "$(HOSTNAME)@$(POD_IP)"
+            - name: RELEASE_NODE
+              value: "$(HOSTNAME)@$(POD_IP)"
+            
+            # Cluster configuration
+            - name: CLUSTER_NAME
+              value: {{ .Values.cluster.name | quote }}
+            - name: SERVICE_NAME
+              value: {{ .Values.cluster.serviceName | quote }}
+            - name: NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: PORT
+              value: "4000"
+            
+            {{- if .Values.healthChecks.readiness.enabled }}
+            - name: READINESS_PROBE_PORT
+              value: {{ .Values.healthChecks.readiness.port | quote }}
+            {{- end }}
+            {{- if .Values.healthChecks.liveness.enabled }}
+            - name: LIVENESS_PROBE_PORT
+              value: {{ .Values.healthChecks.liveness.port | quote }}
+            {{- end }}
+            
+            # Application configuration
+            - name: LLM_DEFAULT_PROVIDER
+              value: {{ .Values.config.llm.defaultProvider | quote }}
+            - name: LLM_DISTRIBUTED_COORDINATION
+              value: {{ .Values.config.llm.distributedCoordination | quote }}
+            - name: LLM_PROVIDER_AFFINITY
+              value: {{ .Values.config.llm.providerAffinity | quote }}
+            
+            - name: PERFORMANCE_MONITORING_ENABLED
+              value: {{ .Values.config.performance.monitoringEnabled | quote }}
+            - name: PERFORMANCE_DASHBOARD_UPDATE_INTERVAL
+              value: {{ .Values.config.performance.dashboardUpdateInterval | quote }}
+            - name: BENCHMARKING_ENABLED
+              value: {{ .Values.config.performance.benchmarkingEnabled | quote }}
+            
+            - name: LOG_LEVEL
+              value: {{ .Values.config.logging.level | quote }}
+            - name: STRUCTURED_LOGGING
+              value: {{ .Values.config.logging.structured | quote }}
+            
+            - name: SANDBOX_ENABLED
+              value: {{ .Values.config.security.sandboxEnabled | quote }}
+            - name: AUDIT_LOGGING
+              value: {{ .Values.config.security.auditLogging | quote }}
+            
+            # Resource limits
+            - name: MAX_CONNECTIONS
+              value: {{ .Values.config.resources.maxConnections | quote }}
+            - name: MAX_PROCESSES
+              value: {{ .Values.config.resources.maxProcesses | quote }}
+            - name: MAX_ATOMS
+              value: {{ .Values.config.resources.maxAtoms | quote }}
+            
+            # BEAM configuration
+            - name: ERL_MAX_PORTS
+              value: "65536"
+            - name: ERL_MAX_ETS_TABLES
+              value: "32768"
+            
+            # Secrets (if provided)
+            {{- if .Values.secrets.openaiApiKey }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aiex.secretName" . }}
+                  key: openai-api-key
+            {{- end }}
+            {{- if .Values.secrets.anthropicApiKey }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "aiex.secretName" . }}
+                  key: anthropic-api-key
+            {{- end }}
+            
+            # Additional environment variables
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          
+          {{- if .Values.healthChecks.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthChecks.readiness.path }}
+              port: readiness
+            initialDelaySeconds: {{ .Values.healthChecks.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthChecks.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthChecks.readiness.timeoutSeconds }}
+            successThreshold: 1
+            failureThreshold: {{ .Values.healthChecks.readiness.failureThreshold }}
+          {{- end }}
+          
+          {{- if .Values.healthChecks.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthChecks.liveness.path }}
+              port: liveness
+            initialDelaySeconds: {{ .Values.healthChecks.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthChecks.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthChecks.liveness.timeoutSeconds }}
+            successThreshold: 1
+            failureThreshold: {{ .Values.healthChecks.liveness.failureThreshold }}
+          {{- end }}
+          
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: /app/data
+            {{- end }}
+            {{- if .Values.logs.persistence.enabled }}
+            - name: logs
+              mountPath: /app/logs
+            {{- end }}
+      
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "aiex.fullname" . }}-data
+        {{- end }}
+        {{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ include "aiex.fullname" . }}-logs
+        {{- end }}
+      
+      {{- if .Values.affinity.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            {{- range .Values.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+            - weight: {{ .weight }}
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    {{- range .podAffinityTerm.labelSelector.matchExpressions }}
+                    - key: {{ .key }}
+                      operator: {{ .operator }}
+                      values:
+                        {{- toYaml .values | nindent 24 }}
+                    {{- end }}
+                topologyKey: {{ .podAffinityTerm.topologyKey }}
+            {{- end }}
+      {{- end }}
+      
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- with .Values.dnsConfig }}
+      dnsConfig:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

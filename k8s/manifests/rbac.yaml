@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aiex
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aiex-role
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: rbac
+rules:
+  # Pod discovery for cluster formation
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  
+  # Endpoint access for service discovery
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+  
+  # Service access for DNS resolution
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  
+  # ConfigMap access for dynamic configuration
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  
+  # Events for cluster coordination
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  
+  # Lease management for leader election (if needed)
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aiex-rolebinding
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: aiex
+    namespace: aiex
+roleRef:
+  kind: Role
+  name: aiex-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Cluster role for cross-namespace operations (if needed)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aiex-cluster-role
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: rbac
+rules:
+  # Node information for cluster topology
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  
+  # Metrics access
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aiex-cluster-rolebinding
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: aiex
+    namespace: aiex
+roleRef:
+  kind: ClusterRole
+  name: aiex-cluster-role
+  apiGroup: rbac.authorization.k8s.io

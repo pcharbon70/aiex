@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiex-service
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4000
+      protocol: TCP
+    - name: distributed
+      port: 4369
+      targetPort: 4369
+      protocol: TCP
+    - name: cluster-range
+      port: 9100
+      targetPort: 9100
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiex-headless
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: headless-service
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for cluster discovery
+  ports:
+    - name: http
+      port: 4000
+      targetPort: 4000
+      protocol: TCP
+    - name: epmd
+      port: 4369
+      targetPort: 4369
+      protocol: TCP
+    - name: cluster-min
+      port: 9100
+      targetPort: 9100
+      protocol: TCP
+    - name: cluster-max
+      port: 9200
+      targetPort: 9200
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+  publishNotReadyAddresses: true  # Important for cluster formation
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiex-metrics
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: metrics
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex

@@ -1,0 +1,234 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiex
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: aiex-platform
+    app.kubernetes.io/managed-by: kubectl
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aiex
+      app.kubernetes.io/instance: aiex
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aiex
+        app.kubernetes.io/instance: aiex
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/component: application
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: aiex
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: aiex
+          image: aiex:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+            - name: epmd
+              containerPort: 4369
+              protocol: TCP
+            - name: cluster-min
+              containerPort: 9100
+              protocol: TCP
+            - name: cluster-max
+              containerPort: 9200
+              protocol: TCP
+            - name: readiness
+              containerPort: 8080
+              protocol: TCP
+            - name: liveness
+              containerPort: 8081
+              protocol: TCP
+          env:
+            # Pod identification
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            
+            # Kubernetes service discovery
+            - name: KUBERNETES_SERVICE_HOST
+              value: kubernetes.default.svc.cluster.local
+            - name: KUBERNETES_SERVICE_PORT
+              value: "443"
+            
+            # Erlang cluster configuration
+            - name: ERLANG_COOKIE
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: ERLANG_COOKIE
+            - name: NODE_NAME
+              value: "$(HOSTNAME)@$(POD_IP)"
+            - name: RELEASE_NODE
+              value: "$(HOSTNAME)@$(POD_IP)"
+            
+            # Application configuration from ConfigMap
+            - name: CLUSTER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: CLUSTER_NAME
+            - name: SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: SERVICE_NAME
+            - name: NAMESPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: NAMESPACE
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: PORT
+            - name: READINESS_PROBE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: READINESS_PROBE_PORT
+            - name: LIVENESS_PROBE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: aiex-config
+                  key: LIVENESS_PROBE_PORT
+            
+            # LLM API keys from secrets
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aiex-secrets
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aiex-secrets
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            
+            # Resource limits for BEAM
+            - name: ERL_MAX_PORTS
+              value: "65536"
+            - name: ERL_MAX_ETS_TABLES
+              value: "32768"
+            
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+              ephemeral-storage: "1Gi"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+              ephemeral-storage: "2Gi"
+          
+          # Health checks
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: readiness
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          
+          livenessProbe:
+            httpGet:
+              path: /health/alive
+              port: liveness
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          
+          # Graceful shutdown
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
+          
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          
+          # Volume mounts
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: mnesia-data
+              mountPath: /app/data
+            - name: logs
+              mountPath: /app/logs
+      
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: mnesia-data
+          persistentVolumeClaim:
+            claimName: aiex-data
+      
+      # Pod scheduling
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values: ["aiex"]
+                topologyKey: kubernetes.io/hostname
+      
+      # Termination grace period
+      terminationGracePeriodSeconds: 30
+      
+      # DNS configuration for cluster discovery
+      dnsPolicy: ClusterFirst
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "1"

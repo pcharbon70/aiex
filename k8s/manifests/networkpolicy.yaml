@@ -1,0 +1,108 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: aiex-network-policy
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: aiex
+      app.kubernetes.io/instance: aiex
+  policyTypes:
+    - Ingress
+    - Egress
+  
+  ingress:
+    # Allow HTTP traffic from ingress controllers
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - namespaceSelector:
+            matchLabels:
+              name: istio-system
+      ports:
+        - protocol: TCP
+          port: 4000
+    
+    # Allow cluster communication between Aiex pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: aiex
+      ports:
+        - protocol: TCP
+          port: 4369  # EPMD
+        - protocol: TCP
+          port: 9100  # Cluster communication start
+        - protocol: TCP
+          port: 9200  # Cluster communication end
+    
+    # Allow monitoring systems
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+        - namespaceSelector:
+            matchLabels:
+              name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8080  # Metrics
+    
+    # Allow health checks from Kubernetes
+    - from: []  # Any source for health checks
+      ports:
+        - protocol: TCP
+          port: 8080  # Readiness probe
+        - protocol: TCP
+          port: 8081  # Liveness probe
+  
+  egress:
+    # Allow DNS resolution
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    
+    # Allow communication with Kubernetes API
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+      ports:
+        - protocol: TCP
+          port: 443
+    
+    # Allow cluster communication between Aiex pods
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: aiex
+      ports:
+        - protocol: TCP
+          port: 4369  # EPMD
+        - protocol: TCP
+          port: 9100  # Cluster communication start
+        - protocol: TCP
+          port: 9200  # Cluster communication end
+    
+    # Allow external LLM API access (adjust as needed)
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS for external APIs
+        - protocol: TCP
+          port: 11434  # Ollama default port
+    
+    # Allow NTP for time synchronization
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 123

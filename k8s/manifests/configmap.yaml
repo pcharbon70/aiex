@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aiex-config
+  namespace: aiex
+  labels:
+    app.kubernetes.io/name: aiex
+    app.kubernetes.io/instance: aiex
+    app.kubernetes.io/component: config
+data:
+  # Elixir/Erlang configuration
+  ERLANG_COOKIE: "aiex_cluster_cookie"
+  NODE_NAME_PREFIX: "aiex"
+  CLUSTER_NAME: "aiex-cluster"
+  
+  # Kubernetes cluster configuration
+  SERVICE_NAME: "aiex-headless"
+  NAMESPACE: "aiex"
+  CLUSTER_FORMATION_STRATEGY: "kubernetes_dns"
+  
+  # Application configuration
+  PORT: "4000"
+  READINESS_PROBE_PORT: "8080"
+  LIVENESS_PROBE_PORT: "8081"
+  
+  # LLM configuration
+  LLM_DEFAULT_PROVIDER: "ollama"
+  LLM_DISTRIBUTED_COORDINATION: "true"
+  LLM_PROVIDER_AFFINITY: "local_preferred"
+  
+  # Performance configuration
+  PERFORMANCE_MONITORING_ENABLED: "true"
+  PERFORMANCE_DASHBOARD_UPDATE_INTERVAL: "5000"
+  BENCHMARKING_ENABLED: "true"
+  
+  # Database configuration
+  MNESIA_DISC_COPIES: "true"
+  MNESIA_RAM_COPIES: "false"
+  
+  # Logging configuration
+  LOG_LEVEL: "info"
+  STRUCTURED_LOGGING: "true"
+  
+  # Security configuration
+  SANDBOX_ENABLED: "true"
+  AUDIT_LOGGING: "true"
+  
+  # Resource limits
+  MAX_CONNECTIONS: "1000"
+  MAX_PROCESSES: "32768"
+  MAX_ATOMS: "1048576"

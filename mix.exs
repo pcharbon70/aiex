@@ -75,6 +75,9 @@ defmodule Aiex.MixProject do
       {:recon, "~> 2.5"},
       {:benchee, "~> 1.3"},
       {:observer_cli, "~> 1.7"},
+      
+      # HTTP server for health probes
+      {:ranch, "~> 2.1"},
 
       # NATS messaging
       {:gnat, "~> 1.8"},

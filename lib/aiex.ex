@@ -174,6 +174,9 @@ defmodule Aiex do
         # Performance monitoring and optimization
         Aiex.Performance.Supervisor,
 
+        # Kubernetes production supervision (if in K8s)
+        kubernetes_supervisor(),
+
         # Phoenix PubSub
         {Phoenix.PubSub, name: Aiex.PubSub},
 
@@ -221,6 +224,29 @@ defmodule Aiex do
         require Logger
         Logger.debug("No cluster topologies configured - running in single-node mode")
         nil
+    end
+  end
+
+  defp kubernetes_supervisor do
+    # Only start Kubernetes supervisor if running in Kubernetes environment
+    kubernetes_indicators = [
+      System.get_env("KUBERNETES_SERVICE_HOST"),
+      System.get_env("KUBERNETES_SERVICE_PORT"),
+      System.get_env("POD_IP"),
+      System.get_env("POD_NAMESPACE")
+    ]
+    
+    # Consider it Kubernetes if we have at least 2 indicators
+    present_indicators = Enum.count(kubernetes_indicators, &(!is_nil(&1)))
+    
+    if present_indicators >= 2 do
+      require Logger
+      Logger.info("Kubernetes environment detected - starting production supervisor")
+      {Aiex.K8s.ProductionSupervisor, []}
+    else
+      require Logger
+      Logger.debug("Non-Kubernetes environment - skipping Kubernetes supervisor")
+      nil
     end
   end
 

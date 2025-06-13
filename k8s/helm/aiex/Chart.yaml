@@ -1,0 +1,22 @@
+apiVersion: v2
+name: aiex
+description: Aiex - Distributed AI-powered Elixir coding assistant
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/your-org/aiex
+sources:
+  - https://github.com/your-org/aiex
+maintainers:
+  - name: Aiex Team
+    email: maintainers@aiex.dev
+keywords:
+  - elixir
+  - ai
+  - coding-assistant
+  - distributed
+  - kubernetes
+annotations:
+  category: Development Tools
+  licenses: Apache-2.0
+dependencies: []
