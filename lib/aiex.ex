@@ -171,6 +171,9 @@ defmodule Aiex do
         Aiex.AI.Coordinators.CodingAssistant,
         Aiex.AI.Coordinators.ConversationManager,
 
+        # Performance monitoring and optimization
+        Aiex.Performance.Supervisor,
+
         # Phoenix PubSub
         {Phoenix.PubSub, name: Aiex.PubSub},
 

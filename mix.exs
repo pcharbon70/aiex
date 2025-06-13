@@ -71,6 +71,11 @@ defmodule Aiex.MixProject do
       {:libcluster, "~> 3.3", optional: true},
       {:syn, "~> 3.3"},
 
+      # Performance Monitoring & Optimization
+      {:recon, "~> 2.5"},
+      {:benchee, "~> 1.3"},
+      {:observer_cli, "~> 1.7"},
+
       # NATS messaging
       {:gnat, "~> 1.8"},
       {:msgpax, "~> 2.4"},
