@@ -10,8 +10,9 @@ defmodule Aiex.Tui.LibvaxisTui do
   use GenServer
   require Logger
   
-  # Use minimal NIF for now (switch to LibvaxisNif when Vaxis is ready)
-  alias Aiex.Tui.LibvaxisNifMinimal, as: LibvaxisNif
+  # Use full LibvaxisNif with Vaxis integration
+  alias Aiex.Tui.LibvaxisNif
+  alias Aiex.Tui.LayoutManager
   alias Aiex.LLM.ModelCoordinator
   alias Aiex.InterfaceGateway
   
@@ -25,10 +26,8 @@ defmodule Aiex.Tui.LibvaxisTui do
   
   @type state :: %{
     vaxis: term() | nil,
+    layout_manager: LayoutManager.t() | nil,
     messages: [message()],
-    input_buffer: String.t(),
-    cursor_pos: integer(),
-    focused_panel: :chat | :input | :context | :status,
     context: map(),
     status: map(),
     subscribers: [pid()],
@@ -118,20 +117,19 @@ defmodule Aiex.Tui.LibvaxisTui do
     end
     
     # Initialize state
+    # Initialize welcome message
+    welcome_message = %{
+      id: "welcome",
+      type: :system,
+      content: "🤖 Welcome to Aiex AI Assistant!\n\nI'm here to help you with coding, explanations, and analysis.",
+      timestamp: DateTime.utc_now(),
+      tokens: nil
+    }
+
     state = %{
       vaxis: nil,
-      messages: [
-        %{
-          id: "welcome",
-          type: :system,
-          content: "🤖 Welcome to Aiex AI Assistant!\n\nI'm here to help you with coding, explanations, and analysis.",
-          timestamp: DateTime.utc_now(),
-          tokens: nil
-        }
-      ],
-      input_buffer: "",
-      cursor_pos: 0,
-      focused_panel: :input,
+      layout_manager: nil,
+      messages: [welcome_message],
       context: %{},
       status: %{
         connected: false,
@@ -197,21 +195,37 @@ defmodule Aiex.Tui.LibvaxisTui do
   @impl true
   def handle_info(:init_vaxis, state) do
     case LibvaxisNif.init() do
-      {:ok, vaxis} ->
+      :ok ->
         Logger.info("Vaxis initialized successfully")
-        :ok = LibvaxisNif.start_event_loop(vaxis)
         
-        # Update status
-        state = put_in(state.status.connected, true)
-        state = %{state | vaxis: vaxis}
-        
-        # Initial render
-        render(state)
-        
-        # Get context
-        send(self(), :update_context)
-        
-        {:noreply, state}
+        case LibvaxisNif.start_event_loop() do
+          :ok ->
+            # Get terminal dimensions
+            {:ok, {width, height}} = LibvaxisNif.terminal_size()
+            
+            # Initialize layout manager
+            layout_manager = LayoutManager.init(width, height, %{
+              messages: state.messages,
+              connection_status: :connected,
+              project_context: state.context
+            })
+            
+            # Update status
+            state = put_in(state.status.connected, true)
+            state = %{state | vaxis: :initialized, layout_manager: layout_manager}
+            
+            # Initial render
+            render(state)
+            
+            # Get context
+            send(self(), :update_context)
+            
+            {:noreply, state}
+            
+          {:error, reason} ->
+            Logger.error("Failed to start event loop: #{inspect(reason)}")
+            {:noreply, state}
+        end
         
       {:error, reason} ->
         Logger.error("Failed to initialize Vaxis: #{inspect(reason)}")
@@ -399,13 +413,23 @@ defmodule Aiex.Tui.LibvaxisTui do
   end
   
   defp render(%{vaxis: nil} = state), do: state
+  defp render(%{vaxis: :initialized, layout_manager: nil} = state), do: state
+  defp render(%{vaxis: :initialized, layout_manager: layout_manager} = state) do
+    # Use layout manager for rendering
+    case LayoutManager.render(layout_manager) do
+      {:ok, _layout_state} -> state
+      {:error, reason} ->
+        Logger.warning("Layout render failed: #{inspect(reason)}, falling back to IO")
+        # Fallback to IO-based rendering
+        output = create_tui_display(state)
+        IO.write("\e[2J\e[H#{output}")
+        state
+    end
+  end
   defp render(state) do
-    # Create a simple multi-panel display using IO
+    # Fallback rendering for other states
     output = create_tui_display(state)
-    
-    # Clear screen and display
     IO.write("\e[2J\e[H#{output}")
-    
     state
   end
   
